@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { authService } from "../services/auth-service";
+import { testCaseService } from "../services/test-case-service";
 import "../styles/drag-handle.css";
 import {
   DndContext,
@@ -400,6 +401,8 @@ export function TestCaseForm({
   const [existingSuites, setExistingSuites] = useState<TestSuite[]>([]);
   const [isLoadingSuites, setIsLoadingSuites] = useState(false);
   const [isCreatingSuite, setIsCreatingSuite] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const isEditing = !!testCase;
 
@@ -457,6 +460,117 @@ export function TestCaseForm({
       console.error("Failed to create suite:", error);
     } finally {
       setIsCreatingSuite(false);
+    }
+  };
+
+  // Convert actions to steps format for API
+  const convertActionsToSteps = () => {
+    return actions.map((action, index) => {
+      // Build action_params from action properties
+      const actionParams: Record<string, any> = {};
+      if (action.url) actionParams.url = action.url;
+      if (action.selector) actionParams.selector = action.selector;
+      if (action.text) actionParams.text = action.text;
+      if (action.key) actionParams.key = action.key;
+      if (action.duration) actionParams.duration = action.duration;
+      if (action.direction) actionParams.direction = action.direction;
+      if (action.option) actionParams.option = action.option;
+      if (action.targetSelector) actionParams.targetSelector = action.targetSelector;
+
+      // Convert assertions
+      const assertions = (action.assertions || []).map((assertion) => ({
+        assertionType: assertion.type,
+        selector: assertion.selector || null,
+        expectedValue: assertion.value || null,
+        attribute: assertion.attribute || null,
+      }));
+
+      return {
+        stepOrder: index + 1,
+        actionType: action.type,
+        actionParams,
+        assertions,
+        customExpectedResult: action.customExpectedResult || null,
+      };
+    });
+  };
+
+  // Handle save test case
+  const handleSave = async () => {
+    // Validate required fields
+    if (!formData.title.trim()) {
+      setSaveError("Title is required");
+      return;
+    }
+    if (!formData.suite) {
+      setSaveError("Suite is required");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const steps = convertActionsToSteps();
+      
+      if (isEditing) {
+        // Update existing test case
+        await testCaseService.updateTestCase(testCase.id, {
+          title: formData.title,
+          suite: formData.suite,
+          priority: formData.priority,
+          caseType: formData.caseType,
+          automation: formData.automationStatus === "automated" ? "Automated" : "Manual",
+        });
+        
+        // Update steps separately using the new format
+        const token = authService.getAccessToken();
+        await fetch(`${API_URL}/test-cases/${testCase.id}/steps`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            preCondition: formData.preCondition || null,
+            postCondition: formData.postCondition || null,
+            steps,
+          }),
+        });
+      } else {
+        // Create new test case
+        const token = authService.getAccessToken();
+        const response = await fetch(`${API_URL}/test-cases`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: formData.title,
+            suite: formData.suite,
+            priority: formData.priority,
+            caseType: formData.caseType,
+            automation: formData.automationStatus === "automated" ? "Automated" : "Manual",
+            preCondition: formData.preCondition || null,
+            postCondition: formData.postCondition || null,
+            steps,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to create test case");
+        }
+      }
+
+      // Success - call the onSave callback
+      onSave();
+    } catch (error) {
+      console.error("Failed to save test case:", error);
+      setSaveError(error instanceof Error ? error.message : "Failed to save test case");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -567,7 +681,7 @@ export function TestCaseForm({
             type="text"
             value={action.url || ""}
             onChange={(e) => handleUpdateAction(action.id, { url: e.target.value })}
-            placeholder="https://example.com"
+            placeholder="URL (e.g. https://example.com) or relative path (e.g. /some-path)"
             className={`w-full ${inputClass}`}
           />
         );
@@ -873,14 +987,26 @@ export function TestCaseForm({
             Cancel
           </Button>
           <Button
-            onClick={onSave}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
           >
-            <Save className="w-4 h-4 mr-2" />
-            Save Test Case
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {isSaving ? "Menyimpan..." : "Save Test Case"}
           </Button>
         </div>
       </div>
+
+      {/* Save Error Message */}
+      {saveError && (
+        <div className="mx-0 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          {saveError}
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Form */}
