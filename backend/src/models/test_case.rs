@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -17,6 +18,8 @@ pub struct TestCase {
     pub page_load_avg: Option<String>,
     pub last_run: Option<String>,
     pub expected_outcome: Option<String>,
+    pub pre_condition: Option<String>,  // Rich text HTML
+    pub post_condition: Option<String>, // Rich text HTML
     pub tags: Vec<String>,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
@@ -28,10 +31,12 @@ pub struct TestStep {
     pub id: Uuid,
     pub test_case_id: Uuid,
     pub step_order: i32,
-    pub action: String,
-    pub target: Option<String>,
-    pub value: Option<String>,
-    pub description: Option<String>,
+    pub action_type: String,
+    pub action_params: JsonValue,
+    pub assertions: JsonValue,
+    pub custom_expected_result: Option<String>, // Rich text HTML
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize)]
@@ -71,6 +76,8 @@ pub struct TestCaseResponse {
     pub page_load_avg: Option<String>,
     pub last_run: Option<String>,
     pub expected_outcome: Option<String>,
+    pub pre_condition: Option<String>,
+    pub post_condition: Option<String>,
     pub tags: Vec<String>,
     pub steps: Vec<TestStepResponse>,
     pub created_by_id: String,
@@ -82,11 +89,12 @@ pub struct TestCaseResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestStepResponse {
+    pub id: String,
     pub step_order: i32,
-    pub action: String,
-    pub target: Option<String>,
-    pub value: Option<String>,
-    pub description: Option<String>,
+    pub action_type: String,
+    pub action_params: JsonValue,
+    pub assertions: JsonValue,
+    pub custom_expected_result: Option<String>,
 }
 
 impl TestCaseResponse {
@@ -103,13 +111,16 @@ impl TestCaseResponse {
             page_load_avg: tc.test_case.page_load_avg,
             last_run: tc.test_case.last_run,
             expected_outcome: tc.test_case.expected_outcome,
+            pre_condition: tc.test_case.pre_condition,
+            post_condition: tc.test_case.post_condition,
             tags: tc.test_case.tags,
             steps: tc.steps.into_iter().map(|s| TestStepResponse {
+                id: s.id.to_string(),
                 step_order: s.step_order,
-                action: s.action,
-                target: s.target,
-                value: s.value,
-                description: s.description,
+                action_type: s.action_type,
+                action_params: s.action_params,
+                assertions: s.assertions,
+                custom_expected_result: s.custom_expected_result,
             }).collect(),
             created_by_id: tc.test_case.created_by.to_string(),
             created_by_name: tc.created_by_name,
@@ -129,18 +140,21 @@ pub struct CreateTestCaseRequest {
     pub case_type: String,
     pub automation: String,
     pub expected_outcome: Option<String>,
+    pub pre_condition: Option<String>,
+    pub post_condition: Option<String>,
     pub tags: Option<Vec<String>>,
     pub steps: Option<Vec<CreateTestStepRequest>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateTestStepRequest {
+    pub id: Option<String>,  // Optional: for preserving frontend IDs
     pub step_order: i32,
-    pub action: String,
-    pub target: Option<String>,
-    pub value: Option<String>,
-    pub description: Option<String>,
+    pub action_type: String,
+    pub action_params: Option<JsonValue>,
+    pub assertions: Option<JsonValue>,
+    pub custom_expected_result: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -153,7 +167,10 @@ pub struct UpdateTestCaseRequest {
     pub case_type: Option<String>,
     pub automation: Option<String>,
     pub expected_outcome: Option<String>,
+    pub pre_condition: Option<String>,
+    pub post_condition: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub steps: Option<Vec<CreateTestStepRequest>>,
 }
 
 #[derive(Debug, Deserialize)]

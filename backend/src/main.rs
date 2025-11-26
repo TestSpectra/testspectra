@@ -11,7 +11,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use auth::JwtService;
 use config::Config;
-use handlers::{user::UserState, test_case::TestCaseState, test_suite::TestSuiteState};
+use handlers::{user::UserState, test_case::TestCaseState, test_suite::TestSuiteState, ActionDefinitionState};
+use axum::routing::get;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -53,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let user_state = UserState { db: db.clone(), jwt: jwt.clone() };
     let test_case_state = TestCaseState { db: db.clone(), jwt: jwt.clone() };
     let test_suite_state = TestSuiteState { db: db.clone(), jwt: jwt.clone() };
+    let action_def_state = ActionDefinitionState { pool: db.clone() };
 
     // CORS layer
     let cors = CorsLayer::new()
@@ -60,11 +62,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Build router
+    // Build router with definitions routes
+    let definitions_routes = Router::new()
+        .route("/definitions", get(handlers::get_definitions))
+        .route("/definitions/actions", get(handlers::get_action_definitions))
+        .route("/definitions/assertions", get(handlers::get_assertion_definitions))
+        .with_state(action_def_state);
+
     let app = Router::new()
         .nest("/api", handlers::user_routes(user_state))
         .nest("/api", handlers::test_case_routes(test_case_state))
         .nest("/api", handlers::test_suite_routes(test_suite_state))
+        .nest("/api", definitions_routes)
         .layer(cors);
 
     // Start server

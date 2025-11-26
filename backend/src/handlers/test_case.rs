@@ -219,8 +219,8 @@ async fn create_test_case(
     let test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, tags, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11)
+            last_status, expected_outcome, pre_condition, post_condition, tags, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13)
            RETURNING *"#
     )
     .bind(id)
@@ -232,6 +232,8 @@ async fn create_test_case(
     .bind(&payload.case_type)
     .bind(&payload.automation)
     .bind(&payload.expected_outcome)
+    .bind(&payload.pre_condition)
+    .bind(&payload.post_condition)
     .bind(&payload.tags.unwrap_or_default())
     .bind(user_uuid)
     .fetch_one(&state.db)
@@ -240,20 +242,24 @@ async fn create_test_case(
     // Insert steps if provided
     let mut steps = Vec::new();
     if let Some(step_data) = payload.steps {
-        for step in step_data {
+        for (order, step) in step_data.iter().enumerate() {
             let step_id = Uuid::new_v4();
+            let action_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+            let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
+            
             let inserted: TestStep = sqlx::query_as(
-                r#"INSERT INTO test_steps (id, test_case_id, step_order, action, target, value, description)
+                r#"INSERT INTO test_steps 
+                   (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
                    VALUES ($1, $2, $3, $4, $5, $6, $7)
                    RETURNING *"#
             )
             .bind(step_id)
             .bind(id)
-            .bind(step.step_order)
-            .bind(&step.action)
-            .bind(&step.target)
-            .bind(&step.value)
-            .bind(&step.description)
+            .bind((order + 1) as i32)  // Ensure ordering starts from 1
+            .bind(&step.action_type)
+            .bind(&action_params)
+            .bind(&assertions)
+            .bind(&step.custom_expected_result)
             .fetch_one(&state.db)
             .await?;
             steps.push(inserted);
@@ -291,9 +297,11 @@ async fn update_test_case(
            case_type = COALESCE($5, case_type),
            automation = COALESCE($6, automation),
            expected_outcome = COALESCE($7, expected_outcome),
-           tags = COALESCE($8, tags),
+           pre_condition = COALESCE($8, pre_condition),
+           post_condition = COALESCE($9, post_condition),
+           tags = COALESCE($10, tags),
            updated_at = NOW()
-           WHERE case_id = $9
+           WHERE case_id = $11
            RETURNING *"#
     )
     .bind(&payload.title)
@@ -303,18 +311,56 @@ async fn update_test_case(
     .bind(&payload.case_type)
     .bind(&payload.automation)
     .bind(&payload.expected_outcome)
+    .bind(&payload.pre_condition)
+    .bind(&payload.post_condition)
     .bind(&payload.tags)
     .bind(&case_id)
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
 
-    let steps: Vec<TestStep> = sqlx::query_as(
-        "SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order"
-    )
-    .bind(test_case.id)
-    .fetch_all(&state.db)
-    .await?;
+    // Update steps if provided - this replaces all existing steps
+    let steps = if let Some(step_data) = payload.steps {
+        // Delete existing steps
+        sqlx::query("DELETE FROM test_steps WHERE test_case_id = $1")
+            .bind(test_case.id)
+            .execute(&state.db)
+            .await?;
+
+        // Insert new steps with proper ordering
+        let mut new_steps = Vec::new();
+        for (order, step) in step_data.iter().enumerate() {
+            let step_id = Uuid::new_v4();
+            let action_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+            let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
+            
+            let inserted: TestStep = sqlx::query_as(
+                r#"INSERT INTO test_steps 
+                   (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)
+                   RETURNING *"#
+            )
+            .bind(step_id)
+            .bind(test_case.id)
+            .bind((order + 1) as i32)
+            .bind(&step.action_type)
+            .bind(&action_params)
+            .bind(&assertions)
+            .bind(&step.custom_expected_result)
+            .fetch_one(&state.db)
+            .await?;
+            new_steps.push(inserted);
+        }
+        new_steps
+    } else {
+        // Fetch existing steps
+        sqlx::query_as(
+            "SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order"
+        )
+        .bind(test_case.id)
+        .fetch_all(&state.db)
+        .await?
+    };
 
     let creator_name: Option<(String,)> = sqlx::query_as(
         "SELECT name FROM users WHERE id = $1"
@@ -352,22 +398,26 @@ async fn update_test_steps(
         .execute(&state.db)
         .await?;
 
-    // Insert new steps
+    // Insert new steps with proper ordering (use array index for step_order)
     let mut steps = Vec::new();
-    for step in payload.steps {
+    for (order, step) in payload.steps.iter().enumerate() {
         let step_id = Uuid::new_v4();
+        let action_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+        let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
+        
         let inserted: TestStep = sqlx::query_as(
-            r#"INSERT INTO test_steps (id, test_case_id, step_order, action, target, value, description)
+            r#"INSERT INTO test_steps 
+               (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
                VALUES ($1, $2, $3, $4, $5, $6, $7)
                RETURNING *"#
         )
         .bind(step_id)
         .bind(test_case.id)
-        .bind(step.step_order)
-        .bind(&step.action)
-        .bind(&step.target)
-        .bind(&step.value)
-        .bind(&step.description)
+        .bind((order + 1) as i32)  // Always use array index + 1 for ordering
+        .bind(&step.action_type)
+        .bind(&action_params)
+        .bind(&assertions)
+        .bind(&step.custom_expected_result)
         .fetch_one(&state.db)
         .await?;
         steps.push(inserted);

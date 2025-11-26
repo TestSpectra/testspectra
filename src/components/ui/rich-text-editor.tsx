@@ -1,4 +1,5 @@
 import { useEditor, EditorContent } from "@tiptap/react";
+import { useEffect } from "react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Bold, Italic, List, ListOrdered, Undo, Redo } from "lucide-react";
@@ -38,6 +39,25 @@ export function RichTextEditor({
       },
     },
   });
+
+  // Update editor content when value prop changes (for editing existing data)
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      // Only update if the value is actually different to avoid cursor jumps
+      const currentContent = editor.getHTML();
+      // Check if content is meaningfully different (ignore empty states)
+      const isValueEmpty = !value || value === "<p></p>";
+      const isEditorEmpty = !currentContent || currentContent === "<p></p>";
+      
+      if (isValueEmpty && isEditorEmpty) {
+        return; // Both empty, no need to update
+      }
+      
+      if (value !== currentContent) {
+        editor.commands.setContent(value || "", false);
+      }
+    }
+  }, [value, editor]);
 
   if (!editor) {
     return null;
