@@ -28,7 +28,7 @@ Script lokasi: `/tmp/create_sample_test_cases.sh`
 | `waitForElement` | TC-0006 | Wait for element to appear |
 | `pressKey` | TC-0007, TC-0009 | Press keyboard key |
 | `longPress` | TC-0007 | Long press/hold |
-| `doubleTap` | TC-0007 | Double click/tap |
+| `doubleClick` | TC-0007 | Double click/tap |
 | `hover` | TC-0006 | Hover over element |
 | `dragDrop` | TC-0008 | Drag and drop |
 | `back` | TC-0009 | Browser back button |
@@ -98,7 +98,7 @@ Script lokasi: `/tmp/create_sample_test_cases.sh`
 **Steps:** 8
 
 **Highlights:**
-- ✅ Mobile-specific actions (swipe, longPress, doubleTap)
+- ✅ Mobile-specific actions (swipe, longPress, doubleClick)
 - ✅ Mixed assertions (visibility, selection, viewport)
 - ✅ Rich text pre/post conditions
 
@@ -111,7 +111,7 @@ Script lokasi: `/tmp/create_sample_test_cases.sh`
 5. swipe → Open filter panel
 6. select → Filter by price
 7. longPress → Quick actions menu
-8. doubleTap → Add to favorites
+8. doubleClick → Add to favorites
 ```
 
 ---

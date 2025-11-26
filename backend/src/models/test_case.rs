@@ -59,6 +59,7 @@ pub struct TestCaseSummary {
     pub last_status: String,
     pub page_load_avg: Option<String>,
     pub last_run: Option<String>,
+    pub updated_at: DateTime<Utc>,
     pub created_by_name: Option<String>,
 }
 

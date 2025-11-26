@@ -110,7 +110,7 @@ function getDefaultDefinitions(): DefinitionsResponse {
       { id: '9', actionKey: 'waitForElement', label: 'Wait for Element', category: 'wait', platform: 'both', paramSchema: {}, isSystem: true, displayOrder: 31 },
       { id: '10', actionKey: 'pressKey', label: 'Press Key', category: 'interaction', platform: 'both', paramSchema: {}, isSystem: true, displayOrder: 18 },
       { id: '11', actionKey: 'longPress', label: 'Long Press / Hold', category: 'interaction', platform: 'both', paramSchema: {}, isSystem: true, displayOrder: 16 },
-      { id: '12', actionKey: 'doubleTap', label: 'Double Click / Tap', category: 'interaction', platform: 'both', paramSchema: {}, isSystem: true, displayOrder: 15 },
+      { id: '12', actionKey: 'doubleClick', label: 'Double Click / Tap', category: 'interaction', platform: 'both', paramSchema: {}, isSystem: true, displayOrder: 15 },
       { id: '13', actionKey: 'hover', label: 'Hover', category: 'interaction', platform: 'web', paramSchema: {}, isSystem: true, displayOrder: 14 },
       { id: '14', actionKey: 'dragDrop', label: 'Drag and Drop', category: 'interaction', platform: 'both', paramSchema: {}, isSystem: true, displayOrder: 17 },
       { id: '15', actionKey: 'back', label: 'Go Back', category: 'navigation', platform: 'both', paramSchema: {}, isSystem: true, displayOrder: 2 },

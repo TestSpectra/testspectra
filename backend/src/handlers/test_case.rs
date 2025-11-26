@@ -111,6 +111,7 @@ async fn list_test_cases(
             last_status: tc.last_status,
             page_load_avg: tc.page_load_avg,
             last_run: tc.last_run,
+            updated_at: tc.updated_at,
             created_by_name: tc.created_by_name,
         }).collect(),
         total,
@@ -133,6 +134,7 @@ struct TestCaseSummaryRow {
     last_status: String,
     page_load_avg: Option<String>,
     last_run: Option<String>,
+    updated_at: chrono::DateTime<chrono::Utc>,
     created_by_name: Option<String>,
 }
 

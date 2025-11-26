@@ -113,7 +113,7 @@ export function ManualTestResultForm({ testCaseId, onSave, onCancel }: ManualTes
         return `Press key ${params.key || '[Key]'}`;
       case 'longPress':
         return `Long press ${params.selector || '[Element]'}`;
-      case 'doubleTap':
+      case 'doubleClick':
         return `Double tap ${params.selector || '[Element]'}`;
       case 'hover':
         return `Hover over ${params.selector || '[Element]'}`;

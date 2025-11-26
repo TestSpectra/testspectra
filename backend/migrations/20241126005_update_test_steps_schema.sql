@@ -145,7 +145,7 @@ INSERT INTO action_definitions (action_key, label, category, platform, descripti
 ('clear', 'Clear Input', 'interaction', 'both', 'Clear text from input field', '{"required": ["selector"], "properties": {"selector": {"type": "string"}}}', 12),
 ('select', 'Select Option', 'interaction', 'both', 'Select an option from dropdown', '{"required": ["selector", "value"], "properties": {"selector": {"type": "string"}, "value": {"type": "string"}}}', 13),
 ('hover', 'Hover', 'interaction', 'web', 'Hover over an element', '{"required": ["selector"], "properties": {"selector": {"type": "string"}}}', 14),
-('doubleTap', 'Double Click / Tap', 'interaction', 'both', 'Double click or double tap', '{"required": ["selector"], "properties": {"selector": {"type": "string"}}}', 15),
+('doubleClick', 'Double Click / Tap', 'interaction', 'both', 'Double click or double tap', '{"required": ["selector"], "properties": {"selector": {"type": "string"}}}', 15),
 ('longPress', 'Long Press / Hold', 'interaction', 'both', 'Long press or hold on element', '{"required": ["selector"], "properties": {"selector": {"type": "string"}, "duration": {"type": "number", "default": 1000}}}', 16),
 ('dragDrop', 'Drag and Drop', 'interaction', 'both', 'Drag element to target', '{"required": ["sourceSelector", "targetSelector"], "properties": {"sourceSelector": {"type": "string"}, "targetSelector": {"type": "string"}}}', 17),
 ('pressKey', 'Press Key', 'interaction', 'both', 'Press a keyboard key', '{"required": ["key"], "properties": {"key": {"type": "string", "enum": ["Enter", "Tab", "Escape", "Backspace", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]}}}', 18),

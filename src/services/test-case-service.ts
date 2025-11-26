@@ -43,6 +43,7 @@ export interface TestCaseSummary {
   lastStatus: 'passed' | 'failed' | 'pending';
   pageLoadAvg?: string;
   lastRun?: string;
+  updatedAt: string;
   createdByName?: string;
 }
 

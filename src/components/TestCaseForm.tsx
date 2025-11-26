@@ -52,7 +52,7 @@ type ActionType =
   | "waitForElement"
   | "pressKey"
   | "longPress"
-  | "doubleTap"
+  | "doubleClick"
   | "hover"
   | "dragDrop"
   | "back"
@@ -121,7 +121,7 @@ const ACTION_DEFINITIONS: { value: ActionType; label: string; platform: "both" |
   { value: "waitForElement", label: "Wait for Element", platform: "both" },
   { value: "pressKey", label: "Press Key", platform: "both" },
   { value: "longPress", label: "Long Press / Hold", platform: "both" },
-  { value: "doubleTap", label: "Double Click / Tap", platform: "both" },
+  { value: "doubleClick", label: "Double Click / Tap", platform: "both" },
   { value: "hover", label: "Hover", platform: "web" },
   { value: "dragDrop", label: "Drag and Drop", platform: "both" },
   { value: "back", label: "Go Back", platform: "both" },
@@ -163,7 +163,7 @@ const ASSERTIONS_BY_ACTION: Record<ActionType, AssertionType[]> = {
   waitForElement: ["elementDisplayed", "elementExists", "elementClickable"],
   pressKey: ["elementDisplayed", "valueContains", "textContains", "urlContains"],
   longPress: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
-  doubleTap: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
+  doubleClick: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
   hover: ["elementDisplayed", "hasClass", "hasAttribute", "textContains"],
   dragDrop: ["elementDisplayed", "hasClass", "elementExists"],
   back: ["urlContains", "elementDisplayed", "titleContains"],
@@ -769,7 +769,7 @@ export function TestCaseForm({
         );
 
       case "click":
-      case "doubleTap":
+      case "doubleClick":
       case "longPress":
         return (
           <div className="grid grid-cols-2 gap-3">
@@ -1024,7 +1024,7 @@ export function TestCaseForm({
       waitForElement: "bg-amber-500/20 text-amber-400 border-amber-500/30",
       pressKey: "bg-lime-500/20 text-lime-400 border-lime-500/30",
       longPress: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-      doubleTap: "bg-violet-500/20 text-violet-400 border-violet-500/30",
+      doubleClick: "bg-violet-500/20 text-violet-400 border-violet-500/30",
       hover: "bg-sky-500/20 text-sky-400 border-sky-500/30",
       dragDrop: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
       back: "bg-gray-500/20 text-gray-400 border-gray-500/30",
