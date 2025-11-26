@@ -34,13 +34,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/auth/refresh", post(handlers::refresh_token))
         .route("/api/users", get(handlers::list_users))
         .route("/api/users", post(handlers::create_user))
+        .route("/api/users/me", get(handlers::get_current_user))
+        .route("/api/users/me/profile", put(handlers::update_my_profile))
         .route("/api/users/:id", get(handlers::get_user))
         .route("/api/users/:id", put(handlers::update_user))
         .route("/api/users/:id", delete(handlers::delete_user))
         .route("/api/users/:id/status", put(handlers::update_user_status))
         .route("/api/users/:id/permissions/grant", post(handlers::grant_permissions))
         .route("/api/users/:id/permissions/revoke", post(handlers::revoke_permissions))
-        .route("/api/users/me", get(handlers::get_current_user))
         .layer(cors)
         .with_state(grpc_url);
 

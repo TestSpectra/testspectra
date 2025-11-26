@@ -15,7 +15,7 @@ use proto::{
     user_service_client::UserServiceClient, CreateUserRequest, DeleteUserRequest,
     GetCurrentUserRequest, GetUserRequest, GrantSpecialPermissionsRequest, ListUsersRequest,
     LoginRequest, RefreshTokenRequest, RevokeSpecialPermissionsRequest, UpdateUserRequest,
-    UpdateUserStatusRequest,
+    UpdateUserStatusRequest, UpdateMyProfileRequest,
 };
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +36,8 @@ pub struct CreateUserPayload {
     email: String,
     password: String,
     role: String,
+    #[serde(rename = "specialPermissions")]
+    special_permissions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +46,8 @@ pub struct UpdateUserPayload {
     email: Option<String>,
     password: Option<String>,
     role: Option<String>,
+    #[serde(rename = "specialPermissions")]
+    special_permissions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -366,6 +370,12 @@ pub async fn create_user(
         email: payload.email,
         password: payload.password,
         role: role_to_proto(&payload.role),
+        special_permissions: payload
+            .special_permissions
+            .unwrap_or_default()
+            .iter()
+            .map(|p| permission_to_proto(p))
+            .collect(),
     });
 
     let response = client.create_user(request).await.map_err(|e| {
@@ -456,6 +466,10 @@ pub async fn update_user(
         email: payload.email,
         password: payload.password,
         role: payload.role.map(|r| role_to_proto(&r)),
+        special_permissions: payload
+            .special_permissions
+            .map(|p| p.iter().map(|s| permission_to_proto(s)).collect())
+            .unwrap_or_default(),
     });
 
     let response = client.update_user(request).await.map_err(|e| {
@@ -665,6 +679,56 @@ pub async fn revoke_permissions(
                 }),
             )
         })?;
+
+    let user = response.into_inner().user.unwrap();
+
+    Ok(Json(user_to_json(&user)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateMyProfilePayload {
+    name: Option<String>,
+}
+
+pub async fn update_my_profile(
+    State(grpc_url): State<String>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<UpdateMyProfilePayload>,
+) -> Result<Json<Value>, (StatusCode, Json<ErrorResponse>)> {
+    let token = extract_token(&headers).map_err(|_| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse {
+                error: "Missing or invalid authorization header".to_string(),
+            }),
+        )
+    })?;
+
+    let mut client = UserServiceClient::connect(grpc_url)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(ErrorResponse {
+                    error: format!("Failed to connect to service: {}", e),
+                }),
+            )
+        })?;
+
+    // Directly call the new UpdateMyProfile RPC which validates the user on the server side
+    let update_request = Request::new(UpdateMyProfileRequest {
+        token,
+        name: payload.name,
+    });
+
+    let response = client.update_my_profile(update_request).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Failed to update profile: {}", e.message()),
+            }),
+        )
+    })?;
 
     let user = response.into_inner().user.unwrap();
 

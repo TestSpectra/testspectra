@@ -1,14 +1,10 @@
 /**
  * gRPC Client for TestSpectra Backend Services
  * 
- * This client uses Tauri's HTTP client to communicate with gRPC services.
- * Since gRPC-web is not natively supported in browsers, we use Tauri's invoke
- * to make gRPC calls from the Rust backend.
+ * This client communicates with the gRPC proxy which converts HTTP/REST to gRPC calls.
  */
 
-import { invoke } from '@tauri-apps/api/core';
-
-const GRPC_SERVER_URL = 'http://localhost:50051';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3002/api';
 
 export interface User {
   id: string;
@@ -41,6 +37,7 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   role: string;
+  specialPermissions?: string[];
 }
 
 export interface UpdateUserRequest {
@@ -50,6 +47,13 @@ export interface UpdateUserRequest {
   email?: string;
   password?: string;
   role?: string;
+  status?: string;
+  specialPermissions?: string[];
+}
+
+export interface UpdateMyProfileRequest {
+  token: string;
+  name?: string;
 }
 
 export interface ListUsersRequest {
@@ -98,10 +102,30 @@ export const PERMISSIONS = {
  * User Service Client
  */
 export class UserServiceClient {
-  private serverUrl: string;
+  private apiUrl: string;
 
-  constructor(serverUrl: string = GRPC_SERVER_URL) {
-    this.serverUrl = serverUrl;
+  constructor(apiUrl: string = API_URL) {
+    this.apiUrl = apiUrl;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const response = await fetch(`${this.apiUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    return response.json();
   }
 
   /**
@@ -109,12 +133,10 @@ export class UserServiceClient {
    */
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await invoke<LoginResponse>('grpc_login', {
-        serverUrl: this.serverUrl,
-        email,
-        password,
+      return await this.request<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
       });
-      return response;
     } catch (error) {
       console.error('Login failed:', error);
       throw new Error('Login failed. Please check your credentials.');
@@ -126,11 +148,11 @@ export class UserServiceClient {
    */
   async getCurrentUser(token: string): Promise<User> {
     try {
-      const response = await invoke<{ user: User }>('grpc_get_current_user', {
-        serverUrl: this.serverUrl,
-        token,
+      return await this.request<User>('/users/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-      return response.user;
     } catch (error) {
       console.error('Get current user failed:', error);
       throw new Error('Failed to get current user.');
@@ -142,11 +164,19 @@ export class UserServiceClient {
    */
   async listUsers(request: ListUsersRequest): Promise<ListUsersResponse> {
     try {
-      const response = await invoke<ListUsersResponse>('grpc_list_users', {
-        serverUrl: this.serverUrl,
-        ...request,
+      const { token, ...params } = request;
+      const queryString = new URLSearchParams({
+        page: params.page.toString(),
+        pageSize: params.pageSize.toString(),
+        ...(params.roleFilter && { roleFilter: params.roleFilter }),
+        ...(params.statusFilter && { statusFilter: params.statusFilter }),
+      }).toString();
+
+      return await this.request<ListUsersResponse>(`/users?${queryString}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-      return response;
     } catch (error) {
       console.error('List users failed:', error);
       throw new Error('Failed to list users.');
@@ -158,11 +188,14 @@ export class UserServiceClient {
    */
   async createUser(request: CreateUserRequest): Promise<User> {
     try {
-      const response = await invoke<{ user: User }>('grpc_create_user', {
-        serverUrl: this.serverUrl,
-        ...request,
+      const { token, ...payload } = request;
+      return await this.request<User>('/users', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       });
-      return response.user;
     } catch (error) {
       console.error('Create user failed:', error);
       throw new Error('Failed to create user.');
@@ -174,14 +207,36 @@ export class UserServiceClient {
    */
   async updateUser(request: UpdateUserRequest): Promise<User> {
     try {
-      const response = await invoke<{ user: User }>('grpc_update_user', {
-        serverUrl: this.serverUrl,
-        ...request,
+      const { token, userId, ...payload } = request;
+      return await this.request<User>(`/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       });
-      return response.user;
     } catch (error) {
       console.error('Update user failed:', error);
       throw new Error('Failed to update user.');
+    }
+  }
+
+  /**
+   * Update current user's profile (name only)
+   */
+  async updateMyProfile(request: UpdateMyProfileRequest): Promise<User> {
+    try {
+      const { token, ...payload } = request;
+      return await this.request<User>(`/users/me/profile`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error('Update profile failed:', error);
+      throw new Error('Failed to update profile.');
     }
   }
 
@@ -190,10 +245,11 @@ export class UserServiceClient {
    */
   async deleteUser(token: string, userId: string): Promise<void> {
     try {
-      await invoke('grpc_delete_user', {
-        serverUrl: this.serverUrl,
-        token,
-        userId,
+      await this.request<void>(`/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
     } catch (error) {
       console.error('Delete user failed:', error);
@@ -207,16 +263,16 @@ export class UserServiceClient {
   async updateUserStatus(
     token: string,
     userId: string,
-    status: 'active' | 'inactive'
+    status: string
   ): Promise<User> {
     try {
-      const response = await invoke<{ user: User }>('grpc_update_user_status', {
-        serverUrl: this.serverUrl,
-        token,
-        userId,
-        status,
+      return await this.request<User>(`/users/${userId}/status`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
       });
-      return response.user;
     } catch (error) {
       console.error('Update user status failed:', error);
       throw new Error('Failed to update user status.');
@@ -232,13 +288,13 @@ export class UserServiceClient {
     permissions: string[]
   ): Promise<User> {
     try {
-      const response = await invoke<{ user: User }>('grpc_grant_special_permissions', {
-        serverUrl: this.serverUrl,
-        token,
-        userId,
-        permissions,
+      return await this.request<User>(`/users/${userId}/permissions/grant`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ permissions }),
       });
-      return response.user;
     } catch (error) {
       console.error('Grant special permissions failed:', error);
       throw new Error('Failed to grant special permissions.');
@@ -254,13 +310,13 @@ export class UserServiceClient {
     permissions: string[]
   ): Promise<User> {
     try {
-      const response = await invoke<{ user: User }>('grpc_revoke_special_permissions', {
-        serverUrl: this.serverUrl,
-        token,
-        userId,
-        permissions,
+      return await this.request<User>(`/users/${userId}/permissions/revoke`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ permissions }),
       });
-      return response.user;
     } catch (error) {
       console.error('Revoke special permissions failed:', error);
       throw new Error('Failed to revoke special permissions.');
@@ -272,14 +328,10 @@ export class UserServiceClient {
    */
   async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     try {
-      const response = await invoke<{ accessToken: string; refreshToken: string }>(
-        'grpc_refresh_token',
-        {
-          serverUrl: this.serverUrl,
-          refreshToken,
-        }
-      );
-      return response;
+      return await this.request<{ accessToken: string; refreshToken: string }>('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      });
     } catch (error) {
       console.error('Refresh token failed:', error);
       throw new Error('Failed to refresh token.');

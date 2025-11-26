@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Dashboard } from './components/Dashboard';
 import { TestCasesList } from './components/TestCasesList';
 import { TestCaseForm } from './components/TestCaseForm';
@@ -6,128 +7,84 @@ import { TestCaseDetail } from './components/TestCaseDetail';
 import { TestReport } from './components/TestReport';
 import { Configuration } from './components/Configuration';
 import { Tools } from './components/Tools';
-import { Sidebar } from './components/Sidebar';
 import { RunsHistory } from './components/RunsHistory';
 import { ManualTestResultForm } from './components/ManualTestResultForm';
 import { UserManagement } from './components/UserManagement';
 import { LoginPage } from './components/LoginPage';
 import { AccountPage } from './components/AccountPage';
-import { getTestCaseDetail, enrichTestCase } from './data/mockTestCases';
+import { getTestCaseDetail } from './data/mockTestCases';
 import { authService } from './services/auth-service';
+import { Layout } from './components/Layout';
+import { userServiceClient } from './services/grpc-client';
 
-type View = 'dashboard' | 'test-cases' | 'test-case-form' | 'test-case-detail' | 'runs-history' | 'configuration' | 'tools' | 'test-report' | 'manual-test-result' | 'user-management' | 'account';
-
-// Mock users database
-const MOCK_USERS = [
-  {
-    id: '1',
-    name: 'Ahmad Rizki',
-    email: 'ahmad.rizki@company.com',
-    role: 'admin' as const,
-    status: 'active' as const,
-    joinedDate: '2024-01-15',
-    lastActive: '2 hours ago',
-    gitUsername: 'ahmad.rizki',
-    gitEmail: 'ahmad.rizki@company.com',
-    basePermissions: [
-      'Manage users and roles',
-      'Full access to all test cases',
-      'Execute all tests',
-      'View and export all reports',
-      'Manage configurations',
-      'Manage integrations (Git, Jira, etc)',
-    ],
-    specialPermissions: [],
-  },
-  {
-    id: '2',
-    name: 'Siti Nurhaliza',
-    email: 'siti.nurhaliza@company.com',
-    role: 'qa_lead' as const,
-    status: 'active' as const,
-    joinedDate: '2024-02-01',
-    lastActive: '1 day ago',
-    gitUsername: 'siti.nurhaliza',
-    gitEmail: 'siti.nurhaliza@company.com',
-    basePermissions: [
-      'Manage QA team members',
-      'Full access to test cases',
-      'Execute all tests',
-      'View and export all reports',
-      'Manage test configurations',
-      'Review and approve test cases',
-    ],
-    specialPermissions: [],
-  },
-  {
-    id: '3',
-    name: 'Budi Santoso',
-    email: 'budi.santoso@company.com',
-    role: 'qa_engineer' as const,
-    status: 'active' as const,
-    joinedDate: '2024-03-10',
-    lastActive: '3 hours ago',
-    gitUsername: 'budi.santoso',
-    gitEmail: 'budi.santoso@company.com',
-    basePermissions: [
-      'Create and edit test cases',
-      'Execute manual and automated tests',
-      'Record test results',
-      'View test reports',
-      'Access test configurations',
-    ],
-    specialPermissions: [],
-  },
-  {
-    id: '5',
-    name: 'Eko Prasetyo',
-    email: 'eko.prasetyo@company.com',
-    role: 'developer' as const,
-    status: 'active' as const,
-    joinedDate: '2024-02-20',
-    lastActive: '1 hour ago',
-    gitUsername: 'eko.prasetyo',
-    gitEmail: 'eko.prasetyo@company.com',
-    basePermissions: [
-      'View test cases',
-      'Execute automated tests',
-      'View test results and reports',
-      'Access API test configurations',
-    ],
-    specialPermissions: [
-      'Manage QA team members',
-      'Review and approve test cases',
-      'Manage test configurations',
-    ],
-  },
-];
-
-export default function App() {
+function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedTestCase, setSelectedTestCase] = useState<any>(null);
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [historyFilter, setHistoryFilter] = useState<string | null>(null);
-  const [previousView, setPreviousView] = useState<View>('test-cases'); // Track where user came from
-  const mainContentRef = useRef<HTMLDivElement>(null);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Auto-scroll to top when view changes
-  useEffect(() => {
-    if (mainContentRef.current) {
-      mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+  // Determine current view for Sidebar highlighting
+  const getCurrentView = () => {
+     const path = location.pathname;
+     if (path === '/' || path === '/dashboard') return 'dashboard';
+     if (path.startsWith('/test-cases')) return 'test-cases';
+     if (path.startsWith('/runs-history')) return 'runs-history';
+     if (path.startsWith('/configuration')) return 'configuration';
+     if (path.startsWith('/tools')) return 'tools';
+     if (path.startsWith('/users')) return 'user-management';
+     if (path.startsWith('/account')) return 'account';
+     return 'dashboard';
+  };
+
+  const currentView = getCurrentView();
+
+  // Function to load current user data from API
+  const loadCurrentUser = async () => {
+    try {
+      const token = authService.getAccessToken();
+      if (!token) return false;
+      
+      const user = await userServiceClient.getCurrentUser(token);
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      return true;
+    } catch (error) {
+      console.error('Failed to load current user:', error);
+      return false;
     }
-  }, [currentView]);
-
-  // Check if user is already authenticated on app load
+  };
+  
+  // Check auth on load
   useEffect(() => {
-    if (authService.isAuthenticated()) {
-      const user = authService.getCurrentUser();
-      if (user) {
-        setCurrentUser(user);
-        setIsAuthenticated(true);
+    const checkAuth = async () => {
+      if (authService.isAuthenticated()) {
+        // Try to load fresh data from API first
+        const success = await loadCurrentUser();
+        
+        // If API call fails, use cached data
+        if (!success) {
+          const user = authService.getCurrentUser();
+          if (user) {
+            setCurrentUser(user);
+            setIsAuthenticated(true);
+          }
+        }
+        
+        // If we're at login page but authenticated, go to dashboard
+        if (location.pathname === '/login') {
+          navigate('/');
+        }
+      } else if (location.pathname !== '/login') {
+        // Redirect to login if not authenticated
+        navigate('/login');
       }
-    }
+    };
+    
+    checkAuth();
   }, []);
 
   const handleLogin = async (email: string, password: string) => {
@@ -135,7 +92,7 @@ export default function App() {
       const response = await authService.login(email, password);
       setCurrentUser(response.user);
       setIsAuthenticated(true);
-      setCurrentView('dashboard');
+      navigate('/');
       return true;
     } catch (error) {
       console.error('Login failed:', error);
@@ -147,49 +104,69 @@ export default function App() {
     authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
-    setCurrentView('dashboard');
+    navigate('/login');
   };
 
-  const handleUpdateProfile = (data: any) => {
-    setCurrentUser({ ...currentUser, ...data });
-  };
-
-  const handleViewChange = (view: View) => {
-    setCurrentView(view);
-    // Don't clear selectedTestCase if going back to detail view or manual test result
-    if (view !== 'test-case-form' && view !== 'test-case-detail' && view !== 'manual-test-result') {
-      setSelectedTestCase(null);
+  const handleUpdateProfile = async (data: any) => {
+    try {
+      const token = authService.getAccessToken();
+      if (!token || !currentUser) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Call API to update profile (only name, email cannot be changed)
+      const updatedUser = await userServiceClient.updateMyProfile({
+        token,
+        name: data.name
+      });
+      
+      // Update local storage
+      authService.updateUserData({ name: data.name });
+      
+      // Reload user data from API to ensure we have the latest
+      await loadCurrentUser();
+      
+      return updatedUser;
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      throw error;
     }
-    if (view !== 'test-report') {
-      setSelectedReport(null);
-    }
   };
 
+  const handleViewChange = (view: string) => {
+      switch(view) {
+          case 'dashboard': navigate('/'); break;
+          case 'test-cases': navigate('/test-cases'); break;
+          case 'runs-history': navigate('/runs-history'); break;
+          case 'configuration': navigate('/configuration'); break;
+          case 'tools': navigate('/tools'); break;
+          case 'user-management': navigate('/users'); break;
+          case 'account': navigate('/account'); break;
+      }
+  };
+
+  // Navigation Handlers
   const handleCreateTestCase = () => {
     setSelectedTestCase(null);
-    setPreviousView('test-cases'); // Always from list when creating
-    setCurrentView('test-case-form');
+    navigate('/test-cases/new');
   };
 
   const handleEditTestCase = (testCase: any) => {
     setSelectedTestCase(testCase);
-    setPreviousView(currentView); // Remember current view (could be 'test-cases' or 'test-case-detail')
-    setCurrentView('test-case-form');
+    navigate('/test-cases/edit');
   };
 
   const handleViewReport = (report: any) => {
     setSelectedReport(report);
-    setPreviousView(currentView); // Remember where we came from
-    setCurrentView('test-report');
+    navigate('/reports/view');
   };
 
   const handleViewHistory = (testCaseId?: string) => {
     setHistoryFilter(testCaseId || null);
-    setCurrentView('runs-history');
+    navigate('/runs-history');
   };
 
   const handleViewDetail = (testCaseIdOrObject: any) => {
-    // If called from Dashboard with just ID string, fetch full data
     let testCaseData;
     if (typeof testCaseIdOrObject === 'string') {
       testCaseData = getTestCaseDetail(testCaseIdOrObject);
@@ -198,115 +175,113 @@ export default function App() {
         return;
       }
     } else {
-      // If called from TestCasesList with full object
       testCaseData = testCaseIdOrObject;
     }
     
     setSelectedTestCase(testCaseData);
-    setPreviousView(currentView); // Remember where we came from
-    setCurrentView('test-case-detail');
+    navigate('/test-cases/detail');
   };
 
   const handleDeleteFromDetail = (testCaseId: string) => {
-    // In real app, this would delete from database
-    // For now, just navigate back to list
-    setCurrentView('test-cases');
+    navigate('/test-cases');
   };
 
   const handleSaveTestCase = () => {
-    setCurrentView(previousView); // Return to where user came from
+    navigate(-1); // Go back
   };
 
   const handleRecordManualResult = (testCase: any) => {
     setSelectedTestCase(testCase);
-    setPreviousView(currentView); // Remember where we came from
-    setCurrentView('manual-test-result');
+    navigate('/test-cases/manual-result');
   };
 
   const handleSaveManualResult = (result: any) => {
-    // In real app, save to database
     console.log('Manual test result saved:', result);
-    setCurrentView(previousView); // Return to previous view
+    navigate(-1); // Go back
   };
 
+  if (!isAuthenticated) {
+      return <Routes>
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>;
+  }
+
   return (
-    <>
-      {!isAuthenticated ? (
-        <LoginPage onLogin={handleLogin} />
-      ) : (
-        <div className="flex h-screen bg-slate-950 text-slate-100">
-          <Sidebar currentView={currentView} onViewChange={handleViewChange} onLogout={handleLogout} />
-          
-          <div className="flex-1 overflow-auto" ref={mainContentRef}>
-            {currentView === 'dashboard' && (
-              <Dashboard 
-                onNavigateToTestCases={() => handleViewChange('test-cases')}
+    <Routes>
+        <Route element={<Layout currentView={currentView} onViewChange={handleViewChange} onLogout={handleLogout} currentUser={currentUser} />}>
+            <Route path="/" element={<Dashboard 
+                onNavigateToTestCases={() => navigate('/test-cases')}
                 onViewReport={handleViewReport}
-                onNavigateToRunsHistory={() => handleViewChange('runs-history')}
+                onNavigateToRunsHistory={() => navigate('/runs-history')}
                 onViewTestCaseDetail={handleViewDetail}
-              />
-            )}
-            {currentView === 'test-cases' && (
-              <TestCasesList 
+            />} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+            
+            <Route path="/test-cases" element={<TestCasesList 
                 onCreateTestCase={handleCreateTestCase}
                 onEditTestCase={handleEditTestCase}
                 onViewReport={handleViewReport}
                 onViewHistory={handleViewHistory}
                 onViewDetail={handleViewDetail}
                 onRecordManualResult={handleRecordManualResult}
-              />
-            )}
-            {currentView === 'test-case-form' && (
-              <TestCaseForm 
+            />} />
+            
+            <Route path="/test-cases/new" element={<TestCaseForm 
+                testCase={null}
+                onSave={handleSaveTestCase}
+                onCancel={() => navigate(-1)}
+            />} />
+            
+            <Route path="/test-cases/edit" element={<TestCaseForm 
                 testCase={selectedTestCase}
                 onSave={handleSaveTestCase}
-                onCancel={() => handleViewChange(previousView)}
-              />
-            )}
-            {currentView === 'test-case-detail' && selectedTestCase && (
-              <TestCaseDetail 
+                onCancel={() => navigate(-1)}
+            />} />
+            
+            <Route path="/test-cases/detail" element={selectedTestCase ? <TestCaseDetail 
                 testCase={selectedTestCase} 
-                onBack={() => handleViewChange(previousView)}
+                onBack={() => navigate(-1)}
                 onEdit={handleEditTestCase}
                 onDelete={handleDeleteFromDetail}
                 onRunTest={handleViewReport}
                 onRecordManualResult={handleRecordManualResult}
-              />
-            )}
-            {currentView === 'test-report' && selectedReport && (
-              <TestReport report={selectedReport} onBack={() => handleViewChange(previousView)} />
-            )}
-            {currentView === 'runs-history' && (
-              <RunsHistory 
-                onViewReport={handleViewReport}
-                filterTestCaseId={historyFilter}
-              />
-            )}
-            {currentView === 'configuration' && (
-              <Configuration />
-            )}
-            {currentView === 'tools' && (
-              <Tools />
-            )}
-            {currentView === 'manual-test-result' && selectedTestCase && (
-              <ManualTestResultForm
+            /> : <Navigate to="/test-cases" />} />
+
+            <Route path="/test-cases/manual-result" element={selectedTestCase ? <ManualTestResultForm
                 testCase={selectedTestCase}
                 onSave={handleSaveManualResult}
-                onCancel={() => handleViewChange(previousView)}
-              />
-            )}
-            {currentView === 'user-management' && (
-              <UserManagement />
-            )}
-            {currentView === 'account' && currentUser && (
-              <AccountPage
+                onCancel={() => navigate(-1)}
+            /> : <Navigate to="/test-cases" />} />
+            
+            <Route path="/runs-history" element={<RunsHistory 
+                onViewReport={handleViewReport}
+                filterTestCaseId={historyFilter}
+            />} />
+            
+            <Route path="/reports/view" element={selectedReport ? <TestReport 
+                report={selectedReport} 
+                onBack={() => navigate(-1)} 
+            /> : <Navigate to="/runs-history" />} />
+            
+            <Route path="/configuration" element={<Configuration />} />
+            <Route path="/tools" element={<Tools />} />
+            <Route path="/users" element={<UserManagement />} />
+            <Route path="/account" element={<AccountPage
                 currentUser={currentUser}
                 onUpdateProfile={handleUpdateProfile}
-              />
-            )}
-          </div>
-        </div>
-      )}
-    </>
+            />} />
+            
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }

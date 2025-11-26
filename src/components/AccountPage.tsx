@@ -1,64 +1,55 @@
-import { useState } from 'react';
-import { User, Mail, Shield, Calendar, Clock, Key, Save, Edit2, CheckCircle2, GitBranch } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Mail, Shield, Calendar, Clock, Key, Save, Edit2, CheckCircle2, GitBranch, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { formatPermissionsDisplay, ROLE_CONFIG } from '../utils/permissions';
 
 interface AccountPageProps {
   currentUser: any;
-  onUpdateProfile: (data: any) => void;
+  onUpdateProfile: (data: any) => Promise<any>;
 }
 
 export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: currentUser.name,
-    email: currentUser.email,
   });
+  
+  // Reset form data when currentUser changes (e.g. after reload)
+  useEffect(() => {
+    setFormData({
+      name: currentUser.name,
+    });
+  }, [currentUser]);
 
-  const handleSave = () => {
-    onUpdateProfile(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      await onUpdateProfile(formData);
+      setIsEditing(false);
+      setUpdateSuccess(true);
+      setTimeout(() => setUpdateSuccess(false), 3000); // Hide success message after 3 seconds
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      // Could add error state and display here
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const ROLE_CONFIG: Record<string, any> = {
-    admin: {
-      label: 'Admin',
-      color: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      description: 'Full system access and user management',
-    },
-    qa_lead: {
-      label: 'QA Lead',
-      color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      description: 'Lead QA team and manage test strategies',
-    },
-    qa_engineer: {
-      label: 'QA Engineer',
-      color: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
-      description: 'Create and execute test cases',
-    },
-    developer: {
-      label: 'Developer',
-      color: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      description: 'Execute automated tests and view results',
-    },
-    product_manager: {
-      label: 'Product Manager',
-      color: 'bg-green-500/20 text-green-400 border-green-500/30',
-      description: 'View test coverage and quality metrics',
-    },
-    ui_ux_designer: {
-      label: 'UI/UX Designer',
-      color: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
-      description: 'View designs and test UI/UX flows',
-    },
-    viewer: {
-      label: 'Viewer',
-      color: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-      description: 'Read-only access to test information',
-    },
+  const roleInfo = ROLE_CONFIG[currentUser.role as keyof typeof ROLE_CONFIG];
+  const displayBasePermissions = formatPermissionsDisplay(currentUser.basePermissions || []);
+  const displaySpecialPermissions = formatPermissionsDisplay(currentUser.specialPermissions || []);
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
-
-  const roleInfo = ROLE_CONFIG[currentUser.role];
 
   return (
     <div className="p-8 bg-slate-950 min-h-screen">
@@ -110,29 +101,42 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
 
               <div>
                 <label className="block text-sm text-slate-400 mb-2">Email Address</label>
-                {isEditing ? (
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-slate-200 flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-slate-500" />
-                    {currentUser.email}
+                <p className="text-slate-200 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-slate-500" />
+                  {currentUser.email}
+                </p>
+                {isEditing && (
+                  <p className="text-xs text-slate-500 mt-1 italic">
+                    Email cannot be changed. Please contact administrator for email changes.
                   </p>
                 )}
               </div>
 
+              {updateSuccess && !isEditing && (
+                <div className="flex items-center gap-2 text-green-400 mt-4 bg-green-500/10 p-3 rounded-lg border border-green-500/30">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Profile updated successfully!</span>
+                </div>
+              )}
+              
               {isEditing && (
                 <div className="flex items-center gap-3 pt-4">
                   <Button
                     onClick={handleSave}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={isLoading}
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
                   </Button>
                   <Button
                     onClick={() => {
@@ -141,6 +145,7 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
                     }}
                     variant="outline"
                     className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white"
+                    disabled={isLoading}
                   >
                     Cancel
                   </Button>
@@ -170,7 +175,7 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
               <div>
                 <label className="block text-sm text-slate-400 mb-3">Base Permissions</label>
                 <div className="bg-slate-800/50 rounded-lg p-4 space-y-2">
-                  {currentUser.basePermissions?.map((permission: string, index: number) => (
+                  {displayBasePermissions.map((permission: string, index: number) => (
                     <div key={index} className="flex items-start gap-2 text-sm text-slate-300">
                       <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
                       {permission}
@@ -180,11 +185,11 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
               </div>
 
               {/* Special Permissions */}
-              {currentUser.specialPermissions && currentUser.specialPermissions.length > 0 && (
+              {displaySpecialPermissions.length > 0 && (
                 <div>
                   <label className="block text-sm text-slate-400 mb-3">Special Permissions (Extended)</label>
                   <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-4 space-y-2">
-                    {currentUser.specialPermissions.map((permission: string, index: number) => (
+                    {displaySpecialPermissions.map((permission: string, index: number) => (
                       <div key={index} className="flex items-start gap-2 text-sm text-purple-300">
                         <CheckCircle2 className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
                         {permission}
