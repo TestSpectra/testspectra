@@ -1,7 +1,16 @@
-import { useState } from 'react';
-import { X, Zap, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Zap, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { authService } from '../services/auth-service';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+interface TestSuite {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface QuickCreateDialogProps {
   isOpen: boolean;
@@ -20,17 +29,68 @@ export function QuickCreateDialog({ isOpen, onClose, onSave, onSaveAndEdit }: Qu
   });
 
   const [errors, setErrors] = useState<any>({});
+  const [suites, setSuites] = useState<TestSuite[]>([]);
+  const [isLoadingSuites, setIsLoadingSuites] = useState(false);
+  const [isCreatingNewSuite, setIsCreatingNewSuite] = useState(false);
+  const [newSuiteName, setNewSuiteName] = useState('');
+  const [isCreatingSuite, setIsCreatingSuite] = useState(false);
 
-  const suites = [
-    'Authentication',
-    'E-Commerce',
-    'Payment',
-    'Product Catalog',
-    'User Profile',
-    'Shopping Cart',
-    'Order Management',
-    'Reporting'
-  ];
+  // Fetch suites when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchSuites();
+    }
+  }, [isOpen]);
+
+  const fetchSuites = async () => {
+    setIsLoadingSuites(true);
+    try {
+      const token = authService.getAccessToken();
+      const response = await fetch(`${API_URL}/test-suites`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSuites(data.suites || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch suites:', error);
+    } finally {
+      setIsLoadingSuites(false);
+    }
+  };
+
+  const handleCreateSuite = async () => {
+    if (!newSuiteName.trim()) return;
+    
+    setIsCreatingSuite(true);
+    try {
+      const token = authService.getAccessToken();
+      const response = await fetch(`${API_URL}/test-suites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newSuiteName.trim() })
+      });
+      
+      if (response.ok) {
+        const newSuite = await response.json();
+        setSuites(prev => [...prev, newSuite].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormData({ ...formData, suite: newSuite.name });
+        setIsCreatingNewSuite(false);
+        setNewSuiteName('');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create suite');
+      }
+    } catch (error) {
+      console.error('Failed to create suite:', error);
+    } finally {
+      setIsCreatingSuite(false);
+    }
+  };
 
   const validate = () => {
     const newErrors: any = {};
@@ -148,16 +208,56 @@ export function QuickCreateDialog({ isOpen, onClose, onSave, onSaveAndEdit }: Qu
               <label className="block text-sm text-slate-300 mb-2">
                 Suite/Module <span className="text-red-400">*</span>
               </label>
-              <select
-                value={formData.suite}
-                onChange={(e) => setFormData({ ...formData, suite: e.target.value })}
-                className={`w-full bg-slate-800 border ${errors.suite ? 'border-red-500' : 'border-slate-700'} rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-              >
-                <option value="">Pilih Suite</option>
-                {suites.map(suite => (
-                  <option key={suite} value={suite}>{suite}</option>
-                ))}
-              </select>
+              {isCreatingNewSuite ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newSuiteName}
+                    onChange={(e) => setNewSuiteName(e.target.value)}
+                    placeholder="Nama suite baru..."
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateSuite()}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateSuite}
+                    disabled={isCreatingSuite}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm disabled:opacity-50"
+                  >
+                    {isCreatingSuite ? <Loader2 className="w-4 h-4 animate-spin" /> : 'OK'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingNewSuite(false);
+                      setNewSuiteName('');
+                    }}
+                    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={formData.suite}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') {
+                      setIsCreatingNewSuite(true);
+                    } else {
+                      setFormData({ ...formData, suite: e.target.value });
+                    }
+                  }}
+                  disabled={isLoadingSuites}
+                  className={`w-full bg-slate-800 border ${errors.suite ? 'border-red-500' : 'border-slate-700'} rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
+                >
+                  <option value="">{isLoadingSuites ? 'Loading...' : 'Pilih Suite'}</option>
+                  {suites.map(suite => (
+                    <option key={suite.id} value={suite.name}>{suite.name}</option>
+                  ))}
+                  <option value="__new__">+ Buat Suite Baru</option>
+                </select>
+              )}
               {errors.suite && (
                 <p className="text-xs text-red-400 mt-1.5">{errors.suite}</p>
               )}

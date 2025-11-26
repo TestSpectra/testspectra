@@ -60,10 +60,10 @@ export class AuthService {
       }
 
       const data: LoginResponse = await response.json();
-      
+
       this.setTokens(data.accessToken, data.refreshToken);
       this.setUser(data.user);
-      
+
       return data;
     } catch (error) {
       console.error('Login error:', error);
@@ -100,7 +100,7 @@ export class AuthService {
   getCurrentUser(): User | null {
     const userStr = localStorage.getItem(USER_KEY);
     if (!userStr) return null;
-    
+
     try {
       return JSON.parse(userStr);
     } catch {
@@ -139,7 +139,7 @@ export class AuthService {
 
       const data = await response.json();
       this.setTokens(data.accessToken, data.refreshToken);
-      
+
       return data.accessToken;
     } catch (error) {
       this.logout();
@@ -161,7 +161,7 @@ export class AuthService {
   private setUser(user: User): void {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
-  
+
   /**
    * Update user data in localStorage
    */
@@ -170,7 +170,7 @@ export class AuthService {
     if (!currentUser) {
       throw new Error('No user logged in');
     }
-    
+
     const updatedUser = { ...currentUser, ...userData };
     this.setUser(updatedUser);
     return updatedUser;
@@ -182,7 +182,6 @@ export class AuthService {
   hasPermission(permission: string): boolean {
     const user = this.getCurrentUser();
     if (!user) return false;
-
     return (
       user.basePermissions.includes(permission) ||
       user.specialPermissions.includes(permission)

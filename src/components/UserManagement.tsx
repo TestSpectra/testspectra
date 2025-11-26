@@ -18,14 +18,14 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { userServiceClient } from '../services/grpc-client';
+import { userServiceClient } from '../services/api-client';
 import { authService } from '../services/auth-service';
 import {
   formatPermissionsDisplay,
   formatPermissionsApi,
   ROLE_CONFIG as ROLE_DISPLAY_CONFIG,
 } from '../utils/permissions';
-import type { User as BackendUser } from '../services/grpc-client';
+import type { User as BackendUser } from '../services/api-client';
 import { SimpleDialog, ConfirmDialog } from './SimpleDialog';
 
 interface User {

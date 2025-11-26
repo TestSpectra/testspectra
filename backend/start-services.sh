@@ -1,23 +1,18 @@
 #!/bin/bash
 
-# TestSpectra Backend Services Startup Script
+# TestSpectra Backend Startup Script
 
 set -e
 
-echo "🚀 Starting TestSpectra Backend Services..."
+echo "🚀 Starting TestSpectra Backend..."
 echo ""
 
-# Check if .env files exist
-if [ ! -f "user-service/.env" ]; then
-    echo "⚠️  user-service/.env not found. Copying from .env.example..."
-    cp user-service/.env.example user-service/.env
-    echo "⚠️  Please edit user-service/.env with your configuration!"
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+    echo "⚠️  .env not found. Copying from .env.example..."
+    cp .env.example .env
+    echo "⚠️  Please edit .env with your configuration!"
     exit 1
-fi
-
-if [ ! -f "grpc-proxy/.env" ]; then
-    echo "⚠️  grpc-proxy/.env not found. Copying from .env.example..."
-    cp grpc-proxy/.env.example grpc-proxy/.env
 fi
 
 # Check if PostgreSQL is running
@@ -30,58 +25,39 @@ if ! PGPASSWORD=password psql -h localhost -p 5432 -U testspectra -d testspectra
     echo "    -e POSTGRES_USER=testspectra \\"
     echo "    -e POSTGRES_PASSWORD=password \\"
     echo "    -e POSTGRES_DB=testspectra \\"
-    echo "    -p 5432:5432 postgres:18"
+    echo "    -p 5432:5432 postgres:16"
     exit 1
 fi
 
 echo "✅ PostgreSQL is running"
 echo ""
 
-# Build services
-echo "🔨 Building services..."
+# Build
+echo "🔨 Building backend..."
 cargo build --release
 
 echo ""
 echo "✅ Build complete!"
 echo ""
 
-# Start User Service in background
-echo "🚀 Starting User Service (port 50051)..."
-cd user-service
-../target/release/user-service > ../logs/user-service.log 2>&1 &
-USER_SERVICE_PID=$!
-cd ..
-
-echo "✅ User Service started (PID: $USER_SERVICE_PID)"
-
-# Wait for User Service to be ready
-echo "⏳ Waiting for User Service to be ready..."
-sleep 3
-
-# Start gRPC Proxy in background
-echo "🚀 Starting gRPC Proxy (port 3002)..."
-cd grpc-proxy
-../target/release/grpc-proxy > ../logs/grpc-proxy.log 2>&1 &
-PROXY_PID=$!
-cd ..
-
-echo "✅ gRPC Proxy started (PID: $PROXY_PID)"
-echo ""
-
-# Save PIDs to file
+# Create logs directory
 mkdir -p logs
-echo "$USER_SERVICE_PID" > logs/user-service.pid
-echo "$PROXY_PID" > logs/grpc-proxy.pid
 
-echo "✅ All services started successfully!"
+# Start backend in background
+echo "🚀 Starting Backend (port 3000)..."
+./target/release/testspectra-backend > logs/backend.log 2>&1 &
+BACKEND_PID=$!
+
+echo "✅ Backend started (PID: $BACKEND_PID)"
+echo "$BACKEND_PID" > logs/backend.pid
+
+echo ""
+echo "✅ Backend started successfully!"
 echo ""
 echo "📊 Service Status:"
-echo "  - User Service:  http://localhost:50051 (gRPC)"
-echo "  - gRPC Proxy:    http://localhost:3002 (HTTP/REST)"
+echo "  - Backend API: http://localhost:3000"
 echo ""
-echo "📝 Logs:"
-echo "  - User Service:  tail -f logs/user-service.log"
-echo "  - gRPC Proxy:    tail -f logs/grpc-proxy.log"
+echo "📝 Logs: tail -f logs/backend.log"
 echo ""
-echo "🛑 To stop services: ./stop-services.sh"
+echo "🛑 To stop: ./stop-services.sh"
 echo ""

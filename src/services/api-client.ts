@@ -1,10 +1,10 @@
 /**
- * gRPC Client for TestSpectra Backend Services
+ * API Client for TestSpectra Backend Services
  * 
- * This client communicates with the gRPC proxy which converts HTTP/REST to gRPC calls.
+ * This client communicates with the backend REST API.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3002/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export interface User {
   id: string;
@@ -12,12 +12,10 @@ export interface User {
   email: string;
   role: string;
   status: string;
-  basePermissions: string[];
   specialPermissions: string[];
-  joinedDate: string;
+  createdAt: string;
+  updatedAt: string;
   lastActive: string;
-  gitUsername?: string;
-  gitEmail?: string;
 }
 
 export interface LoginRequest {

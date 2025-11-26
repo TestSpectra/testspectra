@@ -1,7 +1,35 @@
-import { useState } from "react";
-import { ArrowLeft, Plus, Trash2, Code, Save, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Plus, Trash2, Code, Save, X, Loader2, GripVertical } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { RichTextEditor } from "./ui/rich-text-editor";
+import { authService } from "../services/auth-service";
+import "../styles/drag-handle.css";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+interface TestSuite {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface TestCaseFormProps {
   testCase?: any;
@@ -9,22 +37,335 @@ interface TestCaseFormProps {
   onCancel: () => void;
 }
 
+// Action Types
 type ActionType =
   | "navigate"
   | "click"
   | "type"
+  | "clear"
   | "select"
+  | "scroll"
+  | "swipe"
   | "wait"
-  | "assert_visible";
+  | "waitForElement"
+  | "pressKey"
+  | "longPress"
+  | "doubleTap"
+  | "hover"
+  | "dragDrop"
+  | "back"
+  | "refresh";
+
+// Assertion Types
+type AssertionType =
+  | "elementDisplayed"
+  | "elementNotDisplayed"
+  | "elementExists"
+  | "elementClickable"
+  | "elementInViewport"
+  | "textEquals"
+  | "textContains"
+  | "valueEquals"
+  | "valueContains"
+  | "urlEquals"
+  | "urlContains"
+  | "titleEquals"
+  | "titleContains"
+  | "hasClass"
+  | "hasAttribute"
+  | "isEnabled"
+  | "isDisabled"
+  | "isSelected";
+
+interface Assertion {
+  id: string;
+  type: AssertionType;
+  selector?: string;
+  value?: string;
+  attributeName?: string;
+  attributeValue?: string;
+}
 
 interface TestAction {
   id: string;
   type: ActionType;
+  // Common fields
   selector?: string;
   value?: string;
   text?: string;
   url?: string;
   timeout?: string;
+  // Scroll/Swipe
+  direction?: "up" | "down" | "left" | "right";
+  // Drag and Drop
+  targetSelector?: string;
+  // Press Key
+  key?: string;
+  // Assertions for expected result
+  assertions?: Assertion[];
+  customExpectedResult?: string;
+}
+
+// Action definitions with labels
+const ACTION_DEFINITIONS: { value: ActionType; label: string; platform: "both" | "web" | "mobile" }[] = [
+  { value: "navigate", label: "Navigate to URL", platform: "both" },
+  { value: "click", label: "Click / Tap", platform: "both" },
+  { value: "type", label: "Type Text", platform: "both" },
+  { value: "clear", label: "Clear Input", platform: "both" },
+  { value: "select", label: "Select Option", platform: "both" },
+  { value: "scroll", label: "Scroll", platform: "both" },
+  { value: "swipe", label: "Swipe", platform: "mobile" },
+  { value: "wait", label: "Wait (Duration)", platform: "both" },
+  { value: "waitForElement", label: "Wait for Element", platform: "both" },
+  { value: "pressKey", label: "Press Key", platform: "both" },
+  { value: "longPress", label: "Long Press / Hold", platform: "both" },
+  { value: "doubleTap", label: "Double Click / Tap", platform: "both" },
+  { value: "hover", label: "Hover", platform: "web" },
+  { value: "dragDrop", label: "Drag and Drop", platform: "both" },
+  { value: "back", label: "Go Back", platform: "both" },
+  { value: "refresh", label: "Refresh Page", platform: "web" },
+];
+
+// Assertion definitions with labels
+const ASSERTION_DEFINITIONS: { value: AssertionType; label: string; needsSelector: boolean; needsValue: boolean; needsAttribute: boolean }[] = [
+  { value: "elementDisplayed", label: "Element is Visible", needsSelector: true, needsValue: false, needsAttribute: false },
+  { value: "elementNotDisplayed", label: "Element is Hidden", needsSelector: true, needsValue: false, needsAttribute: false },
+  { value: "elementExists", label: "Element Exists", needsSelector: true, needsValue: false, needsAttribute: false },
+  { value: "elementClickable", label: "Element is Clickable", needsSelector: true, needsValue: false, needsAttribute: false },
+  { value: "elementInViewport", label: "Element in Viewport", needsSelector: true, needsValue: false, needsAttribute: false },
+  { value: "textEquals", label: "Text Equals", needsSelector: true, needsValue: true, needsAttribute: false },
+  { value: "textContains", label: "Text Contains", needsSelector: true, needsValue: true, needsAttribute: false },
+  { value: "valueEquals", label: "Value Equals", needsSelector: true, needsValue: true, needsAttribute: false },
+  { value: "valueContains", label: "Value Contains", needsSelector: true, needsValue: true, needsAttribute: false },
+  { value: "urlEquals", label: "URL Equals", needsSelector: false, needsValue: true, needsAttribute: false },
+  { value: "urlContains", label: "URL Contains", needsSelector: false, needsValue: true, needsAttribute: false },
+  { value: "titleEquals", label: "Title Equals", needsSelector: false, needsValue: true, needsAttribute: false },
+  { value: "titleContains", label: "Title Contains", needsSelector: false, needsValue: true, needsAttribute: false },
+  { value: "hasClass", label: "Has CSS Class", needsSelector: true, needsValue: true, needsAttribute: false },
+  { value: "hasAttribute", label: "Has Attribute", needsSelector: true, needsValue: false, needsAttribute: true },
+  { value: "isEnabled", label: "Is Enabled", needsSelector: true, needsValue: false, needsAttribute: false },
+  { value: "isDisabled", label: "Is Disabled", needsSelector: true, needsValue: false, needsAttribute: false },
+  { value: "isSelected", label: "Is Selected / Checked", needsSelector: true, needsValue: false, needsAttribute: false },
+];
+
+// Assertions available per action type
+const ASSERTIONS_BY_ACTION: Record<ActionType, AssertionType[]> = {
+  navigate: ["urlContains", "urlEquals", "titleContains", "titleEquals", "elementDisplayed", "elementExists"],
+  click: ["elementDisplayed", "elementNotDisplayed", "elementExists", "textContains", "textEquals", "urlContains", "hasClass", "isEnabled", "isDisabled"],
+  type: ["valueEquals", "valueContains", "elementDisplayed", "hasClass", "isEnabled", "textContains"],
+  clear: ["valueEquals", "elementDisplayed"],
+  select: ["valueEquals", "isSelected", "textEquals", "elementDisplayed"],
+  scroll: ["elementDisplayed", "elementInViewport", "elementExists"],
+  swipe: ["elementDisplayed", "elementNotDisplayed", "elementExists"],
+  wait: ["elementDisplayed", "elementExists", "elementClickable"],
+  waitForElement: ["elementDisplayed", "elementExists", "elementClickable"],
+  pressKey: ["elementDisplayed", "valueContains", "textContains", "urlContains"],
+  longPress: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
+  doubleTap: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
+  hover: ["elementDisplayed", "hasClass", "hasAttribute", "textContains"],
+  dragDrop: ["elementDisplayed", "hasClass", "elementExists"],
+  back: ["urlContains", "elementDisplayed", "titleContains"],
+  refresh: ["elementDisplayed", "elementExists"],
+};
+
+// Key options for pressKey action
+const KEY_OPTIONS = [
+  { value: "Enter", label: "Enter" },
+  { value: "Tab", label: "Tab" },
+  { value: "Escape", label: "Escape" },
+  { value: "Backspace", label: "Backspace" },
+  { value: "Delete", label: "Delete" },
+  { value: "ArrowUp", label: "Arrow Up" },
+  { value: "ArrowDown", label: "Arrow Down" },
+  { value: "ArrowLeft", label: "Arrow Left" },
+  { value: "ArrowRight", label: "Arrow Right" },
+  { value: "Space", label: "Space" },
+];
+
+// Sortable Action Item Component
+interface SortableActionItemProps {
+  action: TestAction;
+  index: number;
+  actionsLength: number;
+  inputClass: string;
+  getActionColor: (type: ActionType) => string;
+  getActionLabel: (type: ActionType) => string;
+  handleUpdateAction: (id: string, updates: Partial<TestAction>) => void;
+  handleRemoveAction: (id: string) => void;
+  handleAddAssertion: (actionId: string) => void;
+  handleUpdateAssertion: (actionId: string, assertionId: string, updates: Partial<Assertion>) => void;
+  handleRemoveAssertion: (actionId: string, assertionId: string) => void;
+  renderActionFields: (action: TestAction) => React.ReactNode;
+  renderAssertionFields: (action: TestAction, assertion: Assertion) => React.ReactNode;
+}
+
+function SortableActionItem({
+  action,
+  index,
+  actionsLength,
+  inputClass,
+  getActionColor,
+  getActionLabel,
+  handleUpdateAction,
+  handleRemoveAction,
+  handleAddAssertion,
+  handleUpdateAssertion,
+  handleRemoveAssertion,
+  renderActionFields,
+  renderAssertionFields,
+}: SortableActionItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: action.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-slate-800/50 p-4 rounded-lg ${isDragging ? "ring-2 ring-blue-500" : ""}`}
+    >
+      {/* Action Header */}
+      <div className="flex items-start gap-3">
+        {/* Number with Drag Handle on Hover */}
+        <div
+          className="drag-handle-container"
+          {...attributes}
+          {...listeners}
+        >
+          <span className="step-number">
+            {index + 1}.
+          </span>
+          <div className="drag-icon">
+            <GripVertical size={18} />
+          </div>
+        </div>
+        <div className="flex-1 space-y-3">
+          <div className="flex items-center gap-3">
+            <select
+              value={action.type}
+              onChange={(e) => {
+                const newType = e.target.value as ActionType;
+                const defaultAssertionType = ASSERTIONS_BY_ACTION[newType][0];
+                handleUpdateAction(action.id, {
+                  type: newType,
+                  assertions: [{ id: Date.now().toString(), type: defaultAssertionType }],
+                });
+              }}
+              className={inputClass}
+            >
+              {ACTION_DEFINITIONS.map((actionDef) => (
+                <option key={actionDef.value} value={actionDef.value}>
+                  {actionDef.label}
+                  {actionDef.platform !== "both" ? ` (${actionDef.platform})` : ""}
+                </option>
+              ))}
+            </select>
+            <Badge
+              variant="outline"
+              className={`${getActionColor(action.type)} border shrink-0`}
+            >
+              {getActionLabel(action.type)}
+            </Badge>
+          </div>
+          {renderActionFields(action)}
+        </div>
+        <button
+          onClick={() => handleRemoveAction(action.id)}
+          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors mt-1"
+          disabled={actionsLength === 1}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+      
+      {/* Expected Result - Assertions */}
+      <div className="mt-4 ml-9 border-t border-slate-700/50 pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-xs font-medium text-slate-400">
+            Expected Result (Assertions) <span className="font-normal text-slate-500">- opsional</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => handleAddAssertion(action.id)}
+            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+          >
+            <Plus size={12} />
+            Add Assertion
+          </button>
+        </div>
+        
+        {/* Assertions List */}
+        {(action.assertions || []).length > 0 && (
+          <div className="space-y-2 mb-3">
+            {(action.assertions || []).map((assertion) => {
+              const availableAssertions = ASSERTIONS_BY_ACTION[action.type];
+              const filteredDefs = ASSERTION_DEFINITIONS.filter((a) =>
+                availableAssertions.includes(a.value)
+              );
+              
+              return (
+                <div
+                  key={assertion.id}
+                  className="flex items-center gap-2 bg-slate-700/30 p-2 rounded-lg"
+                >
+                  <select
+                    value={assertion.type}
+                    onChange={(e) =>
+                      handleUpdateAssertion(action.id, assertion.id, {
+                        type: e.target.value as AssertionType,
+                      })
+                    }
+                    className={`${inputClass} text-xs min-w-[160px]`}
+                  >
+                    {filteredDefs.map((assertDef) => (
+                      <option key={assertDef.value} value={assertDef.value}>
+                        {assertDef.label}
+                      </option>
+                    ))}
+                  </select>
+                  {renderAssertionFields(action, assertion)}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAssertion(action.id, assertion.id)}
+                    className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
+        {/* Custom Assertion (for edge cases) */}
+        <div>
+          <label className="text-xs text-slate-500 mb-2 block">
+            Custom Assertion (opsional)
+          </label>
+          <RichTextEditor
+            value={action.customExpectedResult || ""}
+            onChange={(value) =>
+              handleUpdateAction(action.id, {
+                customExpectedResult: value,
+              })
+            }
+            placeholder="Assertion tambahan yang tidak tercakup di atas..."
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function TestCaseForm({
@@ -37,39 +378,164 @@ export function TestCaseForm({
     title: testCase?.title || "",
     suite: testCase?.suite || "",
     priority: testCase?.priority || "Medium",
-    expectedOutcome: testCase?.expectedOutcome || "",
+    caseType: testCase?.caseType || "Positive",
+    preCondition: testCase?.preCondition || "",
+    postCondition: testCase?.postCondition || "",
     automationStatus:
       testCase?.automation === "Automated" ? "automated" : "manual",
     filePath: testCase?.filePath || "",
-    caseType: testCase?.caseType || "Positive",
   });
 
   const [actions, setActions] = useState<TestAction[]>(
-    testCase?.actions || [{ id: "1", type: "navigate", url: "" }]
+    testCase?.actions || [{ 
+      id: "1", 
+      type: "navigate", 
+      url: "",
+      assertions: [{ id: "1", type: "urlContains" }]
+    }]
   );
+
+  const [isCreatingNewSuite, setIsCreatingNewSuite] = useState(false);
+  const [newSuiteName, setNewSuiteName] = useState("");
+  const [existingSuites, setExistingSuites] = useState<TestSuite[]>([]);
+  const [isLoadingSuites, setIsLoadingSuites] = useState(false);
+  const [isCreatingSuite, setIsCreatingSuite] = useState(false);
 
   const isEditing = !!testCase;
 
-  const actionTypes = [
-    { value: "navigate", label: "Navigate To (URL)" },
-    { value: "click", label: "Click (Selector or Text)" },
-    { value: "type", label: "Type Text (Selector, Value)" },
-    { value: "select", label: "Select Option (Selector, Value)" },
-    { value: "wait", label: "Wait For Element (Selector, Timeout)" },
-    { value: "assert_visible", label: "Assert Visibility (Selector)" },
-  ];
+  // Fetch suites on mount
+  useEffect(() => {
+    fetchSuites();
+  }, []);
+
+  const fetchSuites = async () => {
+    setIsLoadingSuites(true);
+    try {
+      const token = authService.getAccessToken();
+      const response = await fetch(`${API_URL}/test-suites`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setExistingSuites(data.suites || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch suites:", error);
+    } finally {
+      setIsLoadingSuites(false);
+    }
+  };
+
+  const handleCreateSuite = async () => {
+    if (!newSuiteName.trim()) return;
+
+    setIsCreatingSuite(true);
+    try {
+      const token = authService.getAccessToken();
+      const response = await fetch(`${API_URL}/test-suites`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: newSuiteName.trim() }),
+      });
+
+      if (response.ok) {
+        const newSuite = await response.json();
+        setExistingSuites((prev) =>
+          [...prev, newSuite].sort((a, b) => a.name.localeCompare(b.name))
+        );
+        setFormData({ ...formData, suite: newSuite.name });
+        setIsCreatingNewSuite(false);
+        setNewSuiteName("");
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to create suite");
+      }
+    } catch (error) {
+      console.error("Failed to create suite:", error);
+    } finally {
+      setIsCreatingSuite(false);
+    }
+  };
 
   const handleAddAction = () => {
+    const actionType: ActionType = "click";
+    const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
     const newAction: TestAction = {
       id: Date.now().toString(),
-      type: "click",
+      type: actionType,
+      assertions: [{ id: Date.now().toString() + "_a", type: defaultAssertionType }],
     };
     setActions([...actions, newAction]);
+  };
+
+  const handleAddAssertion = (actionId: string) => {
+    const action = actions.find((a) => a.id === actionId);
+    if (!action) return;
+    
+    const availableAssertions = ASSERTIONS_BY_ACTION[action.type];
+    const newAssertion: Assertion = {
+      id: Date.now().toString(),
+      type: availableAssertions[0],
+    };
+    
+    handleUpdateAction(actionId, {
+      assertions: [...(action.assertions || []), newAssertion],
+    });
+  };
+
+  const handleUpdateAssertion = (
+    actionId: string,
+    assertionId: string,
+    updates: Partial<Assertion>
+  ) => {
+    const action = actions.find((a) => a.id === actionId);
+    if (!action) return;
+    
+    const updatedAssertions = (action.assertions || []).map((assertion) =>
+      assertion.id === assertionId ? { ...assertion, ...updates } : assertion
+    );
+    
+    handleUpdateAction(actionId, { assertions: updatedAssertions });
+  };
+
+  const handleRemoveAssertion = (actionId: string, assertionId: string) => {
+    const action = actions.find((a) => a.id === actionId);
+    if (!action) return;
+    
+    const updatedAssertions = (action.assertions || []).filter(
+      (assertion) => assertion.id !== assertionId
+    );
+    
+    handleUpdateAction(actionId, { assertions: updatedAssertions });
   };
 
   const handleRemoveAction = (id: string) => {
     if (actions.length > 1) {
       setActions(actions.filter((action) => action.id !== id));
+    }
+  };
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = actions.findIndex((a) => a.id === active.id);
+      const newIndex = actions.findIndex((a) => a.id === over.id);
+      setActions(arrayMove(actions, oldIndex, newIndex));
     }
   };
 
@@ -91,6 +557,8 @@ export function TestCaseForm({
     );
   };
 
+  const inputClass = "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+
   const renderActionFields = (action: TestAction) => {
     switch (action.type) {
       case "navigate":
@@ -98,34 +566,30 @@ export function TestCaseForm({
           <input
             type="text"
             value={action.url || ""}
-            onChange={(e) =>
-              handleUpdateAction(action.id, { url: e.target.value })
-            }
+            onChange={(e) => handleUpdateAction(action.id, { url: e.target.value })}
             placeholder="https://example.com"
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full ${inputClass}`}
           />
         );
 
       case "click":
+      case "doubleTap":
+      case "longPress":
         return (
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
-              }
+              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
               placeholder="Selector (e.g., #submit-btn)"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={inputClass}
             />
             <input
               type="text"
               value={action.text || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { text: e.target.value })
-              }
+              onChange={(e) => handleUpdateAction(action.id, { text: e.target.value })}
               placeholder="Or Text (e.g., 'Submit')"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={inputClass}
             />
           </div>
         );
@@ -136,22 +600,30 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
-              }
+              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
               placeholder="Selector (e.g., #email)"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={inputClass}
             />
             <input
               type="text"
               value={action.value || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { value: e.target.value })
-              }
+              onChange={(e) => handleUpdateAction(action.id, { value: e.target.value })}
               placeholder="Text to type"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={inputClass}
             />
           </div>
+        );
+
+      case "clear":
+      case "hover":
+        return (
+          <input
+            type="text"
+            value={action.selector || ""}
+            onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+            placeholder="Selector (e.g., #input-field)"
+            className={`w-full ${inputClass}`}
+          />
         );
 
       case "select":
@@ -160,59 +632,136 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
-              }
+              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
               placeholder="Selector (e.g., #country)"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={inputClass}
             />
             <input
               type="text"
               value={action.value || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { value: e.target.value })
-              }
-              placeholder="Option value"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onChange={(e) => handleUpdateAction(action.id, { value: e.target.value })}
+              placeholder="Option value or text"
+              className={inputClass}
+            />
+          </div>
+        );
+
+      case "scroll":
+        return (
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              value={action.direction || "down"}
+              onChange={(e) => handleUpdateAction(action.id, { direction: e.target.value as any })}
+              className={inputClass}
+            >
+              <option value="down">Down</option>
+              <option value="up">Up</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+            <input
+              type="text"
+              value={action.selector || ""}
+              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              placeholder="Target selector (optional)"
+              className={inputClass}
+            />
+          </div>
+        );
+
+      case "swipe":
+        return (
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              value={action.direction || "up"}
+              onChange={(e) => handleUpdateAction(action.id, { direction: e.target.value as any })}
+              className={inputClass}
+            >
+              <option value="up">Swipe Up</option>
+              <option value="down">Swipe Down</option>
+              <option value="left">Swipe Left</option>
+              <option value="right">Swipe Right</option>
+            </select>
+            <input
+              type="text"
+              value={action.selector || ""}
+              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              placeholder="Element selector (optional)"
+              className={inputClass}
             />
           </div>
         );
 
       case "wait":
         return (
+          <input
+            type="text"
+            value={action.timeout || ""}
+            onChange={(e) => handleUpdateAction(action.id, { timeout: e.target.value })}
+            placeholder="Duration in ms (e.g., 3000)"
+            className={`w-full ${inputClass}`}
+          />
+        );
+
+      case "waitForElement":
+        return (
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
-              }
-              placeholder="Selector (e.g., .loading)"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              placeholder="Selector (e.g., .loading-complete)"
+              className={inputClass}
             />
             <input
               type="text"
               value={action.timeout || ""}
-              onChange={(e) =>
-                handleUpdateAction(action.id, { timeout: e.target.value })
-              }
-              placeholder="Timeout (ms, e.g., 5000)"
-              className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onChange={(e) => handleUpdateAction(action.id, { timeout: e.target.value })}
+              placeholder="Timeout ms (e.g., 10000)"
+              className={inputClass}
             />
           </div>
         );
 
-      case "assert_visible":
+      case "pressKey":
         return (
-          <input
-            type="text"
-            value={action.selector || ""}
-            onChange={(e) =>
-              handleUpdateAction(action.id, { selector: e.target.value })
-            }
-            placeholder="Selector to assert (e.g., .success-message)"
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <select
+            value={action.key || "Enter"}
+            onChange={(e) => handleUpdateAction(action.id, { key: e.target.value })}
+            className={`w-full ${inputClass}`}
+          >
+            {KEY_OPTIONS.map((key) => (
+              <option key={key.value} value={key.value}>
+                {key.label}
+              </option>
+            ))}
+          </select>
+        );
+
+      case "dragDrop":
+        return (
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              value={action.selector || ""}
+              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              placeholder="Source selector"
+              className={inputClass}
+            />
+            <input
+              type="text"
+              value={action.targetSelector || ""}
+              onChange={(e) => handleUpdateAction(action.id, { targetSelector: e.target.value })}
+              placeholder="Target selector"
+              className={inputClass}
+            />
+          </div>
+        );
+
+      case "back":
+      case "refresh":
+        return (
+          <p className="text-xs text-slate-500 italic">No additional parameters needed</p>
         );
 
       default:
@@ -220,16 +769,76 @@ export function TestCaseForm({
     }
   };
 
+  const renderAssertionFields = (action: TestAction, assertion: Assertion) => {
+    const assertionDef = ASSERTION_DEFINITIONS.find((a) => a.value === assertion.type);
+    if (!assertionDef) return null;
+
+    return (
+      <div className="flex items-center gap-2 flex-1">
+        {assertionDef.needsSelector && (
+          <input
+            type="text"
+            value={assertion.selector || ""}
+            onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { selector: e.target.value })}
+            placeholder="Selector"
+            className={`flex-1 ${inputClass} text-xs`}
+          />
+        )}
+        {assertionDef.needsValue && (
+          <input
+            type="text"
+            value={assertion.value || ""}
+            onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { value: e.target.value })}
+            placeholder="Expected value"
+            className={`flex-1 ${inputClass} text-xs`}
+          />
+        )}
+        {assertionDef.needsAttribute && (
+          <>
+            <input
+              type="text"
+              value={assertion.attributeName || ""}
+              onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { attributeName: e.target.value })}
+              placeholder="Attr name"
+              className={`flex-1 ${inputClass} text-xs`}
+            />
+            <input
+              type="text"
+              value={assertion.attributeValue || ""}
+              onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { attributeValue: e.target.value })}
+              placeholder="Attr value"
+              className={`flex-1 ${inputClass} text-xs`}
+            />
+          </>
+        )}
+      </div>
+    );
+  };
+
   const getActionColor = (type: ActionType) => {
     const colors: Record<ActionType, string> = {
       navigate: "bg-blue-500/20 text-blue-400 border-blue-500/30",
       click: "bg-purple-500/20 text-purple-400 border-purple-500/30",
       type: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+      clear: "bg-slate-500/20 text-slate-400 border-slate-500/30",
       select: "bg-teal-500/20 text-teal-400 border-teal-500/30",
+      scroll: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+      swipe: "bg-pink-500/20 text-pink-400 border-pink-500/30",
       wait: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-      assert_visible: "bg-green-500/20 text-green-400 border-green-500/30",
+      waitForElement: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      pressKey: "bg-lime-500/20 text-lime-400 border-lime-500/30",
+      longPress: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+      doubleTap: "bg-violet-500/20 text-violet-400 border-violet-500/30",
+      hover: "bg-sky-500/20 text-sky-400 border-sky-500/30",
+      dragDrop: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      back: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+      refresh: "bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30",
     };
     return colors[type];
+  };
+  
+  const getActionLabel = (type: ActionType) => {
+    return ACTION_DEFINITIONS.find((a) => a.value === type)?.label || type;
   };
 
   return (
@@ -280,7 +889,7 @@ export function TestCaseForm({
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <h2 className="mb-6">Informasi Dasar</h2>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm text-slate-400 mb-2">
                   Test Case ID
@@ -296,21 +905,7 @@ export function TestCaseForm({
                   disabled={isEditing}
                 />
               </div>
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">
-                  Test Suite/Module
-                </label>
-                <input
-                  type="text"
-                  value={formData.suite}
-                  onChange={(e) =>
-                    setFormData({ ...formData, suite: e.target.value })
-                  }
-                  placeholder="Authentication"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
+            </div> */}
 
             <div className="mb-4">
               <label className="block text-sm text-slate-400 mb-2">Title</label>
@@ -325,22 +920,90 @@ export function TestCaseForm({
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm text-slate-400 mb-2">
-                Prioritas
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) =>
-                  setFormData({ ...formData, priority: e.target.value })
-                }
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Critical">Critical</option>
-              </select>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">
+                  Test Suite/Module
+                </label>
+                {isCreatingNewSuite ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newSuiteName}
+                      onChange={(e) => setNewSuiteName(e.target.value)}
+                      placeholder="Nama suite baru..."
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoFocus
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleCreateSuite()
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateSuite}
+                      disabled={isCreatingSuite}
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm disabled:opacity-50"
+                    >
+                      {isCreatingSuite ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        "OK"
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingNewSuite(false);
+                        setNewSuiteName("");
+                      }}
+                      className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.suite}
+                    onChange={(e) => {
+                      if (e.target.value === "__new__") {
+                        setIsCreatingNewSuite(true);
+                      } else {
+                        setFormData({ ...formData, suite: e.target.value });
+                      }
+                    }}
+                    disabled={isLoadingSuites}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  >
+                    <option value="">
+                      {isLoadingSuites ? "Loading..." : "Pilih Test Suite..."}
+                    </option>
+                    {existingSuites.map((suite) => (
+                      <option key={suite.id} value={suite.name}>
+                        {suite.name}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Buat Suite Baru</option>
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">
+                  Prioritas
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) =>
+                    setFormData({ ...formData, priority: e.target.value })
+                  }
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
             </div>
 
             <div className="mb-4">
@@ -364,21 +1027,37 @@ export function TestCaseForm({
               </p>
             </div>
 
-            <div>
+            {/* Pre-Condition */}
+            <div className="mb-4">
               <label className="block text-sm text-slate-400 mb-2">
-                Expected Outcome / Final Assertion *
+                Pre-Condition
               </label>
-              <textarea
-                value={formData.expectedOutcome}
-                onChange={(e) =>
-                  setFormData({ ...formData, expectedOutcome: e.target.value })
+              <RichTextEditor
+                value={formData.preCondition}
+                onChange={(value) =>
+                  setFormData({ ...formData, preCondition: value })
                 }
-                placeholder="Describe the expected final state or condition for test to pass (e.g., 'User should be redirected to dashboard and welcome message is visible')"
-                rows={3}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder="Kondisi awal yang harus dipenuhi sebelum test dijalankan (e.g., User sudah login, data X sudah tersedia...)"
               />
               <p className="text-xs text-slate-500 mt-2">
-                This field captures the pass condition for this test case
+                Kondisi yang harus dipenuhi sebelum menjalankan test case ini
+              </p>
+            </div>
+
+            {/* Post-Condition */}
+            <div>
+              <label className="block text-sm text-slate-400 mb-2">
+                Post-Condition
+              </label>
+              <RichTextEditor
+                value={formData.postCondition}
+                onChange={(value) =>
+                  setFormData({ ...formData, postCondition: value })
+                }
+                placeholder="Kondisi akhir setelah test selesai (e.g., Data tersimpan di database, Session ter-invalidate...)"
+              />
+              <p className="text-xs text-slate-500 mt-2">
+                Kondisi yang diharapkan setelah test case selesai dijalankan
               </p>
             </div>
           </div>
@@ -389,7 +1068,7 @@ export function TestCaseForm({
               <div>
                 <h2 className="mb-1">Action Steps</h2>
                 <p className="text-sm text-slate-400">
-                  Define test actions in sequence
+                  Define test actions in sequence (drag to reorder)
                 </p>
               </div>
               <Button
@@ -402,55 +1081,37 @@ export function TestCaseForm({
               </Button>
             </div>
 
-            <div className="space-y-4">
-              {actions.map((action, index) => (
-                <div
-                  key={action.id}
-                  className="flex items-start gap-3 bg-slate-800/50 p-4 rounded-lg"
-                >
-                  <div className="flex items-center gap-2 pt-2">
-                    <span className="text-sm text-slate-500 w-6">
-                      {index + 1}.
-                    </span>
-                  </div>
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={action.type}
-                        onChange={(e) =>
-                          handleUpdateAction(action.id, {
-                            type: e.target.value as ActionType,
-                          })
-                        }
-                        className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        {actionTypes.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
-                      <Badge
-                        variant="outline"
-                        className={`${getActionColor(
-                          action.type
-                        )} border shrink-0`}
-                      >
-                        {action.type}
-                      </Badge>
-                    </div>
-                    {renderActionFields(action)}
-                  </div>
-                  <button
-                    onClick={() => handleRemoveAction(action.id)}
-                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors mt-1"
-                    disabled={actions.length === 1}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={actions.map((a) => a.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-4">
+                  {actions.map((action, index) => (
+                    <SortableActionItem
+                      key={action.id}
+                      action={action}
+                      index={index}
+                      actionsLength={actions.length}
+                      inputClass={inputClass}
+                      getActionColor={getActionColor}
+                      getActionLabel={getActionLabel}
+                      handleUpdateAction={handleUpdateAction}
+                      handleRemoveAction={handleRemoveAction}
+                      handleAddAssertion={handleAddAssertion}
+                      handleUpdateAssertion={handleUpdateAssertion}
+                      handleRemoveAssertion={handleRemoveAssertion}
+                      renderActionFields={renderActionFields}
+                      renderAssertionFields={renderAssertionFields}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
 
@@ -540,26 +1201,26 @@ export function TestCaseForm({
             </div>
           )}
 
-          {/* Quick Info */}
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <h3 className="text-sm mb-4">Info</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Created By:</span>
-                <span className="text-slate-200">Ahmad R.</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Created At:</span>
-                <span className="text-slate-200">24 Nov 2025</span>
-              </div>
-              {isEditing && (
+          {/* Quick Info - Only show in edit mode */}
+          {isEditing && (
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <h3 className="text-sm mb-4">Info</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Created By:</span>
+                  <span className="text-slate-200">Ahmad R.</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Created At:</span>
+                  <span className="text-slate-200">24 Nov 2025</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Last Modified:</span>
                   <span className="text-slate-200">24 Nov 2025</span>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

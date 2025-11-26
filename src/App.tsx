@@ -15,7 +15,7 @@ import { AccountPage } from './components/AccountPage';
 import { getTestCaseDetail } from './data/mockTestCases';
 import { authService } from './services/auth-service';
 import { Layout } from './components/Layout';
-import { userServiceClient } from './services/grpc-client';
+import { userServiceClient } from './services/api-client';
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

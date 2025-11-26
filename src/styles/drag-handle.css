@@ -1,0 +1,45 @@
+/* Custom styles for drag handle */
+.drag-handle-container {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.drag-handle-container:active {
+  cursor: grabbing;
+}
+
+.step-number {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: #64748b; /* text-slate-500 */
+  transition: opacity 0.15s ease;
+}
+
+.drag-icon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8; /* text-slate-400 */
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.drag-handle-container:hover .step-number {
+  opacity: 0;
+}
+
+.drag-handle-container:hover .drag-icon {
+  opacity: 1;
+}

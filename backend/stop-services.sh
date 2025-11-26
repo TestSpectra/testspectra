@@ -1,35 +1,30 @@
 #!/bin/bash
 
-# TestSpectra Backend Services Stop Script
+# TestSpectra Backend Stop Script
 
-echo "🛑 Stopping TestSpectra Backend Services..."
+echo "🛑 Stopping TestSpectra Backend..."
 echo ""
 
-# Stop User Service
-if [ -f "logs/user-service.pid" ]; then
-    USER_SERVICE_PID=$(cat logs/user-service.pid)
-    if ps -p $USER_SERVICE_PID > /dev/null 2>&1; then
-        echo "🛑 Stopping User Service (PID: $USER_SERVICE_PID)..."
-        kill $USER_SERVICE_PID
-        echo "✅ User Service stopped"
-    else
-        echo "⚠️  User Service not running"
-    fi
-    rm logs/user-service.pid
-fi
+PID_FILE="logs/backend.pid"
 
-# Stop gRPC Proxy
-if [ -f "logs/grpc-proxy.pid" ]; then
-    PROXY_PID=$(cat logs/grpc-proxy.pid)
-    if ps -p $PROXY_PID > /dev/null 2>&1; then
-        echo "🛑 Stopping gRPC Proxy (PID: $PROXY_PID)..."
-        kill $PROXY_PID
-        echo "✅ gRPC Proxy stopped"
+if [ -f "$PID_FILE" ]; then
+    PID=$(cat "$PID_FILE")
+    if kill -0 "$PID" 2>/dev/null; then
+        echo "Stopping backend (PID: $PID)..."
+        kill "$PID"
+        sleep 1
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "Force killing..."
+            kill -9 "$PID"
+        fi
+        echo "✅ Backend stopped"
     else
-        echo "⚠️  gRPC Proxy not running"
+        echo "⚠️  Backend is not running"
     fi
-    rm logs/grpc-proxy.pid
+    rm -f "$PID_FILE"
+else
+    echo "⚠️  PID file not found"
 fi
 
 echo ""
-echo "✅ All services stopped"
+echo "✅ Done!"

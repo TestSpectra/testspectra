@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Plus, RefreshCw, Search, Filter, Play, Edit, CheckCircle2, XCircle, Clock, Zap, User, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Save, X, FileEdit, Trash2, Eye, ClipboardCheck } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, RefreshCw, Search, Filter, Play, Edit, CheckCircle2, XCircle, Clock, Zap, User, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Save, X, FileEdit, Trash2, Eye, ClipboardCheck, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
-import { TEST_CASES_LIST, enrichTestCase } from '../data/mockTestCases';
+import { testCaseService, TestCaseSummary } from '../services/test-case-service';
 
 interface TestCasesListProps {
   onCreateTestCase: () => void;
@@ -15,8 +15,12 @@ interface TestCasesListProps {
 }
 
 export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, onViewHistory, onViewDetail, onRecordManualResult }: TestCasesListProps) {
-  // Use centralized mock data
-  const initialTestCases = TEST_CASES_LIST;
+  // State for test cases data
+  const [testCasesList, setTestCasesList] = useState<TestCaseSummary[]>([]);
+  const [availableSuites, setAvailableSuites] = useState<string[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAutomation, setFilterAutomation] = useState('all');
@@ -25,7 +29,6 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
-  const [testCasesList, setTestCasesList] = useState(initialTestCases);
   const [quickCreateData, setQuickCreateData] = useState({
     title: '',
     suite: '',
@@ -45,17 +48,44 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
   const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
 
-  const filteredTestCases = testCasesList.filter(tc => {
-    const matchesSearch = tc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         tc.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesAutomation = filterAutomation === 'all' || tc.automation.toLowerCase() === filterAutomation;
-    const matchesPriority = filterPriority === 'all' || tc.priority.toLowerCase() === filterPriority;
-    const matchesSuite = filterSuite === 'all' || tc.suite === filterSuite;
-    
-    return matchesSearch && matchesAutomation && matchesPriority && matchesSuite;
-  });
+  // Fetch test cases from API
+  const fetchTestCases = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await testCaseService.listTestCases({
+        searchQuery: searchQuery || undefined,
+        suiteFilter: filterSuite !== 'all' ? filterSuite : undefined,
+        priorityFilter: filterPriority !== 'all' ? filterPriority : undefined,
+        automationFilter: filterAutomation !== 'all' ? filterAutomation : undefined,
+        page: currentPage,
+        pageSize: itemsPerPage,
+      });
+      setTestCasesList(response.testCases);
+      setTotalCount(response.total);
+      setAvailableSuites(response.availableSuites);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch test cases');
+      console.error('Failed to fetch test cases:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, filterSuite, filterPriority, filterAutomation, currentPage, itemsPerPage]);
 
-  const suites = Array.from(new Set(testCasesList.map(tc => tc.suite)));
+  // Fetch on mount and when filters change
+  useEffect(() => {
+    fetchTestCases();
+  }, [fetchTestCases]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterSuite, filterPriority, filterAutomation]);
+
+  // Use API response directly - no client-side filtering needed
+  const currentItems = testCasesList;
+  const suites = availableSuites.length > 0 ? availableSuites : [];
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const getPriorityColor = (priority: string) => {
     const colors: any = {
@@ -76,47 +106,42 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
     return colors[caseType] || colors['Positive'];
   };
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredTestCases.slice(indexOfFirstItem, indexOfLastItem);
-
-  const totalPages = Math.ceil(filteredTestCases.length / itemsPerPage);
-
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
   };
 
-  const handleQuickSave = (saveAndEdit = false) => {
+  const handleQuickSave = async (saveAndEdit = false) => {
     if (!quickCreateData.title.trim() || !quickCreateData.suite) {
       return;
     }
 
-    const newTestCase = {
-      id: `TC-${Math.floor(Math.random() * 9000) + 1000}`,
-      title: quickCreateData.title.trim(),
-      suite: quickCreateData.suite,
-      priority: quickCreateData.priority,
-      caseType: quickCreateData.caseType,
-      automation: quickCreateData.automation,
-      lastStatus: 'pending' as const,
-      pageLoadAvg: '-',
-      lastRun: 'Belum dijalankan',
-      steps: [],
-      expectedOutcome: ''
-    };
+    try {
+      const newTestCase = await testCaseService.createTestCase({
+        title: quickCreateData.title.trim(),
+        suite: quickCreateData.suite,
+        priority: quickCreateData.priority,
+        caseType: quickCreateData.caseType,
+        automation: quickCreateData.automation,
+      });
 
-    setTestCasesList([newTestCase, ...testCasesList]);
-    setShowQuickCreate(false);
-    setQuickCreateData({
-      title: '',
-      suite: '',
-      priority: 'Medium',
-      caseType: 'Positive',
-      automation: 'Automated'
-    });
+      setShowQuickCreate(false);
+      setQuickCreateData({
+        title: '',
+        suite: '',
+        priority: 'Medium',
+        caseType: 'Positive',
+        automation: 'Automated'
+      });
 
-    if (saveAndEdit) {
-      onEditTestCase(newTestCase);
+      // Refresh list
+      await fetchTestCases();
+
+      if (saveAndEdit) {
+        onEditTestCase(newTestCase);
+      }
+    } catch (err) {
+      console.error('Failed to create test case:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create test case');
     }
   };
 
@@ -136,16 +161,27 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
     setEditingData({ ...testCase });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingData.title.trim() || !editingData.suite) {
       return;
     }
 
-    setTestCasesList(testCasesList.map(tc => 
-      tc.id === editingId ? editingData : tc
-    ));
-    setEditingId(null);
-    setEditingData(null);
+    try {
+      await testCaseService.updateTestCase(editingId!, {
+        title: editingData.title,
+        suite: editingData.suite,
+        priority: editingData.priority,
+        caseType: editingData.caseType,
+        automation: editingData.automation,
+      });
+      setEditingId(null);
+      setEditingData(null);
+      // Refresh list
+      await fetchTestCases();
+    } catch (err) {
+      console.error('Failed to update test case:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update test case');
+    }
   };
 
   const handleCancelEdit = () => {
@@ -179,13 +215,20 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
     setShowDeleteConfirm(true);
   };
 
-  const confirmDelete = () => {
-    if (deleteTarget === 'single' && singleDeleteId) {
-      setTestCasesList(testCasesList.filter(tc => tc.id !== singleDeleteId));
-      setSingleDeleteId(null);
-    } else if (deleteTarget === 'bulk') {
-      setTestCasesList(testCasesList.filter(tc => !selectedIds.includes(tc.id)));
-      setSelectedIds([]);
+  const confirmDelete = async () => {
+    try {
+      if (deleteTarget === 'single' && singleDeleteId) {
+        await testCaseService.deleteTestCase(singleDeleteId);
+        setSingleDeleteId(null);
+      } else if (deleteTarget === 'bulk') {
+        await testCaseService.bulkDeleteTestCases(selectedIds);
+        setSelectedIds([]);
+      }
+      // Refresh list
+      await fetchTestCases();
+    } catch (err) {
+      console.error('Failed to delete test case(s):', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete test case(s)');
     }
     setShowDeleteConfirm(false);
   };
@@ -334,7 +377,29 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
         </div>
       )}
 
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-950/50 border border-red-800/50 rounded-xl p-4 mb-6">
+          <p className="text-red-400 text-sm">{error}</p>
+          <button 
+            onClick={() => { setError(null); fetchTestCases(); }}
+            className="text-xs text-red-300 hover:text-red-200 underline mt-2"
+          >
+            Coba lagi
+          </button>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-slate-900 rounded-xl border border-slate-800 p-12 mb-6 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <span className="ml-3 text-slate-400">Memuat test cases...</span>
+        </div>
+      )}
+
       {/* Table */}
+      {!isLoading && (
       <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -688,8 +753,10 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
           </table>
         </div>
       </div>
+      )}
 
       {/* Pagination */}
+      {!isLoading && totalCount > 0 && (
       <div className="flex items-center justify-between mt-6 bg-slate-900 rounded-xl border border-slate-800 p-4">
         {/* Items per page */}
         <div className="flex items-center gap-3">
@@ -714,7 +781,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
 
         {/* Page info */}
         <div className="text-sm text-slate-400">
-          Menampilkan {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredTestCases.length)} dari {filteredTestCases.length} test cases
+          Menampilkan {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} dari {totalCount} test cases
         </div>
 
         {/* Page navigation */}
@@ -784,6 +851,14 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
           </button>
         </div>
       </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && totalCount === 0 && (
+        <div className="p-12 text-center">
+          <p className="text-slate-400 py-4">Tidak ada test case ditemukan</p>
+        </div>
+      )}
 
       {/* Delete Confirm Dialog */}
       <DeleteConfirmDialog
