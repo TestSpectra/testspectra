@@ -3,7 +3,7 @@ import { FileCheck, Lock, Mail, Eye, EyeOff, LogIn } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => Promise<boolean>;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -11,8 +11,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
@@ -20,14 +21,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       return;
     }
 
-    // Simple validation - in real app, this would call an API
-    if (password.length < 6) {
-      setError('Invalid credentials');
-      return;
-    }
-
     setError('');
-    onLogin(email, password);
+    setIsLoading(true);
+
+    try {
+      await onLogin(email, password);
+    } catch (err) {
+      setError('Invalid email or password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -103,27 +106,34 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+              disabled={isLoading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <LogIn className="w-5 h-5 mr-2" />
-              Sign In
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-5 h-5 mr-2" />
+                  Sign In
+                </>
+              )}
             </Button>
           </form>
 
           {/* Demo Accounts */}
           <div className="mt-8 pt-6 border-t border-slate-800">
-            <p className="text-xs text-slate-500 mb-3 text-center">Demo Accounts:</p>
+            <p className="text-xs text-slate-500 mb-3 text-center">Admin Account:</p>
             <div className="space-y-2 text-xs">
-              <div className="bg-slate-800/50 rounded-lg p-2">
-                <p className="text-slate-400">Admin: <span className="text-blue-400">ahmad.rizki@company.com</span></p>
+              <div className="bg-slate-800/50 rounded-lg p-3">
+                <p className="text-slate-400 mb-1">Email: <span className="text-blue-400">admin@testspectra.com</span></p>
+                <p className="text-slate-400">Password: <span className="text-blue-400">Admin123!</span></p>
               </div>
-              <div className="bg-slate-800/50 rounded-lg p-2">
-                <p className="text-slate-400">QA Lead: <span className="text-blue-400">siti.nurhaliza@company.com</span></p>
-              </div>
-              <div className="bg-slate-800/50 rounded-lg p-2">
-                <p className="text-slate-400">QA Engineer: <span className="text-blue-400">budi.santoso@company.com</span></p>
-              </div>
-              <p className="text-slate-600 text-center mt-2">Password: any 6+ characters</p>
             </div>
           </div>
         </div>

@@ -13,6 +13,7 @@ import { UserManagement } from './components/UserManagement';
 import { LoginPage } from './components/LoginPage';
 import { AccountPage } from './components/AccountPage';
 import { getTestCaseDetail, enrichTestCase } from './data/mockTestCases';
+import { authService } from './services/auth-service';
 
 type View = 'dashboard' | 'test-cases' | 'test-case-form' | 'test-case-detail' | 'runs-history' | 'configuration' | 'tools' | 'test-report' | 'manual-test-result' | 'user-management' | 'account';
 
@@ -118,17 +119,32 @@ export default function App() {
     }
   }, [currentView]);
 
-  const handleLogin = (email: string, password: string) => {
-    // Simple mock authentication - in real app, this would call an API
-    const user = MOCK_USERS.find(u => u.email === email);
-    if (user) {
-      setCurrentUser(user);
+  // Check if user is already authenticated on app load
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      const user = authService.getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+      }
+    }
+  }, []);
+
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const response = await authService.login(email, password);
+      setCurrentUser(response.user);
       setIsAuthenticated(true);
       setCurrentView('dashboard');
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
     }
   };
 
   const handleLogout = () => {
+    authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
     setCurrentView('dashboard');
