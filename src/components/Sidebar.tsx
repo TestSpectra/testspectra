@@ -7,9 +7,10 @@ interface SidebarProps {
   currentView: string;
   onViewChange: (view: View) => void;
   onLogout?: () => void;
+  currentUser?: any;
 }
 
-export function Sidebar({ currentView, onViewChange, onLogout }: SidebarProps) {
+export function Sidebar({ currentView, onViewChange, onLogout, currentUser }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'test-cases', label: 'Test Cases', icon: FileCheck },
@@ -19,11 +20,24 @@ export function Sidebar({ currentView, onViewChange, onLogout }: SidebarProps) {
     { id: 'user-management', label: 'User Management', icon: Users },
   ];
 
-  // Mock Git user data - in real app, this would be fetched from local Git config
-  const gitUser = {
-    name: 'Ahmad Rahman',
-    email: 'ahmad.rahman@company.com',
-    avatar: 'AR'
+  // Get user data from currentUser prop or use placeholder
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const displayUser = currentUser ? {
+    name: currentUser.name || 'User',
+    email: currentUser.email || 'user@example.com',
+    avatar: getInitials(currentUser.name || 'User')
+  } : {
+    name: 'Guest',
+    email: 'guest@testspectra.com',
+    avatar: 'G'
   };
 
   const [isAccountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -112,14 +126,14 @@ export function Sidebar({ currentView, onViewChange, onLogout }: SidebarProps) {
           className="flex items-center gap-3 cursor-pointer hover:bg-slate-800 rounded-lg p-2 transition-colors"
         >
           <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-sm">{gitUser.avatar}</span>
+            <span className="text-white text-sm font-semibold">{displayUser.avatar}</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <GitBranch className="w-3 h-3 text-slate-400" />
-              <p className="text-sm text-slate-200 truncate">{gitUser.name}</p>
+              <p className="text-sm text-slate-200 truncate">{displayUser.name}</p>
             </div>
-            <p className="text-xs text-slate-500 truncate">{gitUser.email}</p>
+            <p className="text-xs text-slate-500 truncate">{displayUser.email}</p>
           </div>
           <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`} />
         </div>
