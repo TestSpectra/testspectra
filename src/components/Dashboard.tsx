@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   FileCheck,
   Zap,
@@ -8,6 +9,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { testCaseService } from "../services/test-case-service";
 import {
   AreaChart,
   Area,
@@ -95,27 +97,44 @@ export function Dashboard({
     return null;
   };
 
-  // Mock data for recent activities
-  const recentTestCases = [
-    {
-      id: "TC-1001",
-      title: "Login dengan kredensial valid",
-      author: "Ahmad R.",
-      time: "15 menit lalu",
-    },
-    {
-      id: "TC-2001",
-      title: "Tambah produk ke keranjang",
-      author: "Sarah K.",
-      time: "1 jam lalu",
-    },
-    {
-      id: "TC-3001",
-      title: "Filter produk berdasarkan kategori",
-      author: "Budi S.",
-      time: "2 jam lalu",
-    },
-  ];
+  // State for recent test cases
+  const [recentTestCases, setRecentTestCases] = useState<any[]>([]);
+  const [isLoadingRecent, setIsLoadingRecent] = useState(true);
+
+  // Fetch recent test cases
+  useEffect(() => {
+    const fetchRecentTestCases = async () => {
+      try {
+        const response = await testCaseService.listTestCases({
+          page: 1,
+          pageSize: 5,
+        });
+        setRecentTestCases(response.testCases);
+      } catch (error) {
+        console.error("Failed to fetch recent test cases:", error);
+      } finally {
+        setIsLoadingRecent(false);
+      }
+    };
+
+    fetchRecentTestCases();
+  }, []);
+
+  // Format time ago
+  const getTimeAgo = (dateString?: string) => {
+    if (!dateString) return "Recently";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} menit lalu`;
+    if (diffHours < 24) return `${diffHours} jam lalu`;
+    return `${diffDays} hari lalu`;
+  };
 
   const recentRuns = [
     {
@@ -341,35 +360,44 @@ export function Dashboard({
             </button>
           </div>
           <div className="space-y-4">
-            {recentTestCases.map((tc) => (
-              <div
-                key={tc.id}
-                className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-                onClick={() => onViewTestCaseDetail(tc.id)}
-              >
-                <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FileCheck className="w-5 h-5 text-blue-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm text-slate-400">
-                      {tc.id}
-                    </span>
+            {isLoadingRecent ? (
+              <div className="text-center text-slate-400 py-4">Loading...</div>
+            ) : recentTestCases.length === 0 ? (
+              <div className="text-center text-slate-400 py-4">No test cases yet</div>
+            ) : (
+              recentTestCases.map((tc) => (
+                <div
+                  key={tc.id}
+                  className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                  onClick={() => onViewTestCaseDetail(tc.id)}
+                >
+                  <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <FileCheck className="w-5 h-5 text-blue-400" />
                   </div>
-                  <p className="text-sm text-slate-200 mb-1">
-                    {tc.title}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-slate-500">
-                    <span>oleh {tc.author}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {tc.time}
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm text-slate-400">
+                        {tc.id}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                        {tc.suite}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-200 mb-1 truncate">
+                      {tc.title}
+                    </p>
+                    <div className="flex items-center gap-3 text-xs text-slate-500">
+                      <span>oleh {tc.createdByName || "Unknown"}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {getTimeAgo(tc.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

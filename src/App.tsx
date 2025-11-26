@@ -12,10 +12,10 @@ import { ManualTestResultForm } from './components/ManualTestResultForm';
 import { UserManagement } from './components/UserManagement';
 import { LoginPage } from './components/LoginPage';
 import { AccountPage } from './components/AccountPage';
-import { getTestCaseDetail } from './data/mockTestCases';
 import { authService } from './services/auth-service';
 import { Layout } from './components/Layout';
 import { userServiceClient } from './services/api-client';
+import { testCaseService } from './services/test-case-service';
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -166,20 +166,25 @@ function AppContent() {
     navigate('/runs-history');
   };
 
-  const handleViewDetail = (testCaseIdOrObject: any) => {
-    let testCaseData;
-    if (typeof testCaseIdOrObject === 'string') {
-      testCaseData = getTestCaseDetail(testCaseIdOrObject);
-      if (!testCaseData) {
-        console.error('Test case not found:', testCaseIdOrObject);
-        return;
+  const handleViewDetail = async (testCaseIdOrObject: any) => {
+    try {
+      let testCaseData;
+      if (typeof testCaseIdOrObject === 'string') {
+        // Fetch from API
+        testCaseData = await testCaseService.getTestCase(testCaseIdOrObject);
+        if (!testCaseData) {
+          console.error('Test case not found:', testCaseIdOrObject);
+          return;
+        }
+      } else {
+        testCaseData = testCaseIdOrObject;
       }
-    } else {
-      testCaseData = testCaseIdOrObject;
+      
+      setSelectedTestCase(testCaseData);
+      navigate('/test-cases/detail');
+    } catch (error) {
+      console.error('Failed to load test case:', error);
     }
-    
-    setSelectedTestCase(testCaseData);
-    navigate('/test-cases/detail');
   };
 
   const handleDeleteFromDetail = (testCaseId: string) => {

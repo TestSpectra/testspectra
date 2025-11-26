@@ -374,6 +374,47 @@ export function TestCaseForm({
   onSave,
   onCancel,
 }: TestCaseFormProps) {
+  // Convert backend steps to frontend actions format
+  const convertStepsToActions = (steps: any[]): TestAction[] => {
+    if (!steps || steps.length === 0) {
+      return [{ 
+        id: "1", 
+        type: "navigate", 
+        url: "",
+        assertions: [{ id: "1", type: "urlContains" }]
+      }];
+    }
+
+    return steps.map((step, index) => {
+      const action: TestAction = {
+        id: step.id || `step-${index}`,
+        type: step.actionType as ActionType,
+        customExpectedResult: step.customExpectedResult || "",
+        assertions: (step.assertions || []).map((assertion: any, idx: number) => ({
+          id: `assertion-${index}-${idx}`,
+          type: assertion.assertionType as AssertionType,
+          selector: assertion.selector || "",
+          value: assertion.expectedValue || "",
+          attribute: assertion.attribute || "",
+        })),
+      };
+
+      // Map action params to action properties
+      if (step.actionParams) {
+        if (step.actionParams.url) action.url = step.actionParams.url;
+        if (step.actionParams.selector) action.selector = step.actionParams.selector;
+        if (step.actionParams.text) action.text = step.actionParams.text;
+        if (step.actionParams.key) action.key = step.actionParams.key;
+        if (step.actionParams.duration) action.duration = step.actionParams.duration;
+        if (step.actionParams.direction) action.direction = step.actionParams.direction;
+        if (step.actionParams.option) action.option = step.actionParams.option;
+        if (step.actionParams.targetSelector) action.targetSelector = step.actionParams.targetSelector;
+      }
+
+      return action;
+    });
+  };
+
   const [formData, setFormData] = useState({
     id: testCase?.id || "",
     title: testCase?.title || "",
@@ -388,12 +429,7 @@ export function TestCaseForm({
   });
 
   const [actions, setActions] = useState<TestAction[]>(
-    testCase?.actions || [{ 
-      id: "1", 
-      type: "navigate", 
-      url: "",
-      assertions: [{ id: "1", type: "urlContains" }]
-    }]
+    convertStepsToActions(testCase?.steps || [])
   );
 
   const [isCreatingNewSuite, setIsCreatingNewSuite] = useState(false);

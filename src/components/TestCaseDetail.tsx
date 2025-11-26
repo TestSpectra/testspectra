@@ -3,10 +3,12 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 
 interface TestStep {
-  action: string;
-  target?: string;
-  value?: string;
-  description?: string;
+  id?: string;
+  stepOrder: number;
+  actionType: string;
+  actionParams: any;
+  assertions: any[];
+  customExpectedResult?: string | null;
 }
 
 interface ExecutionHistory {
@@ -28,15 +30,17 @@ interface TestCaseDetailProps {
     caseType: string;
     automation: string;
     lastStatus: 'passed' | 'failed' | 'pending';
-    pageLoadAvg: string;
-    lastRun: string;
+    pageLoadAvg?: string;
+    lastRun?: string;
     description?: string;
+    preCondition?: string;
+    postCondition?: string;
     steps?: TestStep[];
     expectedOutcome?: string;
     tags?: string[];
-    createdBy?: string;
+    createdByName?: string;
     createdAt?: string;
-    lastModified?: string;
+    updatedAt?: string;
   };
   onBack: () => void;
   onEdit: (testCase: any) => void;
@@ -65,27 +69,39 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
     return colors[caseType] || colors['Positive'];
   };
 
-  const getActionIcon = (action: string) => {
+  const getActionIcon = (actionType: string) => {
     const icons: any = {
-      'Navigate To': '🌐',
-      'Click': '👆',
-      'Type Text': '⌨️',
-      'Select Option': '📋',
-      'Wait For Element': '⏱️',
-      'Assert Visibility': '👁️',
+      'navigate': '🌐',
+      'click': '👆',
+      'type': '⌨️',
+      'select': '📋',
+      'wait': '⏱️',
+      'assert': '👁️',
+      'hover': '🖱️',
+      'scroll': '📜',
+      'pressKey': '⌨️',
+      'dragAndDrop': '↔️',
     };
-    return icons[action] || '▶️';
+    return icons[actionType] || '▶️';
   };
 
-  // Mock data
-  const steps: TestStep[] = testCase.steps || [
-    { action: 'Navigate To', target: 'https://example.com/login', description: 'Buka halaman login' },
-    { action: 'Type Text', target: '#username', value: 'testuser@example.com', description: 'Input username' },
-    { action: 'Type Text', target: '#password', value: '********', description: 'Input password' },
-    { action: 'Click', target: '#login-button', description: 'Klik tombol login' },
-    { action: 'Wait For Element', target: '.dashboard-container', description: 'Tunggu dashboard muncul' },
-    { action: 'Assert Visibility', target: '.user-profile', description: 'Verifikasi user profile terlihat' },
-  ];
+  const getActionLabel = (actionType: string) => {
+    const labels: any = {
+      'navigate': 'Navigate',
+      'click': 'Click',
+      'type': 'Type Text',
+      'select': 'Select',
+      'wait': 'Wait',
+      'assert': 'Assert',
+      'hover': 'Hover',
+      'scroll': 'Scroll',
+      'pressKey': 'Press Key',
+      'dragAndDrop': 'Drag & Drop',
+    };
+    return labels[actionType] || actionType;
+  };
+
+  const steps: TestStep[] = testCase.steps || [];
 
   const executionHistory: ExecutionHistory[] = [
     {
@@ -227,6 +243,20 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content - 2 columns */}
         <div className="col-span-2 space-y-6">
+          {/* Pre-condition */}
+          {testCase.preCondition && (
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <h2 className="mb-4 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-orange-400" />
+                Pre-Condition
+              </h2>
+              <div 
+                className="text-slate-300 leading-relaxed prose prose-sm prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: testCase.preCondition }}
+              />
+            </div>
+          )}
+
           {/* Description */}
           {testCase.description && (
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
@@ -241,55 +271,100 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
           {/* Test Steps */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <h2 className="mb-4">Test Steps</h2>
-            <div className="space-y-3">
-              {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="flex gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:border-blue-500/30 transition-colors"
-                >
-                  <div className="flex items-center justify-center w-8 h-8 bg-blue-600/20 rounded-lg text-blue-400 flex-shrink-0">
-                    <span className="text-sm">{index + 1}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">{getActionIcon(step.action)}</span>
-                      <span className="text-sm text-teal-400">{step.action}</span>
+            {steps.length === 0 ? (
+              <p className="text-slate-400 text-sm">No steps defined</p>
+            ) : (
+              <div className="space-y-3">
+                {steps.map((step, index) => (
+                  <div
+                    key={step.id || index}
+                    className="flex gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:border-blue-500/30 transition-colors"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 bg-blue-600/20 rounded-lg text-blue-400 flex-shrink-0">
+                      <span className="text-sm">{step.stepOrder}</span>
                     </div>
-                    {step.description && (
-                      <p className="text-sm text-slate-300 mb-2">{step.description}</p>
-                    )}
-                    <div className="space-y-1 text-xs">
-                      {step.target && (
-                        <div className="flex gap-2">
-                          <span className="text-slate-500">Target:</span>
-                          <code className="text-purple-400 bg-purple-950/30 px-2 py-0.5 rounded">{step.target}</code>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">{getActionIcon(step.actionType)}</span>
+                        <span className="text-sm text-teal-400 font-medium">{getActionLabel(step.actionType)}</span>
+                      </div>
+                      
+                      {/* Action Parameters */}
+                      {step.actionParams && Object.keys(step.actionParams).length > 0 && (
+                        <div className="space-y-1 text-xs mb-2">
+                          {Object.entries(step.actionParams).map(([key, value]) => (
+                            <div key={key} className="flex gap-2">
+                              <span className="text-slate-500 capitalize">{key}:</span>
+                              <code className="text-purple-400 bg-purple-950/30 px-2 py-0.5 rounded">{String(value)}</code>
+                            </div>
+                          ))}
                         </div>
                       )}
-                      {step.value && (
-                        <div className="flex gap-2">
-                          <span className="text-slate-500">Value:</span>
-                          <code className="text-orange-400 bg-orange-950/30 px-2 py-0.5 rounded">{step.value}</code>
+
+                      {/* Assertions */}
+                      {step.assertions && step.assertions.length > 0 && (
+                        <div className="mt-2 pl-4 border-l-2 border-green-500/30">
+                          <p className="text-xs text-green-400 mb-1">Assertions:</p>
+                          <div className="space-y-1">
+                            {step.assertions.map((assertion: any, idx: number) => (
+                              <div key={idx} className="text-xs text-slate-300">
+                                <span className="text-green-400">✓</span> {assertion.assertionType}
+                                {assertion.selector && (
+                                  <code className="ml-2 text-purple-400 bg-purple-950/30 px-1 py-0.5 rounded text-[10px]">
+                                    {assertion.selector}
+                                  </code>
+                                )}
+                                {assertion.expectedValue && (
+                                  <span className="ml-2 text-orange-400">= {assertion.expectedValue}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
+                      )}
+
+                      {/* Custom Expected Result */}
+                      {step.customExpectedResult && (
+                        <div 
+                          className="mt-2 text-xs text-slate-400 prose prose-sm prose-invert max-w-none"
+                          dangerouslySetInnerHTML={{ __html: step.customExpectedResult }}
+                        />
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Expected Outcome */}
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <h2 className="mb-4 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-400" />
-              Expected Outcome
-            </h2>
-            <div className="p-4 bg-green-950/20 border border-green-800/30 rounded-lg">
-              <p className="text-slate-300 leading-relaxed">
-                {testCase.expectedOutcome || 'User berhasil login dan diarahkan ke halaman dashboard. Profile user terlihat di header dengan nama dan avatar yang sesuai.'}
-              </p>
+          {/* Post-condition */}
+          {testCase.postCondition && (
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <h2 className="mb-4 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-400" />
+                Post-Condition
+              </h2>
+              <div 
+                className="text-slate-300 leading-relaxed prose prose-sm prose-invert max-w-none p-4 bg-green-950/20 border border-green-800/30 rounded-lg"
+                dangerouslySetInnerHTML={{ __html: testCase.postCondition }}
+              />
             </div>
-          </div>
+          )}
+
+          {/* Expected Outcome */}
+          {testCase.expectedOutcome && (
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+              <h2 className="mb-4 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-400" />
+                Expected Outcome
+              </h2>
+              <div className="p-4 bg-green-950/20 border border-green-800/30 rounded-lg">
+                <p className="text-slate-300 leading-relaxed">
+                  {testCase.expectedOutcome}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Execution History */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
@@ -449,15 +524,15 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
             <div className="space-y-3 text-sm">
               <div>
                 <p className="text-xs text-slate-500 mb-1">Created By</p>
-                <p className="text-slate-300">{testCase.createdBy || 'John Doe'}</p>
+                <p className="text-slate-300">{testCase.createdByName || '-'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 mb-1">Created At</p>
-                <p className="text-slate-300">{testCase.createdAt || '2024-01-10 09:30:00'}</p>
+                <p className="text-slate-300">{testCase.createdAt ? new Date(testCase.createdAt).toLocaleString() : '-'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 mb-1">Last Modified</p>
-                <p className="text-slate-300">{testCase.lastModified || '2024-01-15 14:30:25'}</p>
+                <p className="text-slate-300">{testCase.updatedAt ? new Date(testCase.updatedAt).toLocaleString() : '-'}</p>
               </div>
             </div>
           </div>
