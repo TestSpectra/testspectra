@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, RefreshCw, Search, Filter, Play, Edit, CheckCircle2, XCircle, Clock, Zap, User, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Save, X, FileEdit, Trash2, Eye, ClipboardCheck, Loader2 } from 'lucide-react';
+import { Plus, RefreshCw, Search, Filter, Play, Edit, CheckCircle2, XCircle, Clock, Zap, User, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Save, X, FileEdit, Trash2, Eye, ClipboardCheck, Loader2, FolderPlus } from 'lucide-react';
+import { authService } from '../services/auth-service';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
@@ -48,6 +51,16 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
   const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
 
+  // Suite Management State
+  const [allSuites, setAllSuites] = useState<{id: string; name: string}[]>([]);
+  const [isLoadingSuites, setIsLoadingSuites] = useState(false);
+  const [isCreatingNewSuite, setIsCreatingNewSuite] = useState(false);
+  const [newSuiteName, setNewSuiteName] = useState('');
+  const [isCreatingSuite, setIsCreatingSuite] = useState(false);
+  // For quick edit row
+  const [isCreatingNewSuiteEdit, setIsCreatingNewSuiteEdit] = useState(false);
+  const [newSuiteNameEdit, setNewSuiteNameEdit] = useState('');
+
   // Fetch test cases from API
   const fetchTestCases = useCallback(async () => {
     setIsLoading(true);
@@ -76,6 +89,71 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
   useEffect(() => {
     fetchTestCases();
   }, [fetchTestCases]);
+
+  // Fetch all suites from API
+  const fetchSuites = useCallback(async () => {
+    setIsLoadingSuites(true);
+    try {
+      const token = authService.getAccessToken();
+      const response = await fetch(`${API_URL}/test-suites`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAllSuites(data.suites || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch suites:', err);
+    } finally {
+      setIsLoadingSuites(false);
+    }
+  }, []);
+
+  // Fetch suites on mount
+  useEffect(() => {
+    fetchSuites();
+  }, [fetchSuites]);
+
+  // Create new suite handler
+  const handleCreateSuite = async (forEdit = false) => {
+    const suiteName = forEdit ? newSuiteNameEdit : newSuiteName;
+    if (!suiteName.trim()) return;
+    
+    setIsCreatingSuite(true);
+    try {
+      const token = authService.getAccessToken();
+      const response = await fetch(`${API_URL}/test-suites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: suiteName.trim() })
+      });
+      
+      if (response.ok) {
+        const newSuite = await response.json();
+        setAllSuites(prev => [...prev, newSuite].sort((a, b) => a.name.localeCompare(b.name)));
+        
+        if (forEdit) {
+          setEditingData({ ...editingData, suite: newSuite.name });
+          setIsCreatingNewSuiteEdit(false);
+          setNewSuiteNameEdit('');
+        } else {
+          setQuickCreateData({ ...quickCreateData, suite: newSuite.name });
+          setIsCreatingNewSuite(false);
+          setNewSuiteName('');
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create suite');
+      }
+    } catch (err) {
+      console.error('Failed to create suite:', err);
+    } finally {
+      setIsCreatingSuite(false);
+    }
+  };
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -238,16 +316,8 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
     setSingleDeleteId(null);
   };
 
-  const allSuites = [
-    'Authentication',
-    'E-Commerce',
-    'Payment',
-    'Product Catalog',
-    'User Profile',
-    'Shopping Cart',
-    'Order Management',
-    'Reporting'
-  ];
+  // Combine API suites with any from test cases that might not be in the suites table
+  const combinedSuites = [...new Set([...allSuites.map(s => s.name), ...availableSuites])].sort();
 
   return (
     <div className="p-8 bg-slate-950">
@@ -330,7 +400,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">Semua Suite</option>
-              {suites.map(suite => (
+              {combinedSuites.map(suite => (
                 <option key={suite} value={suite}>{suite}</option>
               ))}
             </select>
@@ -449,16 +519,53 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
                     />
                   </td>
                   <td className="px-6 py-4">
-                    <select
-                      value={quickCreateData.suite}
-                      onChange={(e) => setQuickCreateData({ ...quickCreateData, suite: e.target.value })}
-                      className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                      <option value="">Pilih Suite</option>
-                      {allSuites.map(suite => (
-                        <option key={suite} value={suite}>{suite}</option>
-                      ))}
-                    </select>
+                    {isCreatingNewSuite ? (
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          value={newSuiteName}
+                          onChange={(e) => setNewSuiteName(e.target.value)}
+                          placeholder="Nama suite..."
+                          className="flex-1 bg-slate-800 border border-teal-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          autoFocus
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateSuite(false)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleCreateSuite(false)}
+                          disabled={isCreatingSuite}
+                          className="px-2 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded text-xs disabled:opacity-50"
+                        >
+                          {isCreatingSuite ? <Loader2 size={12} className="animate-spin" /> : 'OK'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setIsCreatingNewSuite(false); setNewSuiteName(''); }}
+                          className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={quickCreateData.suite}
+                        onChange={(e) => {
+                          if (e.target.value === '__new__') {
+                            setIsCreatingNewSuite(true);
+                          } else {
+                            setQuickCreateData({ ...quickCreateData, suite: e.target.value });
+                          }
+                        }}
+                        disabled={isLoadingSuites}
+                        className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+                      >
+                        <option value="">{isLoadingSuites ? 'Loading...' : 'Pilih Suite'}</option>
+                        {combinedSuites.map(suite => (
+                          <option key={suite} value={suite}>{suite}</option>
+                        ))}
+                        <option value="__new__">+ Buat Suite Baru</option>
+                      </select>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <select
@@ -565,15 +672,51 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
                   </td>
                   <td className="px-6 py-4">
                     {editingId === tc.id ? (
-                      <select
-                        value={editingData.suite}
-                        onChange={(e) => setEditingData({ ...editingData, suite: e.target.value })}
-                        className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        {allSuites.map(suite => (
-                          <option key={suite} value={suite}>{suite}</option>
-                        ))}
-                      </select>
+                      isCreatingNewSuiteEdit ? (
+                        <div className="flex gap-1">
+                          <input
+                            type="text"
+                            value={newSuiteNameEdit}
+                            onChange={(e) => setNewSuiteNameEdit(e.target.value)}
+                            placeholder="Nama suite..."
+                            className="flex-1 bg-slate-800 border border-blue-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleCreateSuite(true)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleCreateSuite(true)}
+                            disabled={isCreatingSuite}
+                            className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs disabled:opacity-50"
+                          >
+                            {isCreatingSuite ? <Loader2 size={12} className="animate-spin" /> : 'OK'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setIsCreatingNewSuiteEdit(false); setNewSuiteNameEdit(''); }}
+                            className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <select
+                          value={editingData.suite}
+                          onChange={(e) => {
+                            if (e.target.value === '__new__') {
+                              setIsCreatingNewSuiteEdit(true);
+                            } else {
+                              setEditingData({ ...editingData, suite: e.target.value });
+                            }
+                          }}
+                          className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {combinedSuites.map(suite => (
+                            <option key={suite} value={suite}>{suite}</option>
+                          ))}
+                          <option value="__new__">+ Buat Suite Baru</option>
+                        </select>
+                      )
                     ) : (
                       <span className="text-sm text-slate-300">{tc.suite}</span>
                     )}
