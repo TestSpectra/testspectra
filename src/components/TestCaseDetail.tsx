@@ -160,7 +160,7 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to List</span>
+            <span>Back</span>
           </button>
           <div className="border-l border-slate-700 h-8"></div>
           <div>
@@ -224,7 +224,7 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
           <Button
             onClick={() => onEdit(testCase)}
             variant="outline"
-            className="border-blue-600/50 text-blue-400 hover:bg-blue-600/20"
+            className="border-blue-600/50 text-blue-400 hover:bg-blue-600/20 hover:text-white"
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit
@@ -232,7 +232,7 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
           <Button
             onClick={() => onDelete(testCase.id)}
             variant="outline"
-            className="border-red-600/50 text-red-400 hover:bg-red-600/20"
+            className="border-red-600/50 text-red-400 hover:bg-red-600/20 hover:text-white"
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Delete
