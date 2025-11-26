@@ -59,7 +59,7 @@ echo "⏳ Waiting for User Service to be ready..."
 sleep 3
 
 # Start gRPC Proxy in background
-echo "🚀 Starting gRPC Proxy (port 3000)..."
+echo "🚀 Starting gRPC Proxy (port 3002)..."
 cd grpc-proxy
 ../target/release/grpc-proxy > ../logs/grpc-proxy.log 2>&1 &
 PROXY_PID=$!
@@ -77,7 +77,7 @@ echo "✅ All services started successfully!"
 echo ""
 echo "📊 Service Status:"
 echo "  - User Service:  http://localhost:50051 (gRPC)"
-echo "  - gRPC Proxy:    http://localhost:3000 (HTTP/REST)"
+echo "  - gRPC Proxy:    http://localhost:3002 (HTTP/REST)"
 echo ""
 echo "📝 Logs:"
 echo "  - User Service:  tail -f logs/user-service.log"
