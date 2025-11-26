@@ -161,6 +161,20 @@ export class AuthService {
   private setUser(user: User): void {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
+  
+  /**
+   * Update user data in localStorage
+   */
+  updateUserData(userData: Partial<User>): User {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('No user logged in');
+    }
+    
+    const updatedUser = { ...currentUser, ...userData };
+    this.setUser(updatedUser);
+    return updatedUser;
+  }
 
   /**
    * Check if user has permission
