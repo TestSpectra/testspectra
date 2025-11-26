@@ -3,6 +3,7 @@ use crate::db::UserRepository;
 use crate::permissions::{
     permission_to_proto, proto_to_permission, proto_to_role, role_to_proto, PERMISSION_MANAGE_USERS,
 };
+use proto::UpdateMyProfileRequest;
 use anyhow::Result;
 use tonic::{Request, Response, Status};
 use uuid::Uuid;
@@ -36,8 +37,8 @@ impl UserServiceImpl {
     }
 
     async fn check_permission(&self, token: &str, required_permission: &str) -> Result<Uuid, Status> {
-        let claims = self.verify_token(token)?;
-        let user_id = Uuid::parse_str(&claims.sub)
+        let _claims = self.verify_token(token)?;
+        let user_id = Uuid::parse_str(&_claims.sub)
             .map_err(|_| Status::internal("Invalid user ID in token"))?;
 
         let user = self
@@ -84,6 +85,58 @@ impl UserServiceImpl {
 
 #[tonic::async_trait]
 impl UserService for UserServiceImpl {
+    async fn update_my_profile(
+        &self,
+        request: Request<UpdateMyProfileRequest>,
+    ) -> Result<Response<UserResponse>, Status> {
+        let req = request.into_inner();
+        let claims = self.verify_token(&req.token)?;
+        
+        // Extract user ID from token
+        let user_id = Uuid::parse_str(&claims.sub)
+            .map_err(|_| Status::internal("Invalid user ID in token"))?;
+        
+        // Get current user data
+        let user = self
+            .repo
+            .get_user_with_permissions(&user_id)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get user: {}", e)))?;
+            
+        if user.is_none() {
+            return Err(Status::not_found("User not found"));
+        }
+        
+        let mut user = user.unwrap();
+        
+        // Update only the name field
+        if let Some(name) = req.name {
+            user.name = name;
+        }
+        
+        // Save the updated user
+        let _updated_user = self
+            .repo
+            .update_user(&user_id, Some(&user.name), None, None, None)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to update user: {}", e)))?;
+        
+        // Get the updated user with permissions
+        let user_with_perms = self
+            .repo
+            .get_user_with_permissions(&user_id)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get updated user: {}", e)))?;
+            
+        if user_with_perms.is_none() {
+            return Err(Status::internal("User not found after update"));
+        }
+        
+        Ok(Response::new(UserResponse {
+            user: Some(self.user_to_proto(&user_with_perms.unwrap())),
+        }))
+    }
+    
     async fn login(
         &self,
         request: Request<LoginRequest>,
@@ -142,16 +195,16 @@ impl UserService for UserServiceImpl {
         request: Request<RefreshTokenRequest>,
     ) -> Result<Response<RefreshTokenResponse>, Status> {
         let req = request.into_inner();
-        let claims = self.verify_token(&req.refresh_token)?;
+        let _claims = self.verify_token(&req.refresh_token)?;
 
         let access_token = self
             .jwt_service
-            .generate_access_token(&claims.sub, &claims.email, &claims.role)
+            .generate_access_token(&_claims.sub, &_claims.email, &_claims.role)
             .map_err(|e| Status::internal(format!("Token generation error: {}", e)))?;
 
         let refresh_token = self
             .jwt_service
-            .generate_refresh_token(&claims.sub, &claims.email, &claims.role)
+            .generate_refresh_token(&_claims.sub, &_claims.email, &_claims.role)
             .map_err(|e| Status::internal(format!("Token generation error: {}", e)))?;
 
         Ok(Response::new(RefreshTokenResponse {
@@ -165,9 +218,9 @@ impl UserService for UserServiceImpl {
         request: Request<GetCurrentUserRequest>,
     ) -> Result<Response<UserResponse>, Status> {
         let req = request.into_inner();
-        let claims = self.verify_token(&req.token)?;
+        let _claims = self.verify_token(&req.token)?;
 
-        let user_id = Uuid::parse_str(&claims.sub)
+        let user_id = Uuid::parse_str(&_claims.sub)
             .map_err(|_| Status::internal("Invalid user ID in token"))?;
 
         let user = self
@@ -187,7 +240,9 @@ impl UserService for UserServiceImpl {
         request: Request<ListUsersRequest>,
     ) -> Result<Response<ListUsersResponse>, Status> {
         let req = request.into_inner();
-        self.check_permission(&req.token, PERMISSION_MANAGE_USERS).await?;
+        // Verify token but don't check for specific permission
+        // All authenticated users can view the user list
+        let _claims = self.verify_token(&req.token)?;
 
         let role_filter = req.role_filter.as_deref();
         let status_filter = req.status_filter.as_deref();
@@ -240,7 +295,7 @@ impl UserService for UserServiceImpl {
         request: Request<CreateUserRequest>,
     ) -> Result<Response<UserResponse>, Status> {
         let req = request.into_inner();
-        self.check_permission(&req.token, PERMISSION_MANAGE_USERS).await?;
+        let granted_by = self.check_permission(&req.token, PERMISSION_MANAGE_USERS).await?;
 
         let role = proto_to_role(req.role)
             .ok_or_else(|| Status::invalid_argument("Invalid role"))?;
@@ -253,6 +308,21 @@ impl UserService for UserServiceImpl {
             .create_user(&req.name, &req.email, &password_hash, &role)
             .await
             .map_err(|e| Status::internal(format!("Database error: {}", e)))?;
+
+        // Handle special permissions
+        let mut permissions_to_grant = Vec::new();
+        for perm_enum in req.special_permissions {
+            if let Some(perm_str) = proto_to_permission(perm_enum) {
+                permissions_to_grant.push(perm_str);
+            }
+        }
+
+        if !permissions_to_grant.is_empty() {
+            self.repo
+                .grant_special_permissions(&user.id, permissions_to_grant, &granted_by)
+                .await
+                .map_err(|e| Status::internal(format!("Failed to grant permissions: {}", e)))?;
+        }
 
         let user_with_perms = self
             .repo
@@ -271,7 +341,7 @@ impl UserService for UserServiceImpl {
         request: Request<UpdateUserRequest>,
     ) -> Result<Response<UserResponse>, Status> {
         let req = request.into_inner();
-        self.check_permission(&req.token, PERMISSION_MANAGE_USERS).await?;
+        let granted_by = self.check_permission(&req.token, PERMISSION_MANAGE_USERS).await?;
 
         let user_id = Uuid::parse_str(&req.user_id)
             .map_err(|_| Status::invalid_argument("Invalid user ID"))?;
@@ -297,6 +367,36 @@ impl UserService for UserServiceImpl {
             )
             .await
             .map_err(|e| Status::internal(format!("Database error: {}", e)))?;
+
+        // Update special permissions (replace logic)
+        // 1. Revoke all existing
+        let current_perms = self
+            .repo
+            .get_user_special_permissions(&user_id)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get perms: {}", e)))?;
+
+        if !current_perms.is_empty() {
+            self.repo
+                .revoke_special_permissions(&user_id, current_perms)
+                .await
+                .map_err(|e| Status::internal(format!("Failed to revoke perms: {}", e)))?;
+        }
+
+        // 2. Grant new ones
+        let mut permissions_to_grant = Vec::new();
+        for perm_enum in req.special_permissions {
+            if let Some(perm_str) = proto_to_permission(perm_enum) {
+                permissions_to_grant.push(perm_str);
+            }
+        }
+
+        if !permissions_to_grant.is_empty() {
+            self.repo
+                .grant_special_permissions(&user.id, permissions_to_grant, &granted_by)
+                .await
+                .map_err(|e| Status::internal(format!("Failed to grant permissions: {}", e)))?;
+        }
 
         let user_with_perms = self
             .repo
