@@ -71,7 +71,7 @@ pub struct UserResponse {
 
 impl UserResponse {
     pub fn from_user_with_permissions(uwp: UserWithPermissions) -> Self {
-        // Compute git fields first (fallback to email/name if NULL)
+        // Compute git fields (fallback to email/name if NULL)
         let git_email = uwp.user.git_email.clone().unwrap_or_else(|| uwp.user.email.clone());
         let git_username = uwp.user.git_username.clone().unwrap_or_else(|| uwp.user.name.clone());
         
