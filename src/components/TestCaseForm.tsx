@@ -33,7 +33,8 @@ interface TestSuite {
 }
 
 interface TestCaseFormProps {
-  testCase?: any;
+  testCase?: any; // For create mode (null)
+  testCaseId?: string | null; // For edit mode (ID to fetch)
   onSave: () => void;
   onCancel: () => void;
 }
@@ -371,9 +372,35 @@ function SortableActionItem({
 
 export function TestCaseForm({
   testCase,
+  testCaseId,
   onSave,
   onCancel,
 }: TestCaseFormProps) {
+  const [loadedTestCase, setLoadedTestCase] = useState<any>(null);
+  const [isLoadingTestCase, setIsLoadingTestCase] = useState(false);
+
+  // Fetch test case if testCaseId is provided (edit mode)
+  useEffect(() => {
+    const fetchTestCase = async () => {
+      if (testCaseId) {
+        try {
+          setIsLoadingTestCase(true);
+          const data = await testCaseService.getTestCase(testCaseId);
+          setLoadedTestCase(data);
+        } catch (error) {
+          console.error('Failed to load test case:', error);
+        } finally {
+          setIsLoadingTestCase(false);
+        }
+      }
+    };
+
+    fetchTestCase();
+  }, [testCaseId]);
+
+  // Use loaded test case if available, otherwise use prop
+  const activeTestCase = loadedTestCase || testCase;
+
   // Convert backend steps to frontend actions format
   const convertStepsToActions = (steps: any[]): TestAction[] => {
     if (!steps || steps.length === 0) {
@@ -416,21 +443,40 @@ export function TestCaseForm({
   };
 
   const [formData, setFormData] = useState({
-    id: testCase?.id || "",
-    title: testCase?.title || "",
-    suite: testCase?.suite || "",
-    priority: testCase?.priority || "Medium",
-    caseType: testCase?.caseType || "Positive",
-    preCondition: testCase?.preCondition || "",
-    postCondition: testCase?.postCondition || "",
+    id: activeTestCase?.id || "",
+    title: activeTestCase?.title || "",
+    suite: activeTestCase?.suite || "",
+    priority: activeTestCase?.priority || "Medium",
+    caseType: activeTestCase?.caseType || "Positive",
+    preCondition: activeTestCase?.preCondition || "",
+    postCondition: activeTestCase?.postCondition || "",
     automationStatus:
-      testCase?.automation === "Automated" ? "automated" : "manual",
-    filePath: testCase?.filePath || "",
+      activeTestCase?.automation === "Automated" ? "automated" : "manual",
+    filePath: activeTestCase?.filePath || "",
   });
 
   const [actions, setActions] = useState<TestAction[]>(
-    convertStepsToActions(testCase?.steps || [])
+    convertStepsToActions(activeTestCase?.steps || [])
   );
+
+  // Update form when activeTestCase changes (loaded from API)
+  useEffect(() => {
+    if (activeTestCase) {
+      setFormData({
+        id: activeTestCase.id || "",
+        title: activeTestCase.title || "",
+        suite: activeTestCase.suite || "",
+        priority: activeTestCase.priority || "Medium",
+        caseType: activeTestCase.caseType || "Positive",
+        preCondition: activeTestCase.preCondition || "",
+        postCondition: activeTestCase.postCondition || "",
+        automationStatus:
+          activeTestCase.automation === "Automated" ? "automated" : "manual",
+        filePath: activeTestCase.filePath || "",
+      });
+      setActions(convertStepsToActions(activeTestCase.steps || []));
+    }
+  }, [activeTestCase]);
 
   const [isCreatingNewSuite, setIsCreatingNewSuite] = useState(false);
   const [newSuiteName, setNewSuiteName] = useState("");
@@ -440,7 +486,7 @@ export function TestCaseForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const isEditing = !!testCase;
+  const isEditing = !!activeTestCase;
 
   // Fetch suites on mount
   useEffect(() => {
@@ -991,6 +1037,18 @@ export function TestCaseForm({
     return ACTION_DEFINITIONS.find((a) => a.value === type)?.label || type;
   };
 
+  // Show loading state when fetching test case
+  if (isLoadingTestCase) {
+    return (
+      <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading test case...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 bg-slate-950">
       {/* Header */}
@@ -1008,7 +1066,7 @@ export function TestCaseForm({
             </h1>
             <p className="text-slate-400">
               {isEditing
-                ? `Mengedit ${testCase.id}`
+                ? `Mengedit ${activeTestCase?.id || formData.id}`
                 : "Tambahkan test case baru dengan action-based steps"}
             </p>
           </div>

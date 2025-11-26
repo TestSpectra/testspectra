@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Edit, Play, Trash2, Clock, CheckCircle2, XCircle, Zap, User, Calendar, TrendingUp, AlertCircle, ClipboardCheck } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { testCaseService } from '../services/test-case-service';
 
 interface TestStep {
   id?: string;
@@ -21,35 +23,83 @@ interface ExecutionHistory {
   pageLoadTime?: string;
 }
 
-interface TestCaseDetailProps {
-  testCase: {
-    id: string;
-    title: string;
-    suite: string;
-    priority: string;
-    caseType: string;
-    automation: string;
-    lastStatus: 'passed' | 'failed' | 'pending';
-    pageLoadAvg?: string;
-    lastRun?: string;
-    description?: string;
-    preCondition?: string;
-    postCondition?: string;
-    steps?: TestStep[];
-    expectedOutcome?: string;
-    tags?: string[];
-    createdByName?: string;
-    createdAt?: string;
-    updatedAt?: string;
-  };
-  onBack: () => void;
-  onEdit: (testCase: any) => void;
-  onDelete: (id: string) => void;
-  onRunTest: (report: any) => void;
-  onRecordManualResult?: (testCase: any) => void;
+interface TestCase {
+  id: string;
+  title: string;
+  suite: string;
+  priority: string;
+  caseType: string;
+  automation: string;
+  lastStatus: 'passed' | 'failed' | 'pending';
+  pageLoadAvg?: string;
+  lastRun?: string;
+  description?: string;
+  preCondition?: string;
+  postCondition?: string;
+  steps?: TestStep[];
+  expectedOutcome?: string;
+  tags?: string[];
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, onRecordManualResult }: TestCaseDetailProps) {
+interface TestCaseDetailProps {
+  testCaseId: string;
+  onBack: () => void;
+  onEdit: (testCaseId: string) => void;
+  onDelete: (id: string) => void;
+  onRunTest: (report: any) => void;
+  onRecordManualResult?: (testCaseId: string) => void;
+}
+
+export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest, onRecordManualResult }: TestCaseDetailProps) {
+  const [testCase, setTestCase] = useState<TestCase | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTestCase = async () => {
+      try {
+        setIsLoading(true);
+        const data = await testCaseService.getTestCase(testCaseId);
+        setTestCase(data);
+      } catch (err) {
+        console.error('Failed to load test case:', err);
+        setError('Failed to load test case');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTestCase();
+  }, [testCaseId]);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading test case...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !testCase) {
+    return (
+      <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error || 'Test case not found'}</p>
+          <Button onClick={onBack} variant="outline">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const getPriorityColor = (priority: string) => {
     const colors: any = {
       'Critical': 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -214,7 +264,7 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
             </Button>
           ) : (
             <Button
-              onClick={() => onRecordManualResult?.(testCase)}
+              onClick={() => onRecordManualResult?.(testCase.id)}
               className="bg-orange-600 hover:bg-orange-700 text-white"
             >
               <ClipboardCheck className="w-4 h-4 mr-2" />
@@ -222,7 +272,7 @@ export function TestCaseDetail({ testCase, onBack, onEdit, onDelete, onRunTest, 
             </Button>
           )}
           <Button
-            onClick={() => onEdit(testCase)}
+            onClick={() => onEdit(testCase.id)}
             variant="outline"
             className="border-blue-600/50 text-blue-400 hover:bg-blue-600/20 hover:text-white"
           >

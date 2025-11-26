@@ -20,7 +20,7 @@ import { testCaseService } from './services/test-case-service';
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [selectedTestCase, setSelectedTestCase] = useState<any>(null);
+  const [selectedTestCaseId, setSelectedTestCaseId] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [historyFilter, setHistoryFilter] = useState<string | null>(null);
   
@@ -147,12 +147,12 @@ function AppContent() {
 
   // Navigation Handlers
   const handleCreateTestCase = () => {
-    setSelectedTestCase(null);
+    setSelectedTestCaseId(null);
     navigate('/test-cases/new');
   };
 
-  const handleEditTestCase = (testCase: any) => {
-    setSelectedTestCase(testCase);
+  const handleEditTestCase = (testCaseId: string) => {
+    setSelectedTestCaseId(testCaseId);
     navigate('/test-cases/edit');
   };
 
@@ -166,25 +166,10 @@ function AppContent() {
     navigate('/runs-history');
   };
 
-  const handleViewDetail = async (testCaseIdOrObject: any) => {
-    try {
-      let testCaseData;
-      if (typeof testCaseIdOrObject === 'string') {
-        // Fetch from API
-        testCaseData = await testCaseService.getTestCase(testCaseIdOrObject);
-        if (!testCaseData) {
-          console.error('Test case not found:', testCaseIdOrObject);
-          return;
-        }
-      } else {
-        testCaseData = testCaseIdOrObject;
-      }
-      
-      setSelectedTestCase(testCaseData);
-      navigate('/test-cases/detail');
-    } catch (error) {
-      console.error('Failed to load test case:', error);
-    }
+  const handleViewDetail = (testCaseId: string) => {
+    // Only store ID, let detail page fetch the data
+    setSelectedTestCaseId(testCaseId);
+    navigate('/test-cases/detail');
   };
 
   const handleDeleteFromDetail = (testCaseId: string) => {
@@ -195,8 +180,8 @@ function AppContent() {
     navigate(-1); // Go back
   };
 
-  const handleRecordManualResult = (testCase: any) => {
-    setSelectedTestCase(testCase);
+  const handleRecordManualResult = (testCaseId: string) => {
+    setSelectedTestCaseId(testCaseId);
     navigate('/test-cases/manual-result');
   };
 
@@ -239,13 +224,13 @@ function AppContent() {
             />} />
             
             <Route path="/test-cases/edit" element={<TestCaseForm 
-                testCase={selectedTestCase}
+                testCaseId={selectedTestCaseId}
                 onSave={handleSaveTestCase}
                 onCancel={() => navigate(-1)}
             />} />
             
-            <Route path="/test-cases/detail" element={selectedTestCase ? <TestCaseDetail 
-                testCase={selectedTestCase} 
+            <Route path="/test-cases/detail" element={selectedTestCaseId ? <TestCaseDetail 
+                testCaseId={selectedTestCaseId} 
                 onBack={() => navigate(-1)}
                 onEdit={handleEditTestCase}
                 onDelete={handleDeleteFromDetail}
@@ -253,8 +238,8 @@ function AppContent() {
                 onRecordManualResult={handleRecordManualResult}
             /> : <Navigate to="/test-cases" />} />
 
-            <Route path="/test-cases/manual-result" element={selectedTestCase ? <ManualTestResultForm
-                testCase={selectedTestCase}
+            <Route path="/test-cases/manual-result" element={selectedTestCaseId ? <ManualTestResultForm
+                testCaseId={selectedTestCaseId}
                 onSave={handleSaveManualResult}
                 onCancel={() => navigate(-1)}
             /> : <Navigate to="/test-cases" />} />
