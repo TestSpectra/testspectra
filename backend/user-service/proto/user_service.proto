@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package user_service;
+
+service UserService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  rpc GetCurrentUser(GetCurrentUserRequest) returns (UserResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+  rpc CreateUser(CreateUserRequest) returns (UserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc UpdateUserStatus(UpdateUserStatusRequest) returns (UserResponse);
+  rpc GrantSpecialPermissions(GrantSpecialPermissionsRequest) returns (UserResponse);
+  rpc RevokeSpecialPermissions(RevokeSpecialPermissionsRequest) returns (UserResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  User user = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message GetCurrentUserRequest {
+  string token = 1;
+}
+
+message ListUsersRequest {
+  string token = 1;
+  optional string role_filter = 2;
+  optional string status_filter = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetUserRequest {
+  string token = 1;
+  string user_id = 2;
+}
+
+message CreateUserRequest {
+  string token = 1;
+  string name = 2;
+  string email = 3;
+  string password = 4;
+  Role role = 5;
+}
+
+message UpdateUserRequest {
+  string token = 1;
+  string user_id = 2;
+  optional string name = 3;
+  optional string email = 4;
+  optional string password = 5;
+  optional Role role = 6;
+}
+
+message DeleteUserRequest {
+  string token = 1;
+  string user_id = 2;
+}
+
+message DeleteUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UpdateUserStatusRequest {
+  string token = 1;
+  string user_id = 2;
+  UserStatus status = 3;
+}
+
+message GrantSpecialPermissionsRequest {
+  string token = 1;
+  string user_id = 2;
+  repeated Permission permissions = 3;
+}
+
+message RevokeSpecialPermissionsRequest {
+  string token = 1;
+  string user_id = 2;
+  repeated Permission permissions = 3;
+}
+
+message UserResponse {
+  User user = 1;
+}
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  Role role = 4;
+  UserStatus status = 5;
+  repeated Permission base_permissions = 6;
+  repeated Permission special_permissions = 7;
+  string joined_date = 8;
+  string last_active = 9;
+  optional string git_username = 10;
+  optional string git_email = 11;
+}
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_ADMIN = 1;
+  ROLE_QA_LEAD = 2;
+  ROLE_QA_ENGINEER = 3;
+  ROLE_DEVELOPER = 4;
+  ROLE_PRODUCT_MANAGER = 5;
+  ROLE_UI_UX_DESIGNER = 6;
+  ROLE_VIEWER = 7;
+}
+
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+}
+
+enum Permission {
+  PERMISSION_UNSPECIFIED = 0;
+  PERMISSION_MANAGE_USERS = 1;
+  PERMISSION_MANAGE_QA_TEAM = 2;
+  PERMISSION_FULL_TEST_CASE_ACCESS = 3;
+  PERMISSION_CREATE_EDIT_TEST_CASES = 4;
+  PERMISSION_EXECUTE_ALL_TESTS = 5;
+  PERMISSION_EXECUTE_AUTOMATED_TESTS = 6;
+  PERMISSION_RECORD_TEST_RESULTS = 7;
+  PERMISSION_MANAGE_CONFIGURATIONS = 8;
+  PERMISSION_MANAGE_TEST_CONFIGURATIONS = 9;
+  PERMISSION_REVIEW_APPROVE_TEST_CASES = 10;
+  PERMISSION_EXPORT_REPORTS = 11;
+  PERMISSION_MANAGE_INTEGRATIONS = 12;
+}
