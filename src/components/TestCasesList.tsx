@@ -12,8 +12,8 @@ interface TestCasesListProps {
   onCreateTestCase: () => void;
   onEditTestCase: (testCase: any) => void;
   onViewReport: (report: any) => void;
-  onViewHistory: (testCaseId?: string) => void;
-  onViewDetail: (testCase: any) => void;
+  onViewHistory: (testCaseId: string) => void;
+  onViewDetail: (testCaseId: string) => void;
   onRecordManualResult: (testCase: any) => void;
 }
 
@@ -639,7 +639,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
               {currentItems.map((tc) => (
                 <tr 
                   key={tc.id} 
-                  onDoubleClick={() => editingId !== tc.id && onViewDetail(tc)}
+                  onDoubleClick={() => editingId !== tc.id && onViewDetail(tc.id)}
                   className={`border-b border-slate-800 transition-colors cursor-pointer ${editingId === tc.id ? 'border-b-2 border-blue-500/50 bg-blue-950/30' : 'hover:bg-slate-800/50 hover:text-slate-100'}`}
                 >
                   {bulkMode && (
@@ -881,7 +881,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
                           </button>
                         )}
                         <button 
-                          onClick={() => onViewDetail(tc)}
+                          onClick={() => onViewDetail(tc.id)}
                           className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
                           title="View Detail"
                         >

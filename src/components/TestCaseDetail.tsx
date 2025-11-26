@@ -124,13 +124,39 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
       'navigate': '🌐',
       'click': '👆',
       'type': '⌨️',
+      'clear': '🧹',
       'select': '📋',
-      'wait': '⏱️',
-      'assert': '👁️',
-      'hover': '🖱️',
       'scroll': '📜',
+      'swipe': '👉',
+      'wait': '⏱️',
+      'waitForElement': '⏳',
       'pressKey': '⌨️',
-      'dragAndDrop': '↔️',
+      'longPress': '👆⏱️',
+      'doubleTap': '👆👆',
+      'hover': '🖱️',
+      'dragDrop': '↔️',
+      'back': '◀️',
+      'refresh': '🔄',
+      // Assertions
+      'assert': '👁️',
+      'elementDisplayed': '👁️',
+      'elementNotDisplayed': '🚫',
+      'elementExists': '✅',
+      'elementClickable': '👆✅',
+      'elementInViewport': '📱',
+      'textEquals': '📝=',
+      'textContains': '📝⊃',
+      'valueEquals': '💾=',
+      'valueContains': '💾⊃',
+      'urlEquals': '🔗=',
+      'urlContains': '🔗⊃',
+      'titleEquals': '📄=',
+      'titleContains': '📄⊃',
+      'hasClass': '🎨',
+      'hasAttribute': '🏷️',
+      'isEnabled': '✅',
+      'isDisabled': '❌',
+      'isSelected': '☑️',
     };
     return icons[actionType] || '▶️';
   };
@@ -138,15 +164,41 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   const getActionLabel = (actionType: string) => {
     const labels: any = {
       'navigate': 'Navigate',
-      'click': 'Click',
+      'click': 'Click / Tap',
       'type': 'Type Text',
-      'select': 'Select',
-      'wait': 'Wait',
-      'assert': 'Assert',
-      'hover': 'Hover',
+      'clear': 'Clear Input',
+      'select': 'Select Option',
       'scroll': 'Scroll',
+      'swipe': 'Swipe',
+      'wait': 'Wait (Duration)',
+      'waitForElement': 'Wait for Element',
       'pressKey': 'Press Key',
-      'dragAndDrop': 'Drag & Drop',
+      'longPress': 'Long Press / Hold',
+      'doubleTap': 'Double Click / Tap',
+      'hover': 'Hover',
+      'dragDrop': 'Drag and Drop',
+      'back': 'Go Back',
+      'refresh': 'Refresh Page',
+      // Assertions
+      'assert': 'Assert',
+      'elementDisplayed': 'Element is Visible',
+      'elementNotDisplayed': 'Element is Hidden',
+      'elementExists': 'Element Exists',
+      'elementClickable': 'Element is Clickable',
+      'elementInViewport': 'Element in Viewport',
+      'textEquals': 'Text Equals',
+      'textContains': 'Text Contains',
+      'valueEquals': 'Value Equals',
+      'valueContains': 'Value Contains',
+      'urlEquals': 'URL Equals',
+      'urlContains': 'URL Contains',
+      'titleEquals': 'Title Equals',
+      'titleContains': 'Title Contains',
+      'hasClass': 'Has CSS Class',
+      'hasAttribute': 'Has Attribute',
+      'isEnabled': 'Is Enabled',
+      'isDisabled': 'Is Disabled',
+      'isSelected': 'Is Selected / Checked',
     };
     return labels[actionType] || actionType;
   };
@@ -358,7 +410,8 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
                           <div className="space-y-1">
                             {step.assertions.map((assertion: any, idx: number) => (
                               <div key={idx} className="text-xs text-slate-300">
-                                <span className="text-green-400">✓</span> {assertion.assertionType}
+                                <span className="text-green-400 mr-1">{getActionIcon(assertion.assertionType)}</span>
+                                <span className="text-green-400 font-medium">{getActionLabel(assertion.assertionType)}</span>
                                 {assertion.selector && (
                                   <code className="ml-2 text-purple-400 bg-purple-950/30 px-1 py-0.5 rounded text-[10px]">
                                     {assertion.selector}

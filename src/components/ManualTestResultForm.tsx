@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Save, X, CheckCircle2, XCircle, Clock, AlertCircle, User, Calendar, Monitor, Package, FileText, Bug, MinusCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, X, CheckCircle2, XCircle, Clock, AlertCircle, User, Calendar, Monitor, Package, FileText, Bug, MinusCircle, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { DateTimePicker } from './DateTimePicker';
+import { testCaseService } from '../services/test-case-service';
 
 interface ManualTestResultFormProps {
-  testCase: any;
+  testCaseId: string;
   onSave: (result: any) => void;
   onCancel: () => void;
 }
@@ -18,7 +19,29 @@ interface StepResult {
   notes?: string;
 }
 
-export function ManualTestResultForm({ testCase, onSave, onCancel }: ManualTestResultFormProps) {
+export function ManualTestResultForm({ testCaseId, onSave, onCancel }: ManualTestResultFormProps) {
+  const [testCase, setTestCase] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch test case details
+  useEffect(() => {
+    const fetchTestCase = async () => {
+      try {
+        setIsLoading(true);
+        const data = await testCaseService.getTestCase(testCaseId);
+        setTestCase(data);
+      } catch (err) {
+        console.error('Failed to load test case:', err);
+        setError('Failed to load test case');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTestCase();
+  }, [testCaseId]);
+
   const getCurrentDateTime = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -30,8 +53,8 @@ export function ManualTestResultForm({ testCase, onSave, onCancel }: ManualTestR
   };
 
   const [formData, setFormData] = useState({
-    testCaseId: testCase.id,
-    testCaseTitle: testCase.title,
+    testCaseId: testCaseId,
+    testCaseTitle: "Title",
     status: 'passed' as TestResultStatus,
     executionDate: getCurrentDateTime(),
     executedBy: 'Ahmad Rizki', // Auto-detect from Git profile in real app
@@ -47,31 +70,61 @@ export function ManualTestResultForm({ testCase, onSave, onCancel }: ManualTestR
   });
 
   // Initialize step results from test case steps
-  const [stepResults, setStepResults] = useState<StepResult[]>(
-    testCase.actions?.map((action: any, index: number) => ({
-      stepNumber: index + 1,
-      stepDescription: getActionDescription(action),
-      status: 'passed' as TestResultStatus,
-      notes: '',
-    })) || []
-  );
+  const [stepResults, setStepResults] = useState<StepResult[]>([]);
 
-  function getActionDescription(action: any): string {
-    switch (action.type) {
+  // Update step results when test case is loaded
+  useEffect(() => {
+    if (testCase?.steps) {
+      setStepResults(
+        testCase.steps.map((step: any, index: number) => ({
+          stepNumber: step.stepOrder || index + 1,
+          stepDescription: getStepDescription(step),
+          status: 'passed' as TestResultStatus,
+          notes: '',
+        }))
+      );
+    }
+  }, [testCase]);
+
+  function getStepDescription(step: any): string {
+    const actionType = step.actionType;
+    const params = step.actionParams || {};
+    
+    switch (actionType) {
       case 'navigate':
-        return `Navigate to ${action.url || '[URL]'}`;
+        return `Navigate to ${params.url || '[URL]'}`;
       case 'click':
-        return `Click ${action.selector || action.text || '[Element]'}`;
+        return `Click ${params.selector || '[Element]'}`;
       case 'type':
-        return `Type "${action.value || '[Text]'}" into ${action.selector || '[Field]'}`;
+        return `Type "${params.text || '[Text]'}" into ${params.selector || '[Field]'}`;
+      case 'clear':
+        return `Clear ${params.selector || '[Field]'}`;
       case 'select':
-        return `Select "${action.value || '[Option]'}" from ${action.selector || '[Dropdown]'}`;
+        return `Select "${params.value || '[Option]'}" from ${params.selector || '[Dropdown]'}`;
+      case 'scroll':
+        return `Scroll ${params.direction || 'down'} on ${params.selector || 'page'}`;
+      case 'swipe':
+        return `Swipe ${params.direction || 'left'}`;
       case 'wait':
-        return `Wait for ${action.selector || '[Element]'} (${action.timeout || '5000'}ms)`;
-      case 'assert_visible':
-        return `Assert ${action.selector || '[Element]'} is visible`;
+        return `Wait for ${params.timeout || '5000'}ms`;
+      case 'waitForElement':
+        return `Wait for ${params.selector || '[Element]'} (${params.timeout || '5000'}ms)`;
+      case 'pressKey':
+        return `Press key ${params.key || '[Key]'}`;
+      case 'longPress':
+        return `Long press ${params.selector || '[Element]'}`;
+      case 'doubleTap':
+        return `Double tap ${params.selector || '[Element]'}`;
+      case 'hover':
+        return `Hover over ${params.selector || '[Element]'}`;
+      case 'dragDrop':
+        return `Drag ${params.selector || '[Source]'} to ${params.targetSelector || '[Target]'}`;
+      case 'back':
+        return 'Go back';
+      case 'refresh':
+        return 'Refresh page';
       default:
-        return action.type;
+        return actionType || 'Unknown action';
     }
   }
 
@@ -118,6 +171,33 @@ export function ManualTestResultForm({ testCase, onSave, onCancel }: ManualTestR
         return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading test case...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !testCase) {
+    return (
+      <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error || 'Test case not found'}</p>
+          <Button onClick={onCancel} variant="outline">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 bg-slate-950 min-h-screen">
