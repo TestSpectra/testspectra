@@ -541,7 +541,7 @@ export function UserManagement() {
               variant="outline"
               onClick={() => setShowAddForm(false)}
               disabled={isActionLoading}
-              className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white"
+              className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
             >
               Cancel
             </Button>

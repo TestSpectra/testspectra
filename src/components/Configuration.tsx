@@ -174,11 +174,11 @@ export function Configuration() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-slate-900 border border-slate-800 mb-6">
-          <TabsTrigger value="ui-automation" className="data-[state=active]:bg-slate-800">
+          <TabsTrigger value="ui-automation" className="data-[state=active]:bg-slate-800 text-slate-400">
             <Globe className="w-4 h-4 mr-2" />
             UI Automation Configuration
           </TabsTrigger>
-          <TabsTrigger value="api-load" className="data-[state=active]:bg-slate-800">
+          <TabsTrigger value="api-load" className="data-[state=active]:bg-slate-800 text-slate-400">
             <Zap className="w-4 h-4 mr-2" />
             API & Load Testing Configuration
           </TabsTrigger>
@@ -323,7 +323,7 @@ export function Configuration() {
                   <Button 
                     onClick={handleAddBrowser}
                     variant="outline"
-                    className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white"
+                    className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Browser
@@ -754,7 +754,7 @@ export function Configuration() {
                   onClick={handleAddLoadStage}
                   variant="outline"
                   size="sm"
-                  className="border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500"
+                  className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Stage
@@ -810,7 +810,7 @@ export function Configuration() {
               <Button 
                 onClick={handleAddThreshold}
                 variant="outline"
-                className="border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500"
+                className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Threshold

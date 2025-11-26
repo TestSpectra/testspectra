@@ -215,7 +215,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
           <p className="text-slate-400">Kelola dan jalankan semua test case</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white">
+          <Button variant="outline" className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white">
             <RefreshCw className="w-4 h-4 mr-2" />
             Sync Codebase
           </Button>
@@ -229,7 +229,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
               }
             }}
             variant="outline" 
-            className={bulkMode ? "bg-orange-600/20 border-orange-500 text-orange-300 hover:bg-orange-600/30 hover:text-orange-200" : "bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white"}
+            className={bulkMode ? "bg-orange-600/20 border-orange-500 text-orange-300 hover:bg-orange-600/30 hover:text-orange-200" : "bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"}
           >
             <Trash2 className="w-4 h-4 mr-2" />
             {bulkMode ? 'Cancel' : 'Bulk Delete'}

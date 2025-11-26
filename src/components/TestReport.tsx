@@ -89,7 +89,7 @@ export function TestReport({ report, onBack }: TestReportProps) {
             <p className="text-slate-400">{report.suite} - {report.testCase || report.id}</p>
           </div>
         </div>
-        <Button variant="outline" className="border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500">
+        <Button variant="outline" className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white">
           <Download className="w-4 h-4 mr-2" />
           Export Report
         </Button>

@@ -76,7 +76,7 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
                 <Button
                   onClick={() => setIsEditing(true)}
                   variant="outline"
-                  className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white"
+                  className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
                   Edit Profile
@@ -144,7 +144,7 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
                       setFormData({ name: currentUser.name, email: currentUser.email });
                     }}
                     variant="outline"
-                    className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white"
+                    className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
                     disabled={isLoading}
                   >
                     Cancel
@@ -269,14 +269,14 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
             <div className="space-y-3">
               <Button
                 variant="outline"
-                className="w-full bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white justify-start"
+                className="w-full bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white justify-start"
               >
                 <Key className="w-4 h-4 mr-2" />
                 Change Password
               </Button>
               <Button
                 variant="outline"
-                className="w-full bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500 hover:text-white justify-start"
+                className="w-full bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white justify-start"
               >
                 <Shield className="w-4 h-4 mr-2" />
                 Two-Factor Auth
