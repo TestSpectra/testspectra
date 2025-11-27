@@ -371,7 +371,7 @@ export function Dashboard({
                   className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
                   onClick={() => onViewTestCaseDetail(tc.id)}
                 >
-                  <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center shrink-0">
                     <FileCheck className="w-5 h-5 text-blue-400" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -391,7 +391,7 @@ export function Dashboard({
                       <span>•</span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {getTimeAgo(tc.createdAt)}
+                        {getTimeAgo(tc.updatedAt)}
                       </span>
                     </div>
                   </div>
