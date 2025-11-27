@@ -97,7 +97,15 @@ jobs:
             1. Download and open the DMG file
             2. Drag TestSpectra to Applications folder
             3. First launch: Right-click → Open (for Gatekeeper)
+
+            #### If you see “TestSpectra is damaged and can't be opened” on macOS
             
+            Open Terminal and run this command, then try opening the app again:
+            
+            ```bash
+            xattr -cr "/Applications/TestSpectra.app"
+            ```
+
             **Windows:**
             1. Download and run the MSI installer
             2. Follow the installation wizard
