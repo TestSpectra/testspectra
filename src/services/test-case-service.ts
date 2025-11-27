@@ -7,10 +7,10 @@ import { authService } from './auth-service';
 
 export interface TestStep {
   stepOrder: number;
-  action: string;
-  target?: string;
-  value?: string;
-  description?: string;
+  actionType: string;
+  actionParams: any;
+  assertions: any[];
+  customExpectedResult?: string | null;
 }
 
 export interface TestCase {
