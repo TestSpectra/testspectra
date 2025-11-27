@@ -1,7 +1,7 @@
 {
     "name": "testspectra",
     "version": "0.1.0",
-    "private": true,
+    "private": false,
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",
         "@dnd-kit/sortable": "^10.0.0",
