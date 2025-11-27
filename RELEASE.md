@@ -20,6 +20,8 @@ Download the appropriate installer for your platform from the assets below.
 
 #### If you see "TestSpectra is damaged and can't be opened" on macOS
 
+![Screenshot of macOS warning dialog "TestSpectra is damaged and can't be opened"](.github/assets/macos-gatekeeper-damaged.png)
+
 Open Terminal and run this command, then try opening the app again:
 
 ```bash
