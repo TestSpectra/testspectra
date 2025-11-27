@@ -48,22 +48,39 @@ docker run -p 3000:3000 \
 
 ---
 
-### 2. Tauri Release (`release-tauri.yml`)
+### 2. Tauri Release Workflow
 
-**Purpose:** Builds and releases cross-platform desktop applications for Windows and macOS.
+**File:** `release-tauri.yml`
 
-**Triggers:**
-- Push tags matching `v*.*.*` (e.g., `v1.0.0`)
-- Manual trigger with custom version
+### Purpose
+Builds and releases the TestSpectra desktop application for multiple platforms (macOS and Windows) using GitHub Actions.
 
-**What it does:**
-1. Creates GitHub Release
-2. Builds for multiple platforms:
-   - **macOS Apple Silicon** (M1/M2/M3)
-   - **macOS Intel** (x86_64)
-   - **Windows 64-bit**
-3. Uploads installers to the release
-4. Generates release notes
+### Triggers
+1. **Tag Push:** Automatically triggered when a tag matching `v*.*.*` is pushed
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. **Manual Dispatch:** Can be triggered manually from GitHub Actions UI with custom version input
+
+### Jobs
+
+#### build-and-release
+- **Runs on:** Multiple platforms (macOS, Windows)
+- **Permissions:** `contents: write` (required for creating releases)
+- **Purpose:** Builds the Tauri app and automatically creates/updates GitHub Release
+- **Matrix Strategy:**
+  - macOS Apple Silicon (aarch64)
+  - macOS Intel (x86_64)  
+  - Windows 64-bit (x86_64)
+- **Features:**
+  - Automatically creates GitHub Release with tag
+  - Uploads built artifacts (DMG, MSI) to release
+  - Includes installation instructions in release notes
+- **Artifacts:** 
+  - macOS: `.dmg` installers
+  - Windows: `.msi` installers
 
 **Platform-specific outputs:**
 

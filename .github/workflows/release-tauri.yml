@@ -12,63 +12,9 @@ on:
         default: 'v0.1.0'
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
-      upload_url: ${{ steps.create-release.outputs.upload_url }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Get version
-        id: get_version
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Release
-        id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: TestSpectra ${{ steps.get_version.outputs.VERSION }}
-          body: |
-            ## TestSpectra Release ${{ steps.get_version.outputs.VERSION }}
-            
-            ### Downloads
-            
-            **macOS:**
-            - Apple Silicon (M1/M2/M3): `TestSpectra_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg`
-            - Intel: `TestSpectra_${{ steps.get_version.outputs.VERSION }}_x64.dmg`
-            
-            **Windows:**
-            - 64-bit: `TestSpectra_${{ steps.get_version.outputs.VERSION }}_x64_en-US.msi`
-            
-            ### Installation
-            
-            **macOS:**
-            1. Download the appropriate DMG file for your Mac
-            2. Open the DMG file
-            3. Drag TestSpectra to your Applications folder
-            
-            **Windows:**
-            1. Download the MSI installer
-            2. Run the installer
-            3. Follow the installation wizard
-            
-            ### What's New
-            - See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
-          draft: false
-          prerelease: false
-
-  build-tauri:
-    needs: create-release
+  build-and-release:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -112,33 +58,45 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
-      - name: Build Tauri app
+      - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
-
-  update-release:
-    needs: [create-release, build-tauri]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Update Release Notes
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const release = await github.rest.repos.getRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: ${{ needs.create-release.outputs.release_id }}
-            });
+          tagName: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
+          releaseName: 'TestSpectra ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}'
+          releaseBody: |
+            ## TestSpectra Desktop Release
             
-            console.log('Release created successfully!');
-            console.log('Release URL:', release.data.html_url);
+            ### 📦 Downloads
+            
+            Download the appropriate installer for your platform from the assets below.
+            
+            **macOS:**
+            - Apple Silicon (M1/M2/M3): `.dmg` file with `aarch64` in the name
+            - Intel: `.dmg` file with `x64` in the name
+            
+            **Windows:**
+            - 64-bit: `.msi` installer file
+            
+            ### 🚀 Installation
+            
+            **macOS:**
+            1. Download and open the DMG file
+            2. Drag TestSpectra to Applications folder
+            3. First launch: Right-click → Open (for Gatekeeper)
+            
+            **Windows:**
+            1. Download and run the MSI installer
+            2. Follow the installation wizard
+            3. Launch from Start Menu
+            
+            ### ✨ Built with
+            - Tauri v2
+            - React + TypeScript
+            - Rust backend
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
