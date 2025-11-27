@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_log::{Target, TargetKind};
 
 #[tauri::command]
