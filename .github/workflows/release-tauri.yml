@@ -120,10 +120,29 @@ jobs:
         with:
           version: 8
 
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
@@ -136,7 +155,13 @@ jobs:
 
       - name: Read release notes
         id: release_notes
-        run: echo "body=$(cat RELEASE.md | jq -Rs .)" >> $GITHUB_OUTPUT
+        shell: bash
+        run: |
+          {
+            echo 'body<<EOF'
+            cat RELEASE.md
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
@@ -149,7 +174,7 @@ jobs:
         with:
           tagName: ${{ needs.prepare-version.outputs.raw_version }}
           releaseName: "TestSpectra ${{ needs.prepare-version.outputs.raw_version }}"
-          releaseBody: ${{ fromJson(steps.release_notes.outputs.body) }}
+          releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
