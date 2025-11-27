@@ -218,7 +218,6 @@ function AppContent() {
             />} />
             
             <Route path="/test-cases/new" element={<TestCaseForm 
-                testCase={null}
                 onSave={handleSaveTestCase}
                 onCancel={() => navigate(-1)}
             />} />

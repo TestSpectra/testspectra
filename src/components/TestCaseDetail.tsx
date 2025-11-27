@@ -382,7 +382,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
                     key={step.id || index}
                     className="flex gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:border-blue-500/30 transition-colors"
                   >
-                    <div className="flex items-center justify-center w-8 h-8 bg-blue-600/20 rounded-lg text-blue-400 flex-shrink-0">
+                    <div className="flex items-center justify-center w-8 h-8 bg-blue-600/20 rounded-lg text-blue-400 shrink-0">
                       <span className="text-sm">{step.stepOrder}</span>
                     </div>
                     <div className="flex-1 min-w-0">

@@ -33,7 +33,6 @@ interface TestSuite {
 }
 
 interface TestCaseFormProps {
-  testCase?: any; // For create mode (null)
   testCaseId?: string | null; // For edit mode (ID to fetch)
   onSave: () => void;
   onCancel: () => void;
@@ -106,6 +105,8 @@ interface TestAction {
   // Assertions for expected result
   assertions?: Assertion[];
   customExpectedResult?: string;
+  // Wait
+  duration?: string;
 }
 
 // Action definitions with labels
@@ -328,7 +329,7 @@ function SortableActionItem({
                         type: e.target.value as AssertionType,
                       })
                     }
-                    className={`${inputClass} text-xs min-w-[160px]`}
+                    className={`${inputClass} text-sm min-w-[160px]`}
                   >
                     {filteredDefs.map((assertDef) => (
                       <option key={assertDef.value} value={assertDef.value}>
@@ -371,7 +372,6 @@ function SortableActionItem({
 }
 
 export function TestCaseForm({
-  testCase,
   testCaseId,
   onSave,
   onCancel,
@@ -398,18 +398,10 @@ export function TestCaseForm({
     fetchTestCase();
   }, [testCaseId]);
 
-  // Use loaded test case if available, otherwise use prop
-  const activeTestCase = loadedTestCase || testCase;
-
   // Convert backend steps to frontend actions format
   const convertStepsToActions = (steps: any[]): TestAction[] => {
     if (!steps || steps.length === 0) {
-      return [{ 
-        id: "1", 
-        type: "navigate", 
-        url: "",
-        assertions: [{ id: "1", type: "urlContains" }]
-      }];
+      return [];
     }
 
     return steps.map((step, index) => {
@@ -422,7 +414,6 @@ export function TestCaseForm({
           type: assertion.assertionType as AssertionType,
           selector: assertion.selector || "",
           value: assertion.expectedValue || "",
-          attribute: assertion.attribute || "",
         })),
       };
 
@@ -434,7 +425,6 @@ export function TestCaseForm({
         if (step.actionParams.key) action.key = step.actionParams.key;
         if (step.actionParams.duration) action.duration = step.actionParams.duration;
         if (step.actionParams.direction) action.direction = step.actionParams.direction;
-        if (step.actionParams.option) action.option = step.actionParams.option;
         if (step.actionParams.targetSelector) action.targetSelector = step.actionParams.targetSelector;
       }
 
@@ -443,40 +433,37 @@ export function TestCaseForm({
   };
 
   const [formData, setFormData] = useState({
-    id: activeTestCase?.id || "",
-    title: activeTestCase?.title || "",
-    suite: activeTestCase?.suite || "",
-    priority: activeTestCase?.priority || "Medium",
-    caseType: activeTestCase?.caseType || "Positive",
-    preCondition: activeTestCase?.preCondition || "",
-    postCondition: activeTestCase?.postCondition || "",
-    automationStatus:
-      activeTestCase?.automation === "Automated" ? "automated" : "manual",
-    filePath: activeTestCase?.filePath || "",
+    id: "",
+    title: "",
+    suite: "",
+    priority: "Medium",
+    caseType: "Positive",
+    preCondition: "",
+    postCondition: "",
+    automationStatus: "manual",
+    filePath: "",
   });
 
-  const [actions, setActions] = useState<TestAction[]>(
-    convertStepsToActions(activeTestCase?.steps || [])
-  );
+  const [actions, setActions] = useState<TestAction[]>([]);
 
-  // Update form when activeTestCase changes (loaded from API)
+  // Update form when loadedTestCase changes (loaded from API)
   useEffect(() => {
-    if (activeTestCase) {
+    if (loadedTestCase) {
       setFormData({
-        id: activeTestCase.id || "",
-        title: activeTestCase.title || "",
-        suite: activeTestCase.suite || "",
-        priority: activeTestCase.priority || "Medium",
-        caseType: activeTestCase.caseType || "Positive",
-        preCondition: activeTestCase.preCondition || "",
-        postCondition: activeTestCase.postCondition || "",
+        id: loadedTestCase.id || "",
+        title: loadedTestCase.title || "",
+        suite: loadedTestCase.suite || "",
+        priority: loadedTestCase.priority || "Medium",
+        caseType: loadedTestCase.caseType || "Positive",
+        preCondition: loadedTestCase.preCondition || "",
+        postCondition: loadedTestCase.postCondition || "",
         automationStatus:
-          activeTestCase.automation === "Automated" ? "automated" : "manual",
-        filePath: activeTestCase.filePath || "",
+          loadedTestCase.automation === "Automated" ? "automated" : "manual",
+        filePath: loadedTestCase.filePath || "",
       });
-      setActions(convertStepsToActions(activeTestCase.steps || []));
+      setActions(convertStepsToActions(loadedTestCase.steps || []));
     }
-  }, [activeTestCase]);
+  }, [loadedTestCase]);
 
   const [isCreatingNewSuite, setIsCreatingNewSuite] = useState(false);
   const [newSuiteName, setNewSuiteName] = useState("");
@@ -486,7 +473,7 @@ export function TestCaseForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const isEditing = !!activeTestCase;
+  const isEditing = !!testCaseId;
 
   // Fetch suites on mount
   useEffect(() => {
@@ -556,7 +543,6 @@ export function TestCaseForm({
       if (action.key) actionParams.key = action.key;
       if (action.duration) actionParams.duration = action.duration;
       if (action.direction) actionParams.direction = action.direction;
-      if (action.option) actionParams.option = action.option;
       if (action.targetSelector) actionParams.targetSelector = action.targetSelector;
 
       // Convert assertions
@@ -564,7 +550,6 @@ export function TestCaseForm({
         assertionType: assertion.type,
         selector: assertion.selector || null,
         expectedValue: assertion.value || null,
-        attribute: assertion.attribute || null,
       }));
 
       return {
@@ -595,9 +580,9 @@ export function TestCaseForm({
     try {
       const steps = convertActionsToSteps();
       
-      if (isEditing) {
+      if (isEditing && testCaseId) {
         // Update existing test case
-        await testCaseService.updateTestCase(testCase.id, {
+        await testCaseService.updateTestCase(testCaseId, {
           title: formData.title,
           suite: formData.suite,
           priority: formData.priority,
@@ -607,7 +592,7 @@ export function TestCaseForm({
         
         // Update steps separately using the new format
         const token = authService.getAccessToken();
-        await fetch(`${API_URL}/test-cases/${testCase.id}/steps`, {
+        await fetch(`${API_URL}/test-cases/${testCaseId}/steps`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -977,7 +962,7 @@ export function TestCaseForm({
             value={assertion.selector || ""}
             onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { selector: e.target.value })}
             placeholder="Selector"
-            className={`flex-1 ${inputClass} text-xs`}
+            className={`flex-1 ${inputClass} text-sm`}
           />
         )}
         {assertionDef.needsValue && (
@@ -986,7 +971,7 @@ export function TestCaseForm({
             value={assertion.value || ""}
             onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { value: e.target.value })}
             placeholder="Expected value"
-            className={`flex-1 ${inputClass} text-xs`}
+            className={`flex-1 ${inputClass} text-sm`}
           />
         )}
         {assertionDef.needsAttribute && (
@@ -996,14 +981,14 @@ export function TestCaseForm({
               value={assertion.attributeName || ""}
               onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { attributeName: e.target.value })}
               placeholder="Attr name"
-              className={`flex-1 ${inputClass} text-xs`}
+              className={`flex-1 ${inputClass} text-sm`}
             />
             <input
               type="text"
               value={assertion.attributeValue || ""}
               onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { attributeValue: e.target.value })}
               placeholder="Attr value"
-              className={`flex-1 ${inputClass} text-xs`}
+              className={`flex-1 ${inputClass} text-sm`}
             />
           </>
         )}
@@ -1066,7 +1051,7 @@ export function TestCaseForm({
             </h1>
             <p className="text-slate-400">
               {isEditing
-                ? `Mengedit ${activeTestCase?.id || formData.id}`
+                ? `Mengedit ${formData.title || testCaseId}`
                 : "Tambahkan test case baru dengan action-based steps"}
             </p>
           </div>
@@ -1409,7 +1394,7 @@ export function TestCaseForm({
 
               <Button
                 onClick={handleGenerateScript}
-                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white"
+                className="w-full bg-linear-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white"
               >
                 <Code className="w-4 h-4 mr-2" />
                 Generate Script Skeleton
