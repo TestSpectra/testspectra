@@ -5,9 +5,8 @@ let apiUrlCache: string | null = null;
 /**
  * Get API URL from Tauri backend (runtime config)
  * Priority:
- * 1. ENV variable API_URL
- * 2. Config file ~/Library/Application Support/TestSpectra/config.json
- * 3. Default: https://testspectra.mrndev.me/api
+ * 1. Tauri desktop: ENV variable TEST_SPECTRA_API_URL (read in Rust backend)
+ * 2. Pure web build / fallback: VITE_API_URL from Vite env
  */
 export async function getApiUrl(): Promise<string> {
   if (apiUrlCache) {

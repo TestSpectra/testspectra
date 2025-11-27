@@ -169,8 +169,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Backend runtime API URL (Tauri desktop)
+          TEST_SPECTRA_API_URL: ${{ secrets.API_URL }}
+          # Frontend fallback API URL for pure web build (if used)
           VITE_API_URL: ${{ secrets.API_URL }}
-          API_URL: ${{ secrets.API_URL }}
+          # Enable extra frontend debug logging in release build
+          VITE_TS_DEBUG: "true"
         with:
           tagName: ${{ needs.prepare-version.outputs.raw_version }}
           releaseName: "TestSpectra ${{ needs.prepare-version.outputs.raw_version }}"

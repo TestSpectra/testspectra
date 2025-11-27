@@ -1,8 +1,9 @@
 # API URL Migration - Runtime Config
 
-## Status: ✅ IN PROGRESS
+## Status: ✅ DONE
 
-Migrating from build-time `VITE_API_URL` to runtime `API_URL` configuration.
+Migrating from build-time `VITE_API_URL` to a runtime environment variable
+`TEST_SPECTRA_API_URL` used by the Tauri backend.
 
 ## Goal
 Allow users to change API URL **after** Tauri app installation without rebuilding.
@@ -11,13 +12,12 @@ Allow users to change API URL **after** Tauri app installation without rebuildin
 
 ### ✅ Backend (Tauri/Rust)
 - [x] Created `get_api_url()` command in `src-tauri/src/lib.rs`
-- [x] Priority: ENV `API_URL` → Config file → Default
-- [x] Config file location: `~/Library/Application Support/TestSpectra/config.json` (macOS)
-- [x] Default fallback: `https://testspectra.mrndev.me/api`
+- [x] Reads API URL from env `TEST_SPECTRA_API_URL`
 
 ### ✅ Frontend Helpers
-- [x] Created `src/lib/config.ts` with `getApiUrl()` function
-- [x] Caches result for performance
+- [x] `src/lib/config.ts` exposes `getApiUrl()`
+- [x] On Tauri desktop it calls the Rust `get_api_url` command
+- [x] On pure web build (no Tauri) it falls back to `import.meta.env.VITE_API_URL`
 
 ### ⏳ Services Migration
 - [x] `api-client.ts` - Added async factory `getUserServiceClient()`
@@ -29,49 +29,25 @@ Allow users to change API URL **after** Tauri app installation without rebuildin
 
 ## How Users Change API URL
 
-### Option 1: ENV Variable (before launching app)
+### Tauri desktop: `TEST_SPECTRA_API_URL` (before launching app)
 
 **macOS/Linux:**
 ```bash
-API_URL="https://api.example.com" open -a TestSpectra
+TEST_SPECTRA_API_URL="https://api.example.com" open -a TestSpectra
 ```
 
 **Windows (via .bat file):**
 ```batch
 @echo off
-set API_URL=https://api.example.com
+set TEST_SPECTRA_API_URL=https://api.example.com
 start "" "C:\Program Files\TestSpectra\TestSpectra.exe"
 ```
 
 **Windows (via PowerShell):**
 ```powershell
-$env:API_URL = "https://api.example.com"
+$env:TEST_SPECTRA_API_URL = "https://api.example.com"
 & "C:\Program Files\TestSpectra\TestSpectra.exe"
 ```
-
-### Option 2: Config File (persistent) - **Recommended**
-
-**macOS:**
-- Location: `~/Library/Application Support/TestSpectra/config.json`
-- Full path: `/Users/<username>/Library/Application Support/TestSpectra/config.json`
-
-**Windows:**
-- Location: `%APPDATA%\TestSpectra\config.json`
-- Full path: `C:\Users\<username>\AppData\Roaming\TestSpectra\config.json`
-- Quick access: Type `%APPDATA%\TestSpectra` in File Explorer
-
-**Linux:**
-- Location: `~/.config/TestSpectra/config.json`
-- Full path: `/home/<username>/.config/TestSpectra/config.json`
-
-**File contents (all platforms):**
-```json
-{
-  "api_url": "https://api.example.com"
-}
-```
-
-Then restart app.
 
 ## Migration Checklist
 
@@ -88,10 +64,8 @@ Then restart app.
 
 ### Testing
 - [ ] Build Tauri app locally
-- [ ] Test with default (no config)
-- [ ] Test with ENV variable
-- [ ] Test with config file
-- [ ] Test config file change + restart
+- [ ] Run without `TEST_SPECTRA_API_URL` and confirm it logs an error
+- [ ] Run with `TEST_SPECTRA_API_URL` pointing to your API and confirm it is used
 
 ## Notes
 - Keep legacy `.env` file for documentation/reference only
