@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { authService } from "../services/auth-service";
 import { testCaseService } from "../services/test-case-service";
+import { getApiUrl } from "../lib/config";
 import "../styles/drag-handle.css";
 import {
   DndContext,
@@ -23,8 +24,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 interface TestSuite {
   id: string;
@@ -483,8 +482,9 @@ export function TestCaseForm({
   const fetchSuites = async () => {
     setIsLoadingSuites(true);
     try {
+      const apiUrl = await getApiUrl();
       const token = authService.getAccessToken();
-      const response = await fetch(`${API_URL}/test-suites`, {
+      const response = await fetch(`${apiUrl}/test-suites`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -503,8 +503,9 @@ export function TestCaseForm({
 
     setIsCreatingSuite(true);
     try {
+      const apiUrl = await getApiUrl();
       const token = authService.getAccessToken();
-      const response = await fetch(`${API_URL}/test-suites`, {
+      const response = await fetch(`${apiUrl}/test-suites`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -578,6 +579,7 @@ export function TestCaseForm({
     setSaveError(null);
 
     try {
+      const apiUrl = await getApiUrl();
       const steps = convertActionsToSteps();
       
       if (isEditing && testCaseId) {
@@ -592,7 +594,7 @@ export function TestCaseForm({
         
         // Update steps separately using the new format
         const token = authService.getAccessToken();
-        await fetch(`${API_URL}/test-cases/${testCaseId}/steps`, {
+        await fetch(`${apiUrl}/test-cases/${testCaseId}/steps`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -607,7 +609,7 @@ export function TestCaseForm({
       } else {
         // Create new test case
         const token = authService.getAccessToken();
-        const response = await fetch(`${API_URL}/test-cases`, {
+        const response = await fetch(`${apiUrl}/test-cases`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

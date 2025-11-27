@@ -4,7 +4,7 @@
  * This client communicates with the backend REST API.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { getApiUrl } from '../lib/config';
 
 export interface User {
   id: string;
@@ -102,7 +102,7 @@ export const PERMISSIONS = {
 export class UserServiceClient {
   private apiUrl: string;
 
-  constructor(apiUrl: string = API_URL) {
+  constructor(apiUrl: string) {
     this.apiUrl = apiUrl;
   }
 
@@ -337,5 +337,20 @@ export class UserServiceClient {
   }
 }
 
-// Export singleton instance
-export const userServiceClient = new UserServiceClient();
+// Cached singleton instance
+let cachedClient: UserServiceClient | null = null;
+
+/**
+ * Get or create UserServiceClient instance with runtime API URL
+ */
+export async function getUserServiceClient(): Promise<UserServiceClient> {
+  if (!cachedClient) {
+    const apiUrl = await getApiUrl();
+    cachedClient = new UserServiceClient(apiUrl);
+  }
+  return cachedClient;
+}
+
+// Legacy: export singleton for backward compatibility (will be lazy-initialized)
+// TODO: Migrate all usage to getUserServiceClient()
+export const userServiceClient = new UserServiceClient('https://testspectra.mrndev.me/api');

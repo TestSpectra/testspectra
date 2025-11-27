@@ -3,6 +3,8 @@
  * Manages user authentication, token storage, and session management
  */
 
+import { getApiUrl } from '../lib/config';
+
 export interface User {
   id: string;
   name: string;
@@ -29,11 +31,7 @@ const USER_KEY = 'testspectra_user';
 
 export class AuthService {
   private static instance: AuthService;
-  private apiUrl: string;
-
-  private constructor() {
-    this.apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  }
+  private constructor() {}
 
   static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -47,7 +45,8 @@ export class AuthService {
    */
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await fetch(`${this.apiUrl}/auth/login`, {
+      const apiUrl = await getApiUrl();
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +124,8 @@ export class AuthService {
     }
 
     try {
-      const response = await fetch(`${this.apiUrl}/auth/refresh`, {
+      const apiUrl = await getApiUrl();
+      const response = await fetch(`${apiUrl}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

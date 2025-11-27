@@ -4,8 +4,7 @@
  */
 
 import { authService } from './auth-service';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { getApiUrl } from '../lib/config';
 
 export interface ActionDefinition {
   id: string;
@@ -49,8 +48,9 @@ export async function fetchDefinitions(): Promise<DefinitionsResponse> {
   }
 
   try {
+    const apiUrl = await getApiUrl();
     const token = authService.getAccessToken();
-    const response = await fetch(`${API_URL}/definitions`, {
+    const response = await fetch(`${apiUrl}/definitions`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',

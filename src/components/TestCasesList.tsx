@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, RefreshCw, Search, Filter, Play, Edit, CheckCircle2, XCircle, Clock, Zap, User, History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Sparkles, Save, X, FileEdit, Trash2, Eye, ClipboardCheck, Loader2, FolderPlus } from 'lucide-react';
 import { authService } from '../services/auth-service';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { getApiUrl } from '../lib/config';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
@@ -94,8 +93,9 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
   const fetchSuites = useCallback(async () => {
     setIsLoadingSuites(true);
     try {
+      const apiUrl = await getApiUrl();
       const token = authService.getAccessToken();
-      const response = await fetch(`${API_URL}/test-suites`, {
+      const response = await fetch(`${apiUrl}/test-suites`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {

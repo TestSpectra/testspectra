@@ -3,8 +3,7 @@ import { X, Zap, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { authService } from '../services/auth-service';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { getApiUrl } from '../lib/config';
 
 interface TestSuite {
   id: string;
@@ -45,8 +44,9 @@ export function QuickCreateDialog({ isOpen, onClose, onSave, onSaveAndEdit }: Qu
   const fetchSuites = async () => {
     setIsLoadingSuites(true);
     try {
+      const apiUrl = await getApiUrl();
       const token = authService.getAccessToken();
-      const response = await fetch(`${API_URL}/test-suites`, {
+      const response = await fetch(`${apiUrl}/test-suites`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
@@ -65,8 +65,9 @@ export function QuickCreateDialog({ isOpen, onClose, onSave, onSaveAndEdit }: Qu
     
     setIsCreatingSuite(true);
     try {
+      const apiUrl = await getApiUrl();
       const token = authService.getAccessToken();
-      const response = await fetch(`${API_URL}/test-suites`, {
+      const response = await fetch(`${apiUrl}/test-suites`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

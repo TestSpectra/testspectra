@@ -4,6 +4,7 @@
  */
 
 import { authService } from './auth-service';
+import { getApiUrl } from '../lib/config';
 
 export interface TestStep {
   stepOrder: number;
@@ -90,11 +91,7 @@ export interface UpdateTestCasePayload {
 
 class TestCaseService {
   private static instance: TestCaseService;
-  private apiUrl: string;
-
-  private constructor() {
-    this.apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  }
+  private constructor() {}
 
   static getInstance(): TestCaseService {
     if (!TestCaseService.instance) {
@@ -115,6 +112,7 @@ class TestCaseService {
    * List test cases with filters and pagination
    */
   async listTestCases(params: ListTestCasesParams = {}): Promise<ListTestCasesResponse> {
+    const apiUrl = await getApiUrl();
     const queryParams = new URLSearchParams();
     
     if (params.searchQuery) queryParams.append('searchQuery', params.searchQuery);
@@ -125,7 +123,7 @@ class TestCaseService {
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
 
-    const url = `${this.apiUrl}/test-cases${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const url = `${apiUrl}/test-cases${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -144,7 +142,8 @@ class TestCaseService {
    * Get a single test case by ID
    */
   async getTestCase(testCaseId: string): Promise<TestCase> {
-    const response = await fetch(`${this.apiUrl}/test-cases/${testCaseId}`, {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -161,7 +160,8 @@ class TestCaseService {
    * Create a new test case
    */
   async createTestCase(payload: CreateTestCasePayload): Promise<TestCase> {
-    const response = await fetch(`${this.apiUrl}/test-cases`, {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -179,7 +179,8 @@ class TestCaseService {
    * Update an existing test case
    */
   async updateTestCase(testCaseId: string, payload: UpdateTestCasePayload): Promise<TestCase> {
-    const response = await fetch(`${this.apiUrl}/test-cases/${testCaseId}`, {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -197,7 +198,8 @@ class TestCaseService {
    * Update test case steps
    */
   async updateTestSteps(testCaseId: string, steps: TestStep[]): Promise<TestCase> {
-    const response = await fetch(`${this.apiUrl}/test-cases/${testCaseId}/steps`, {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}/steps`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ steps }),
@@ -215,7 +217,8 @@ class TestCaseService {
    * Delete a test case
    */
   async deleteTestCase(testCaseId: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${this.apiUrl}/test-cases/${testCaseId}`, {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -232,7 +235,8 @@ class TestCaseService {
    * Bulk delete test cases
    */
   async bulkDeleteTestCases(testCaseIds: string[]): Promise<{ success: boolean; deletedCount: number; message: string }> {
-    const response = await fetch(`${this.apiUrl}/test-cases/bulk-delete`, {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/bulk-delete`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ testCaseIds }),
