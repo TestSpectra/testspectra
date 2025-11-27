@@ -10,11 +10,11 @@ import { testCaseService, TestCaseSummary } from '../services/test-case-service'
 
 interface TestCasesListProps {
   onCreateTestCase: () => void;
-  onEditTestCase: (testCase: any) => void;
+  onEditTestCase: (testCaseId: string) => void;
   onViewReport: (report: any) => void;
   onViewHistory: (testCaseId: string) => void;
   onViewDetail: (testCaseId: string) => void;
-  onRecordManualResult: (testCase: any) => void;
+  onRecordManualResult: (testCaseId: string) => void;
 }
 
 export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, onViewHistory, onViewDetail, onRecordManualResult }: TestCasesListProps) {
@@ -215,7 +215,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
       await fetchTestCases();
 
       if (saveAndEdit) {
-        onEditTestCase(newTestCase);
+        onEditTestCase(newTestCase.id);
       }
     } catch (err) {
       console.error('Failed to create test case:', err);
@@ -328,7 +328,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
           <p className="text-slate-400">Kelola dan jalankan semua test case</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white">
+          <Button variant="outline" className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white">
             <RefreshCw className="w-4 h-4 mr-2" />
             Sync Codebase
           </Button>
@@ -342,7 +342,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
               }
             }}
             variant="outline" 
-            className={bulkMode ? "bg-orange-600/20 border-orange-500 text-orange-300 hover:bg-orange-600/30 hover:text-orange-200" : "bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"}
+            className={bulkMode ? "bg-orange-600/20 border-orange-500 text-orange-300 hover:bg-orange-600/30 hover:text-orange-200" : "bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"}
           >
             <Trash2 className="w-4 h-4 mr-2" />
             {bulkMode ? 'Cancel' : 'Bulk Delete'}
@@ -836,7 +836,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
                           <Edit className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => onEditTestCase(tc)}
+                          onClick={() => onEditTestCase(tc.id)}
                           className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
                           title="Full Edit"
                         >
@@ -873,7 +873,7 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
                           </button>
                         ) : (
                           <button 
-                            onClick={() => onRecordManualResult(tc)}
+                            onClick={() => onRecordManualResult(tc.id)}
                             className="p-2 text-slate-400 hover:text-teal-400 hover:bg-slate-800 rounded-lg transition-colors"
                             title="Record Manual Result"
                           >
