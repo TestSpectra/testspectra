@@ -1,0 +1,86 @@
+name: Prepare Release (Draft Tag)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., v0.1.9 or v1.0.0)"
+        required: true
+        default: "v0.1.0"
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Get version from input
+        id: version
+        shell: bash
+        run: |
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Normalize version (strip leading v)
+        id: normalized_version
+        shell: bash
+        run: |
+          RAW="${{ steps.version.outputs.VERSION }}"
+          CLEAN="${RAW#v}"
+          echo "VERSION=${CLEAN}" >> $GITHUB_OUTPUT
+
+      - name: Sync Tauri app version
+        shell: bash
+        env:
+          VERSION: ${{ steps.normalized_version.outputs.VERSION }}
+        run: |
+          node - << 'EOF'
+          const fs = require('fs');
+          const version = process.env.VERSION;
+
+          // Update src-tauri/tauri.conf.json
+          const tauriPath = 'src-tauri/tauri.conf.json';
+          const tauriJson = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
+          tauriJson.version = version;
+          fs.writeFileSync(tauriPath, JSON.stringify(tauriJson, null, 2) + '\n');
+
+          // Update src-tauri/Cargo.toml
+          const cargoPath = 'src-tauri/Cargo.toml';
+          let cargo = fs.readFileSync(cargoPath, 'utf8');
+          cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
+          fs.writeFileSync(cargoPath, cargo);
+          EOF
+
+      - name: Commit version bump
+        shell: bash
+        env:
+          VERSION: ${{ steps.normalized_version.outputs.VERSION }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add src-tauri/tauri.conf.json src-tauri/Cargo.toml
+
+          # Commit may be empty if versions are already up to date
+          git commit -m "chore: bump app version to ${VERSION}" || echo "No version changes to commit"
+
+          git push origin HEAD
+
+      - name: Create and push tag
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.normalized_version.outputs.VERSION }}
+        run: |
+          TAG="v${APP_VERSION}"
+          echo "Creating tag ${TAG}"
+          git tag "${TAG}"
+          git push origin "${TAG}"
