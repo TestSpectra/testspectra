@@ -68,6 +68,52 @@ jobs:
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Normalize version (strip leading v)
+        id: normalized_version
+        shell: bash
+        run: |
+          RAW="${{ steps.version.outputs.VERSION }}"
+          CLEAN="${RAW#v}"
+          echo "VERSION=${CLEAN}" >> $GITHUB_OUTPUT
+
+      - name: Sync Tauri app version
+        shell: bash
+        env:
+          VERSION: ${{ steps.normalized_version.outputs.VERSION }}
+        run: |
+          node - << 'EOF'
+          const fs = require('fs');
+          const version = process.env.VERSION;
+
+          // Update src-tauri/tauri.conf.json
+          const tauriPath = 'src-tauri/tauri.conf.json';
+          const tauriJson = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
+          tauriJson.version = version;
+          fs.writeFileSync(tauriPath, JSON.stringify(tauriJson, null, 2) + '\n');
+
+          // Update src-tauri/Cargo.toml
+          const cargoPath = 'src-tauri/Cargo.toml';
+          let cargo = fs.readFileSync(cargoPath, 'utf8');
+          cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
+          fs.writeFileSync(cargoPath, cargo);
+          EOF
+
+      - name: Commit and push version bump
+        shell: bash
+        env:
+          VERSION: ${{ steps.normalized_version.outputs.VERSION }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add src-tauri/tauri.conf.json src-tauri/Cargo.toml
+
+          # Commit may be empty if versions are already up to date
+          git commit -m "chore: bump app version to ${VERSION}" || echo "No version changes to commit"
+
+          # Push back to the same ref (tag or branch) that triggered the workflow
+          git push origin HEAD:${GITHUB_REF}
+
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
