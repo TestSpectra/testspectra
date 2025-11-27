@@ -58,6 +58,16 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -65,8 +75,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
-          releaseName: 'TestSpectra ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}'
+          tagName: ${{ steps.version.outputs.VERSION }}
+          releaseName: 'TestSpectra ${{ steps.version.outputs.VERSION }}'
           releaseBody: |
             ## TestSpectra Desktop Release
             
