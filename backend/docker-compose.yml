@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - testspectra-db:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testspectra -d testspectra"]
       interval: 5s
@@ -18,11 +18,8 @@ services:
       retries: 5
 
   backend:
-    image: backend-backend:latest
-    container_name: testspectra-backend
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/testspectra/server:alpine
+    container_name: testspectra-server
     restart: unless-stopped
     depends_on:
       db:
@@ -31,15 +28,12 @@ services:
       DATABASE_URL: postgresql://testspectra:password@db:5432/testspectra
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-change-this}
       SERVER_ADDR: 0.0.0.0:50051
-      GRPC_SERVICE_URL: http://localhost:50051
-      PROXY_ADDR: 0.0.0.0:3000
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@testspectra.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
-      ADMIN_NAME: ${ADMIN_NAME:-Admin User}
-      RUST_LOG: ${RUST_LOG:-info}
+      ADMIN_EMAIL: "admin@testspectra.com"
+      ADMIN_PASSWORD: "AdminPass123!"
+      ADMIN_NAME: "TestSpectra Admin"
+      RUST_LOG: info
     ports:
-      - "3000:3000"
       - "50051:50051"
 
 volumes:
-  db_data:
+  testspectra-db:

@@ -1,0 +1,32 @@
+# Build artifacts
+target/
+*.log
+
+# Development files
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.md
+
+# Scripts
+*.sh
+docker-compose.yml
+docker-build.log
+
+# Logs
+logs/
+*.pid
