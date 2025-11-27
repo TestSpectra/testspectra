@@ -4,6 +4,7 @@
  */
 
 import { getApiUrl } from '../lib/config';
+import { logDebug } from '../lib/debug';
 
 export interface User {
   id: string;
@@ -46,6 +47,7 @@ export class AuthService {
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
       const apiUrl = await getApiUrl();
+      logDebug(`AUTH login POST ${apiUrl}/auth/login`);
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -55,10 +57,12 @@ export class AuthService {
       });
 
       if (!response.ok) {
+        logDebug(`AUTH login failed with status ${response.status}`);
         throw new Error('Invalid credentials');
       }
 
       const data: LoginResponse = await response.json();
+      logDebug('AUTH login success');
 
       this.setTokens(data.accessToken, data.refreshToken);
       this.setUser(data.user);
@@ -125,6 +129,7 @@ export class AuthService {
 
     try {
       const apiUrl = await getApiUrl();
+      logDebug(`AUTH refresh POST ${apiUrl}/auth/refresh`);
       const response = await fetch(`${apiUrl}/auth/refresh`, {
         method: 'POST',
         headers: {
@@ -134,10 +139,12 @@ export class AuthService {
       });
 
       if (!response.ok) {
+        logDebug(`AUTH refresh failed with status ${response.status}`);
         throw new Error('Failed to refresh token');
       }
 
       const data = await response.json();
+      logDebug('AUTH refresh success');
       this.setTokens(data.accessToken, data.refreshToken);
 
       return data.accessToken;

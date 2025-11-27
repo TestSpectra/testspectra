@@ -5,6 +5,7 @@
  */
 
 import { getApiUrl } from '../lib/config';
+import { logDebug } from '../lib/debug';
 
 export interface User {
   id: string;
@@ -110,7 +111,16 @@ export class UserServiceClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const response = await fetch(`${this.apiUrl}${endpoint}`, {
+    const url = `${this.apiUrl}${endpoint}`;
+    const method = options.method ?? 'GET';
+    const startedAt = performance.now();
+
+    logDebug(
+      `HTTP ${method} ${url} - request` +
+        (options.body ? ` body=${typeof options.body === 'string' ? options.body : '[non-string body]'}` : ''),
+    );
+
+    const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -118,12 +128,21 @@ export class UserServiceClient {
       },
     });
 
+    const durationMs = performance.now() - startedAt;
+    logDebug(`HTTP ${method} ${url} - response status=${response.status} duration=${durationMs.toFixed(0)}ms`);
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: response.statusText ?? `HTTP ${response.status}` }));
+
+      logDebug(`HTTP ${method} ${url} - error body=${JSON.stringify(error)}`);
       throw new Error(error.error || `HTTP ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    logDebug(`HTTP ${method} ${url} - success`);
+    return data;
   }
 
   /**
