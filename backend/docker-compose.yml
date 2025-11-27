@@ -18,7 +18,7 @@ services:
       retries: 5
 
   backend:
-    image: ghcr.io/testspectra/server:alpine
+    image: ghcr.io/testspectra/server:latest
     container_name: testspectra-server
     restart: unless-stopped
     depends_on:
