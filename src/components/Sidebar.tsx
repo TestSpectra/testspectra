@@ -1,5 +1,6 @@
 import { LayoutDashboard, FileCheck, History, Settings, Globe, CheckCircle2, XCircle, Clock, Wrench, GitBranch, Users, ChevronDown, UserCircle, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { TestSpectraLogo } from './TestSpectraLogo';
 
 type View = 'dashboard' | 'test-cases' | 'runs-history' | 'configuration' | 'tools' | 'user-management' | 'account';
 
@@ -47,9 +48,7 @@ export function Sidebar({ currentView, onViewChange, onLogout, currentUser }: Si
       {/* Logo & Header */}
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-            <FileCheck className="w-6 h-6 text-white" />
-          </div>
+          <TestSpectraLogo size={40} className="shrink-0" />
           <div>
             <h1 className="text-white">TestSpectra</h1>
             <p className="text-xs text-slate-400">Automation Lifecycle</p>

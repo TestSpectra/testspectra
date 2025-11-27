@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { FileCheck, Lock, Mail, Eye, EyeOff, LogIn } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, LogIn } from "lucide-react";
 import { Button } from "./ui/button";
+import { TestSpectraLogo } from "./TestSpectraLogo";
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<boolean>;
@@ -38,8 +39,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <div className="w-full max-w-md">
         {/* Logo & Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl mb-4">
-            <FileCheck className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <TestSpectraLogo size={64} />
           </div>
           <h1 className="text-3xl mb-2 text-slate-100">TestSpectra</h1>
           <p className="text-slate-400">Automation Lifecycle Management</p>
