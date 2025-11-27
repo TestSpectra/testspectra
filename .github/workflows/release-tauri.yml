@@ -153,6 +153,15 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      - name: Generate default-config.env from API_URL secret
+        shell: bash
+        run: |
+          mkdir -p src-tauri/resources
+          cat > src-tauri/resources/default-config.env << 'EOF'
+          # TestSpectra desktop configuration (generated in CI)
+          TEST_SPECTRA_API_URL="${{ secrets.API_URL }}"
+          EOF
+
       - name: Read release notes
         id: release_notes
         shell: bash
