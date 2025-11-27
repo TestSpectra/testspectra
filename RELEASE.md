@@ -35,20 +35,31 @@ xattr -cr "/Applications/TestSpectra.app"
 
 ### 🔧 Self-Hosted API Configuration
 
-By default, TestSpectra connects to the official cloud API. If you're running a self-hosted backend:
+By default, TestSpectra connects to the official cloud API. If you're running a self-hosted backend, configure the desktop app once using the `TEST_SPECTRA_API_URL` environment variable.
 
-1. Create config file in your home directory:
-   - **macOS/Linux:** `~/Library/Application Support/TestSpectra/config.json`
-   - **Windows:** `%APPDATA%\TestSpectra\config.json`
+**macOS / Linux (set once for your shell):**
 
-2. Add your API URL:
-```json
-{
-  "api_url": "https://your-server.com/api"
-}
+1. Edit your shell profile, for example `~/.zshrc` or `~/.bashrc`, and add:
+
+```bash
+export TEST_SPECTRA_API_URL="https://your-server.com/api"
 ```
 
-3. Restart the app
+2. Start a new Terminal session, then launch the app:
+
+```bash
+open -a TestSpectra
+```
+
+**Windows (set once for your user account):**
+
+Run this once in Command Prompt:
+
+```batch
+setx TEST_SPECTRA_API_URL "https://your-server.com/api"
+```
+
+Then restart TestSpectra.
 
 ### ✨ Built with
 - Tauri v2
