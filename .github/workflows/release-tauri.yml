@@ -134,6 +134,10 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      - name: Read release notes
+        id: release_notes
+        run: echo "body=$(cat RELEASE.md | jq -Rs .)" >> $GITHUB_OUTPUT
+
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -145,44 +149,7 @@ jobs:
         with:
           tagName: ${{ needs.prepare-version.outputs.raw_version }}
           releaseName: "TestSpectra ${{ needs.prepare-version.outputs.raw_version }}"
-          releaseBody: |
-            ## TestSpectra Desktop Release
-
-            ### 📦 Downloads
-
-            Download the appropriate installer for your platform from the assets below.
-
-            **macOS:**
-            - Apple Silicon (M1/M2/M3): `.dmg` file with `aarch64` in the name
-            - Intel: `.dmg` file with `x64` in the name
-
-            **Windows:**
-            - 64-bit: `.msi` installer file
-
-            ### 🚀 Installation
-
-            **macOS:**
-            1. Download and open the DMG file
-            2. Drag TestSpectra to Applications folder
-            3. First launch: Right-click → Open (for Gatekeeper)
-
-            #### If you see “TestSpectra is damaged and can't be opened” on macOS
-
-            Open Terminal and run this command, then try opening the app again:
-
-            ```bash
-            xattr -cr "/Applications/TestSpectra.app"
-            ```
-
-            **Windows:**
-            1. Download and run the MSI installer
-            2. Follow the installation wizard
-            3. Launch from Start Menu
-
-            ### ✨ Built with
-            - Tauri v2
-            - React + TypeScript
-            - Rust backend
+          releaseBody: ${{ fromJson(steps.release_notes.outputs.body) }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
