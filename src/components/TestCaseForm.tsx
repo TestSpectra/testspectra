@@ -864,6 +864,8 @@ export function TestCaseForm({
     null
   );
 
+  const highlightTimeoutRef = useRef<number | null>(null);
+
   // Auto-scroll, highlight, and focus on newly added action
   useEffect(() => {
     if (newActionIdRef.current) {
@@ -892,9 +894,14 @@ export function TestCaseForm({
       }, 50);
 
       // Remove highlight after animation completes
-      setTimeout(() => {
+      if (highlightTimeoutRef.current !== null) {
+        window.clearTimeout(highlightTimeoutRef.current);
+      }
+
+      highlightTimeoutRef.current = window.setTimeout(() => {
         setHighlightedActionId(null);
-      }, 2000);
+        highlightTimeoutRef.current = null;
+      }, 1000);
     }
   }, [actions]);
 
