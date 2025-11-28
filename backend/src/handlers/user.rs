@@ -20,7 +20,6 @@ pub struct UserState {
 pub fn user_routes(state: UserState) -> Router {
     Router::new()
         .route("/auth/login", post(login))
-        .route("/auth/refresh", post(refresh_token))
         .route("/users/me", get(get_current_user))
         .route("/users/me", put(update_my_profile))
         .route("/users", get(list_users))
@@ -65,13 +64,7 @@ async fn login(
     .fetch_one(&state.db)
     .await?;
 
-    let access_token = state.jwt.create_access_token(
-        &user.id.to_string(),
-        &user.email,
-        &user.role,
-    )?;
-
-    let refresh_token = state.jwt.create_refresh_token(
+    let access_token = state.jwt.create_token(
         &user.id.to_string(),
         &user.email,
         &user.role,
@@ -82,49 +75,11 @@ async fn login(
 
     Ok(Json(LoginResponse {
         access_token,
-        refresh_token,
         user: UserResponse::from_user_with_permissions(UserWithPermissions {
             user,
             special_permissions,
             base_permissions,
         }),
-    }))
-}
-
-async fn refresh_token(
-    State(state): State<UserState>,
-    Json(payload): Json<RefreshTokenRequest>,
-) -> Result<Json<RefreshTokenResponse>, AppError> {
-    let claims = state.jwt.verify_token(&payload.refresh_token)?;
-
-    if claims.token_type != "refresh" {
-        return Err(AppError::Unauthorized("Invalid token type".to_string()));
-    }
-
-    let user_id = Uuid::parse_str(&claims.sub)
-        .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))?;
-
-    let user: User = sqlx::query_as("SELECT * FROM users WHERE id = $1")
-        .bind(user_id)
-        .fetch_optional(&state.db)
-        .await?
-        .ok_or_else(|| AppError::Unauthorized("User not found".to_string()))?;
-
-    let access_token = state.jwt.create_access_token(
-        &user.id.to_string(),
-        &user.email,
-        &user.role,
-    )?;
-
-    let refresh_token = state.jwt.create_refresh_token(
-        &user.id.to_string(),
-        &user.email,
-        &user.role,
-    )?;
-
-    Ok(Json(RefreshTokenResponse {
-        access_token,
-        refresh_token,
     }))
 }
 

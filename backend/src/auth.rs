@@ -1,4 +1,4 @@
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
@@ -7,9 +7,7 @@ pub struct Claims {
     pub sub: String,      // user_id
     pub email: String,
     pub role: String,
-    pub exp: i64,
     pub iat: i64,
-    pub token_type: String,
 }
 
 #[derive(Clone)]
@@ -22,33 +20,13 @@ impl JwtService {
         Self { secret }
     }
 
-    pub fn create_access_token(&self, user_id: &str, email: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    pub fn create_token(&self, user_id: &str, email: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
         let now = Utc::now();
         let claims = Claims {
             sub: user_id.to_string(),
             email: email.to_string(),
             role: role.to_string(),
             iat: now.timestamp(),
-            exp: (now + Duration::hours(1)).timestamp(),
-            token_type: "access".to_string(),
-        };
-
-        encode(
-            &Header::default(),
-            &claims,
-            &EncodingKey::from_secret(self.secret.as_bytes()),
-        )
-    }
-
-    pub fn create_refresh_token(&self, user_id: &str, email: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
-        let now = Utc::now();
-        let claims = Claims {
-            sub: user_id.to_string(),
-            email: email.to_string(),
-            role: role.to_string(),
-            iat: now.timestamp(),
-            exp: (now + Duration::days(7)).timestamp(),
-            token_type: "refresh".to_string(),
         };
 
         encode(
@@ -59,10 +37,15 @@ impl JwtService {
     }
 
     pub fn verify_token(&self, token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
+        // Disable expiration validation since we don't have exp field
+        let mut validation = Validation::default();
+        validation.required_spec_claims.remove("exp");
+        validation.validate_exp = false;
+        
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
-            &Validation::default(),
+            &validation,
         )?;
         Ok(token_data.claims)
     }

@@ -47,7 +47,6 @@ pub struct LoginRequest {
 #[serde(rename_all = "camelCase")]
 pub struct LoginResponse {
     pub access_token: String,
-    pub refresh_token: String,
     pub user: UserResponse,
 }
 
@@ -123,19 +122,6 @@ pub struct UpdateMyProfileRequest {
 #[derive(Debug, Deserialize)]
 pub struct GrantPermissionsRequest {
     pub permissions: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RefreshTokenRequest {
-    pub refresh_token: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RefreshTokenResponse {
-    pub access_token: String,
-    pub refresh_token: String,
 }
 
 #[derive(Debug, Deserialize)]

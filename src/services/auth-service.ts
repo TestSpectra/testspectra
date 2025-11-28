@@ -22,12 +22,10 @@ export interface User {
 
 export interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
   user: User;
 }
 
 const TOKEN_KEY = 'testspectra_access_token';
-const REFRESH_TOKEN_KEY = 'testspectra_refresh_token';
 const USER_KEY = 'testspectra_user';
 
 export class AuthService {
@@ -64,7 +62,7 @@ export class AuthService {
       const data: LoginResponse = await response.json();
       logDebug('AUTH login success');
 
-      this.setTokens(data.accessToken, data.refreshToken);
+      this.setToken(data.accessToken);
       this.setUser(data.user);
 
       return data;
@@ -79,7 +77,6 @@ export class AuthService {
    */
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }
 
@@ -88,13 +85,6 @@ export class AuthService {
    */
   getAccessToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
-  }
-
-  /**
-   * Get refresh token
-   */
-  getRefreshToken(): string | null {
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
   }
 
   /**
@@ -119,47 +109,10 @@ export class AuthService {
   }
 
   /**
-   * Refresh access token
+   * Set token in localStorage
    */
-  async refreshAccessToken(): Promise<string> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    try {
-      const apiUrl = await getApiUrl();
-      logDebug(`AUTH refresh POST ${apiUrl}/auth/refresh`);
-      const response = await fetch(`${apiUrl}/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!response.ok) {
-        logDebug(`AUTH refresh failed with status ${response.status}`);
-        throw new Error('Failed to refresh token');
-      }
-
-      const data = await response.json();
-      logDebug('AUTH refresh success');
-      this.setTokens(data.accessToken, data.refreshToken);
-
-      return data.accessToken;
-    } catch (error) {
-      this.logout();
-      throw error;
-    }
-  }
-
-  /**
-   * Set tokens in localStorage
-   */
-  private setTokens(accessToken: string, refreshToken: string): void {
+  private setToken(accessToken: string): void {
     localStorage.setItem(TOKEN_KEY, accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   }
 
   /**
