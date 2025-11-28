@@ -677,8 +677,42 @@ export function TestCaseForm({
   const [isCreatingSuite, setIsCreatingSuite] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isMessageInView, setIsMessageInView] = useState(true);
+  const messageAreaRef = useRef<HTMLDivElement>(null);
+
+  // Track if message area is in viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsMessageInView(entry.isIntersecting);
+      },
+      { threshold: 0 }
+    );
+
+    if (messageAreaRef.current) {
+      observer.observe(messageAreaRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   const isEditing = !!testCaseId;
+
+  // Keyboard shortcut: Ctrl+S to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        if (!isSaving) {
+          handleSave();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSaving, formData, actions]);
 
   // Fetch suites on mount
   useEffect(() => {
@@ -844,8 +878,11 @@ export function TestCaseForm({
         }
       }
 
-      // Success - call the onSave callback
-      onSave();
+      // Success - show success message
+      setSaveError(null);
+      setSaveSuccess(true);
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       console.error("Failed to save test case:", error);
       setSaveError(
@@ -965,32 +1002,44 @@ export function TestCaseForm({
   // Check if action has any filled data (besides id and type)
   const actionHasData = (action: TestAction): boolean => {
     // Check basic fields
-    if (action.selector || action.value || action.text || action.url) return true;
-    if (action.timeout || action.targetSelector || action.key || action.duration) return true;
+    if (action.selector || action.value || action.text || action.url)
+      return true;
+    if (
+      action.timeout ||
+      action.targetSelector ||
+      action.key ||
+      action.duration
+    )
+      return true;
     if (action.customExpectedResult) return true;
-    
+
     // Check if any assertion has filled data
     if (action.assertions && action.assertions.length > 0) {
       for (const assertion of action.assertions) {
-        if (assertion.selector || assertion.value || assertion.attributeName || assertion.attributeValue) {
+        if (
+          assertion.selector ||
+          assertion.value ||
+          assertion.attributeName ||
+          assertion.attributeValue
+        ) {
           return true;
         }
       }
     }
-    
+
     return false;
   };
 
   const handleRemoveAction = (id: string) => {
     const action = actions.find((a) => a.id === id);
     if (!action) return;
-    
+
     // If action has no data, delete immediately
     if (!actionHasData(action)) {
       setActions(actions.filter((a) => a.id !== id));
       return;
     }
-    
+
     // Otherwise show confirmation dialog
     setActionToDelete(id);
   };
@@ -1486,10 +1535,57 @@ export function TestCaseForm({
         </div>
       </div>
 
+      {/* Message Area Anchor (for intersection observer) */}
+      <div ref={messageAreaRef} className="h-0" />
+
       {/* Save Error Message */}
       {saveError && (
-        <div className="mx-0 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-          {saveError}
+        <div
+          className={
+            !isMessageInView
+              ? "fixed top-4 left-1/2 -translate-x-1/2 z-40 w-max rounded-lg flex justify-center bg-slate-950/95"
+              : ""
+          }
+        >
+          <div
+            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${
+              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+            }`}
+          >
+            {saveError}
+          </div>
+        </div>
+      )}
+
+      {/* Save Success Message */}
+      {saveSuccess && (
+        <div
+          className={
+            !isMessageInView
+              ? "fixed top-4 left-1/2 -translate-x-1/2 z-40 w-max rounded-lg flex justify-center bg-slate-950/95"
+              : ""
+          }
+        >
+          <div
+            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${
+              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+            }`}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            Test case berhasil disimpan!
+          </div>
         </div>
       )}
 
