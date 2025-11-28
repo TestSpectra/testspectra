@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { userServiceClient } from '../services/api-client';
+import { getUserServiceClient } from '../services/api-client';
 import { authService } from '../services/auth-service';
 import {
   formatPermissionsDisplay,
@@ -102,7 +102,8 @@ export function UserManagement() {
         throw new Error('Not authenticated');
       }
 
-      const response = await userServiceClient.listUsers({
+      const client = await getUserServiceClient();
+      const response = await client.listUsers({
         token,
         page: 1,
         pageSize: 100,
@@ -196,9 +197,10 @@ export function UserManagement() {
       // Convert display permissions back to API format
       const apiPermissions = formatPermissionsApi(formData.specialPermissions);
 
+      const client = await getUserServiceClient();
       if (editingUser) {
         // Update existing user
-        await userServiceClient.updateUser({
+        await client.updateUser({
           token,
           userId: editingUser.id,
           name: formData.name,
@@ -210,7 +212,7 @@ export function UserManagement() {
       } else {
         // Create new user with generated password
         const generatedPassword = generatePassword();
-        await userServiceClient.createUser({
+        await client.createUser({
           token,
           name: formData.name,
           email: formData.email,
@@ -246,7 +248,8 @@ export function UserManagement() {
       const token = authService.getAccessToken();
       if (!token) throw new Error('Not authenticated');
 
-      await userServiceClient.deleteUser(token, deleteConfirmation.id);
+      const client = await getUserServiceClient();
+      await client.deleteUser(token, deleteConfirmation.id);
       setDeleteConfirmation(null); // Clear dialog first
       await loadUsers(); // Then reload users
     } catch (err: any) {
@@ -267,7 +270,8 @@ export function UserManagement() {
       if (!user) return;
 
       const newStatus = user.status === 'active' ? 'inactive' : 'active';
-      await userServiceClient.updateUserStatus(token, id, newStatus);
+      const client = await getUserServiceClient();
+      await client.updateUserStatus(token, id, newStatus);
       await loadUsers();
     } catch (err: any) {
       console.error('Toggle status failed:', err);

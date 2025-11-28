@@ -121,8 +121,9 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
     
     setIsCreatingSuite(true);
     try {
+      const apiUrl = await getApiUrl();
       const token = authService.getAccessToken();
-      const response = await fetch(`${API_URL}/test-suites`, {
+      const response = await fetch(`${apiUrl}/test-suites`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -485,15 +486,15 @@ export function TestCasesList({ onCreateTestCase, onEditTestCase, onViewReport, 
                     />
                   </th>
                 )}
-                <th className="text-left px-6 py-4 text-sm text-slate-400">ID</th>
-                <th className="text-left px-6 py-4 text-sm text-slate-400">Title</th>
-                <th className="text-left px-6 py-4 text-sm text-slate-400">Suite/Module</th>
-                <th className="text-left px-6 py-4 text-sm text-slate-400">Prioritas</th>
-                <th className="text-left px-6 py-4 text-sm text-slate-400">Case Type</th>
-                <th className="text-center px-6 py-4 text-sm text-slate-400">Status Otomasi</th>
-                <th className="text-center px-6 py-4 text-sm text-slate-400">Last Execution</th>
-                <th className="text-center px-6 py-4 text-sm text-slate-400">Page Load Avg.</th>
-                <th className="text-center px-6 py-4 text-sm text-slate-400">Actions</th>
+                <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">ID</th>
+                <th className="text-left px-6 py-4 text-sm text-slate-400 min-w-[200px]">Title</th>
+                <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">Suite/Module</th>
+                <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">Prioritas</th>
+                <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">Case Type</th>
+                <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">Status Otomasi</th>
+                <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">Last Execution</th>
+                <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">Page Load Avg.</th>
+                <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>

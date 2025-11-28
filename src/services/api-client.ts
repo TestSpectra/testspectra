@@ -16,6 +16,7 @@ export interface User {
   specialPermissions: string[];
   createdAt: string;
   updatedAt: string;
+  joinedDate: string;
   lastActive: string;
 }
 
@@ -369,7 +370,3 @@ export async function getUserServiceClient(): Promise<UserServiceClient> {
   }
   return cachedClient;
 }
-
-// Legacy: export singleton for backward compatibility (will be lazy-initialized)
-// TODO: Migrate all usage to getUserServiceClient()
-export const userServiceClient = new UserServiceClient('https://testspectra.mrndev.me/api');

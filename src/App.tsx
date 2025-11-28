@@ -14,7 +14,7 @@ import { LoginPage } from './components/LoginPage';
 import { AccountPage } from './components/AccountPage';
 import { authService } from './services/auth-service';
 import { Layout } from './components/Layout';
-import { userServiceClient } from './services/api-client';
+import { getUserServiceClient } from './services/api-client';
 import { testCaseService } from './services/test-case-service';
 
 function AppContent() {
@@ -48,7 +48,8 @@ function AppContent() {
       const token = authService.getAccessToken();
       if (!token) return false;
       
-      const user = await userServiceClient.getCurrentUser(token);
+      const client = await getUserServiceClient();
+      const user = await client.getCurrentUser(token);
       setCurrentUser(user);
       setIsAuthenticated(true);
       return true;
@@ -115,7 +116,8 @@ function AppContent() {
       }
       
       // Call API to update profile (only name, email cannot be changed)
-      const updatedUser = await userServiceClient.updateMyProfile({
+      const client = await getUserServiceClient();
+      const updatedUser = await client.updateMyProfile({
         token,
         name: data.name
       });
