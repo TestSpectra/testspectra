@@ -1,7 +1,19 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Plus, Trash2, Code, Save, X, Loader2, GripVertical, Copy, PlusCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Code,
+  Save,
+  X,
+  Loader2,
+  GripVertical,
+  Copy,
+  PlusCircle,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { ConfirmDialog } from "./SimpleDialog";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { authService } from "../services/auth-service";
 import { testCaseService } from "../services/test-case-service";
@@ -109,7 +121,11 @@ interface TestAction {
 }
 
 // Action definitions with labels
-const ACTION_DEFINITIONS: { value: ActionType; label: string; platform: "both" | "web" | "mobile" }[] = [
+const ACTION_DEFINITIONS: {
+  value: ActionType;
+  label: string;
+  platform: "both" | "web" | "mobile";
+}[] = [
   { value: "navigate", label: "Navigate to URL", platform: "both" },
   { value: "click", label: "Click / Tap", platform: "both" },
   { value: "type", label: "Type Text", platform: "both" },
@@ -129,41 +145,189 @@ const ACTION_DEFINITIONS: { value: ActionType; label: string; platform: "both" |
 ];
 
 // Assertion definitions with labels
-const ASSERTION_DEFINITIONS: { value: AssertionType; label: string; needsSelector: boolean; needsValue: boolean; needsAttribute: boolean }[] = [
-  { value: "elementDisplayed", label: "Element is Visible", needsSelector: true, needsValue: false, needsAttribute: false },
-  { value: "elementNotDisplayed", label: "Element is Hidden", needsSelector: true, needsValue: false, needsAttribute: false },
-  { value: "elementExists", label: "Element Exists", needsSelector: true, needsValue: false, needsAttribute: false },
-  { value: "elementClickable", label: "Element is Clickable", needsSelector: true, needsValue: false, needsAttribute: false },
-  { value: "elementInViewport", label: "Element in Viewport", needsSelector: true, needsValue: false, needsAttribute: false },
-  { value: "textEquals", label: "Text Equals", needsSelector: true, needsValue: true, needsAttribute: false },
-  { value: "textContains", label: "Text Contains", needsSelector: true, needsValue: true, needsAttribute: false },
-  { value: "valueEquals", label: "Value Equals", needsSelector: true, needsValue: true, needsAttribute: false },
-  { value: "valueContains", label: "Value Contains", needsSelector: true, needsValue: true, needsAttribute: false },
-  { value: "urlEquals", label: "URL Equals", needsSelector: false, needsValue: true, needsAttribute: false },
-  { value: "urlContains", label: "URL Contains", needsSelector: false, needsValue: true, needsAttribute: false },
-  { value: "titleEquals", label: "Title Equals", needsSelector: false, needsValue: true, needsAttribute: false },
-  { value: "titleContains", label: "Title Contains", needsSelector: false, needsValue: true, needsAttribute: false },
-  { value: "hasClass", label: "Has CSS Class", needsSelector: true, needsValue: true, needsAttribute: false },
-  { value: "hasAttribute", label: "Has Attribute", needsSelector: true, needsValue: false, needsAttribute: true },
-  { value: "isEnabled", label: "Is Enabled", needsSelector: true, needsValue: false, needsAttribute: false },
-  { value: "isDisabled", label: "Is Disabled", needsSelector: true, needsValue: false, needsAttribute: false },
-  { value: "isSelected", label: "Is Selected / Checked", needsSelector: true, needsValue: false, needsAttribute: false },
+const ASSERTION_DEFINITIONS: {
+  value: AssertionType;
+  label: string;
+  needsSelector: boolean;
+  needsValue: boolean;
+  needsAttribute: boolean;
+}[] = [
+  {
+    value: "elementDisplayed",
+    label: "Element is Visible",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
+  {
+    value: "elementNotDisplayed",
+    label: "Element is Hidden",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
+  {
+    value: "elementExists",
+    label: "Element Exists",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
+  {
+    value: "elementClickable",
+    label: "Element is Clickable",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
+  {
+    value: "elementInViewport",
+    label: "Element in Viewport",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
+  {
+    value: "textEquals",
+    label: "Text Equals",
+    needsSelector: true,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "textContains",
+    label: "Text Contains",
+    needsSelector: true,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "valueEquals",
+    label: "Value Equals",
+    needsSelector: true,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "valueContains",
+    label: "Value Contains",
+    needsSelector: true,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "urlEquals",
+    label: "URL Equals",
+    needsSelector: false,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "urlContains",
+    label: "URL Contains",
+    needsSelector: false,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "titleEquals",
+    label: "Title Equals",
+    needsSelector: false,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "titleContains",
+    label: "Title Contains",
+    needsSelector: false,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "hasClass",
+    label: "Has CSS Class",
+    needsSelector: true,
+    needsValue: true,
+    needsAttribute: false,
+  },
+  {
+    value: "hasAttribute",
+    label: "Has Attribute",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: true,
+  },
+  {
+    value: "isEnabled",
+    label: "Is Enabled",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
+  {
+    value: "isDisabled",
+    label: "Is Disabled",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
+  {
+    value: "isSelected",
+    label: "Is Selected / Checked",
+    needsSelector: true,
+    needsValue: false,
+    needsAttribute: false,
+  },
 ];
 
 // Assertions available per action type
 const ASSERTIONS_BY_ACTION: Record<ActionType, AssertionType[]> = {
-  navigate: ["urlContains", "urlEquals", "titleContains", "titleEquals", "elementDisplayed", "elementExists"],
-  click: ["elementDisplayed", "elementNotDisplayed", "elementExists", "textContains", "textEquals", "urlContains", "hasClass", "isEnabled", "isDisabled"],
-  type: ["valueEquals", "valueContains", "elementDisplayed", "hasClass", "isEnabled", "textContains"],
+  navigate: [
+    "urlContains",
+    "urlEquals",
+    "titleContains",
+    "titleEquals",
+    "elementDisplayed",
+    "elementExists",
+  ],
+  click: [
+    "elementDisplayed",
+    "elementNotDisplayed",
+    "elementExists",
+    "textContains",
+    "textEquals",
+    "urlContains",
+    "hasClass",
+    "isEnabled",
+    "isDisabled",
+  ],
+  type: [
+    "valueEquals",
+    "valueContains",
+    "elementDisplayed",
+    "hasClass",
+    "isEnabled",
+    "textContains",
+  ],
   clear: ["valueEquals", "elementDisplayed"],
   select: ["valueEquals", "isSelected", "textEquals", "elementDisplayed"],
   scroll: ["elementDisplayed", "elementInViewport", "elementExists"],
   swipe: ["elementDisplayed", "elementNotDisplayed", "elementExists"],
   wait: ["elementDisplayed", "elementExists", "elementClickable"],
   waitForElement: ["elementDisplayed", "elementExists", "elementClickable"],
-  pressKey: ["elementDisplayed", "valueContains", "textContains", "urlContains"],
+  pressKey: [
+    "elementDisplayed",
+    "valueContains",
+    "textContains",
+    "urlContains",
+  ],
   longPress: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
-  doubleClick: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
+  doubleClick: [
+    "elementDisplayed",
+    "textContains",
+    "hasClass",
+    "elementExists",
+  ],
   hover: ["elementDisplayed", "hasClass", "hasAttribute", "textContains"],
   dragDrop: ["elementDisplayed", "hasClass", "elementExists"],
   back: ["urlContains", "elementDisplayed", "titleContains"],
@@ -198,10 +362,17 @@ interface SortableActionItemProps {
   handleDuplicateAction: (id: string) => void;
   handleInsertActionBelow: (id: string) => void;
   handleAddAssertion: (actionId: string) => void;
-  handleUpdateAssertion: (actionId: string, assertionId: string, updates: Partial<Assertion>) => void;
+  handleUpdateAssertion: (
+    actionId: string,
+    assertionId: string,
+    updates: Partial<Assertion>
+  ) => void;
   handleRemoveAssertion: (actionId: string, assertionId: string) => void;
   renderActionFields: (action: TestAction) => React.ReactNode;
-  renderAssertionFields: (action: TestAction, assertion: Assertion) => React.ReactNode;
+  renderAssertionFields: (
+    action: TestAction,
+    assertion: Assertion
+  ) => React.ReactNode;
 }
 
 function SortableActionItem({
@@ -242,19 +413,15 @@ function SortableActionItem({
       ref={setNodeRef}
       style={style}
       data-action-id={action.id}
-      className={`bg-slate-800/50 p-4 rounded-lg transition-all duration-500 ${isDragging ? "ring-2 ring-blue-500" : ""} ${isHighlighted ? "action-card-highlighted" : ""}`}
+      className={`bg-slate-800/50 p-4 rounded-lg transition-all duration-500 ${
+        isDragging ? "ring-2 ring-blue-500" : ""
+      } ${isHighlighted ? "action-card-highlighted" : ""}`}
     >
       {/* Action Header */}
       <div className="flex items-start gap-3">
         {/* Number with Drag Handle on Hover */}
-        <div
-          className="drag-handle-container"
-          {...attributes}
-          {...listeners}
-        >
-          <span className="step-number">
-            {index + 1}.
-          </span>
+        <div className="drag-handle-container" {...attributes} {...listeners}>
+          <span className="step-number">{index + 1}.</span>
           <div className="drag-icon">
             <GripVertical size={18} />
           </div>
@@ -268,7 +435,9 @@ function SortableActionItem({
                 const defaultAssertionType = ASSERTIONS_BY_ACTION[newType][0];
                 handleUpdateAction(action.id, {
                   type: newType,
-                  assertions: [{ id: Date.now().toString(), type: defaultAssertionType }],
+                  assertions: [
+                    { id: Date.now().toString(), type: defaultAssertionType },
+                  ],
                 });
               }}
               className={inputClass}
@@ -276,7 +445,9 @@ function SortableActionItem({
               {ACTION_DEFINITIONS.map((actionDef) => (
                 <option key={actionDef.value} value={actionDef.value}>
                   {actionDef.label}
-                  {actionDef.platform !== "both" ? ` (${actionDef.platform})` : ""}
+                  {actionDef.platform !== "both"
+                    ? ` (${actionDef.platform})`
+                    : ""}
                 </option>
               ))}
             </select>
@@ -309,7 +480,6 @@ function SortableActionItem({
           <button
             onClick={() => handleRemoveAction(action.id)}
             className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-            disabled={actionsLength === 1}
             title="Delete Action"
             tabIndex={1000 + index}
           >
@@ -317,12 +487,13 @@ function SortableActionItem({
           </button>
         </div>
       </div>
-      
+
       {/* Expected Result - Assertions */}
       <div className="mt-4 ml-9 border-t border-slate-700/50 pt-4">
         <div className="flex items-center justify-between mb-3">
           <label className="text-xs font-medium text-slate-400">
-            Expected Result (Assertions) <span className="font-normal text-slate-500">- opsional</span>
+            Expected Result (Assertions){" "}
+            <span className="font-normal text-slate-500">- opsional</span>
           </label>
           <button
             type="button"
@@ -333,7 +504,7 @@ function SortableActionItem({
             Add Assertion
           </button>
         </div>
-        
+
         {/* Assertions List */}
         {(action.assertions || []).length > 0 && (
           <div className="space-y-2 mb-3">
@@ -342,7 +513,7 @@ function SortableActionItem({
               const filteredDefs = ASSERTION_DEFINITIONS.filter((a) =>
                 availableAssertions.includes(a.value)
               );
-              
+
               return (
                 <div
                   key={assertion.id}
@@ -366,7 +537,9 @@ function SortableActionItem({
                   {renderAssertionFields(action, assertion)}
                   <button
                     type="button"
-                    onClick={() => handleRemoveAssertion(action.id, assertion.id)}
+                    onClick={() =>
+                      handleRemoveAssertion(action.id, assertion.id)
+                    }
                     className="p-1 text-slate-500 hover:text-red-400 transition-colors"
                   >
                     <X size={14} />
@@ -376,7 +549,7 @@ function SortableActionItem({
             })}
           </div>
         )}
-        
+
         {/* Custom Assertion (for edge cases) */}
         <div>
           <label className="text-xs text-slate-500 mb-2 block">
@@ -414,7 +587,7 @@ export function TestCaseForm({
           const data = await testCaseService.getTestCase(testCaseId);
           setLoadedTestCase(data);
         } catch (error) {
-          console.error('Failed to load test case:', error);
+          console.error("Failed to load test case:", error);
         } finally {
           setIsLoadingTestCase(false);
         }
@@ -435,23 +608,29 @@ export function TestCaseForm({
         id: step.id || `step-${index}`,
         type: step.actionType as ActionType,
         customExpectedResult: step.customExpectedResult || "",
-        assertions: (step.assertions || []).map((assertion: any, idx: number) => ({
-          id: `assertion-${index}-${idx}`,
-          type: assertion.assertionType as AssertionType,
-          selector: assertion.selector || "",
-          value: assertion.expectedValue || "",
-        })),
+        assertions: (step.assertions || []).map(
+          (assertion: any, idx: number) => ({
+            id: `assertion-${index}-${idx}`,
+            type: assertion.assertionType as AssertionType,
+            selector: assertion.selector || "",
+            value: assertion.expectedValue || "",
+          })
+        ),
       };
 
       // Map action params to action properties
       if (step.actionParams) {
         if (step.actionParams.url) action.url = step.actionParams.url;
-        if (step.actionParams.selector) action.selector = step.actionParams.selector;
+        if (step.actionParams.selector)
+          action.selector = step.actionParams.selector;
         if (step.actionParams.text) action.text = step.actionParams.text;
         if (step.actionParams.key) action.key = step.actionParams.key;
-        if (step.actionParams.duration) action.duration = step.actionParams.duration;
-        if (step.actionParams.direction) action.direction = step.actionParams.direction;
-        if (step.actionParams.targetSelector) action.targetSelector = step.actionParams.targetSelector;
+        if (step.actionParams.duration)
+          action.duration = step.actionParams.duration;
+        if (step.actionParams.direction)
+          action.direction = step.actionParams.direction;
+        if (step.actionParams.targetSelector)
+          action.targetSelector = step.actionParams.targetSelector;
       }
 
       return action;
@@ -571,7 +750,8 @@ export function TestCaseForm({
       if (action.key) actionParams.key = action.key;
       if (action.duration) actionParams.duration = action.duration;
       if (action.direction) actionParams.direction = action.direction;
-      if (action.targetSelector) actionParams.targetSelector = action.targetSelector;
+      if (action.targetSelector)
+        actionParams.targetSelector = action.targetSelector;
 
       // Convert assertions
       const assertions = (action.assertions || []).map((assertion) => ({
@@ -608,7 +788,7 @@ export function TestCaseForm({
     try {
       const apiUrl = await getApiUrl();
       const steps = convertActionsToSteps();
-      
+
       if (isEditing && testCaseId) {
         // Update existing test case
         await testCaseService.updateTestCase(testCaseId, {
@@ -616,9 +796,10 @@ export function TestCaseForm({
           suite: formData.suite,
           priority: formData.priority,
           caseType: formData.caseType,
-          automation: formData.automationStatus === "automated" ? "Automated" : "Manual",
+          automation:
+            formData.automationStatus === "automated" ? "Automated" : "Manual",
         });
-        
+
         // Update steps separately using the new format
         const token = authService.getAccessToken();
         await fetch(`${apiUrl}/test-cases/${testCaseId}/steps`, {
@@ -647,7 +828,10 @@ export function TestCaseForm({
             suite: formData.suite,
             priority: formData.priority,
             caseType: formData.caseType,
-            automation: formData.automationStatus === "automated" ? "Automated" : "Manual",
+            automation:
+              formData.automationStatus === "automated"
+                ? "Automated"
+                : "Manual",
             preCondition: formData.preCondition || null,
             postCondition: formData.postCondition || null,
             steps,
@@ -664,7 +848,9 @@ export function TestCaseForm({
       onSave();
     } catch (error) {
       console.error("Failed to save test case:", error);
-      setSaveError(error instanceof Error ? error.message : "Failed to save test case");
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to save test case"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -672,33 +858,39 @@ export function TestCaseForm({
 
   // Ref to track newly added action for auto-scroll and focus
   const newActionIdRef = useRef<string | null>(null);
-  
+
   // State to track highlighted action (for temporary glow effect)
-  const [highlightedActionId, setHighlightedActionId] = useState<string | null>(null);
+  const [highlightedActionId, setHighlightedActionId] = useState<string | null>(
+    null
+  );
 
   // Auto-scroll, highlight, and focus on newly added action
   useEffect(() => {
     if (newActionIdRef.current) {
       const actionId = newActionIdRef.current;
       newActionIdRef.current = null;
-      
+
       // Set highlight immediately
       setHighlightedActionId(actionId);
-      
+
       // Small delay to ensure DOM is updated
       setTimeout(() => {
-        const actionElement = document.querySelector(`[data-action-id="${actionId}"]`);
+        const actionElement = document.querySelector(
+          `[data-action-id="${actionId}"]`
+        );
         if (actionElement) {
           actionElement.scrollIntoView({ behavior: "smooth", block: "center" });
-          
+
           // Focus on the first input field in the action
-          const firstInput = actionElement.querySelector("input, select") as HTMLElement;
+          const firstInput = actionElement.querySelector(
+            "input, select"
+          ) as HTMLElement;
           if (firstInput) {
             setTimeout(() => firstInput.focus(), 300);
           }
         }
       }, 50);
-      
+
       // Remove highlight after animation completes
       setTimeout(() => {
         setHighlightedActionId(null);
@@ -722,13 +914,13 @@ export function TestCaseForm({
   const handleAddAssertion = (actionId: string) => {
     const action = actions.find((a) => a.id === actionId);
     if (!action) return;
-    
+
     const availableAssertions = ASSERTIONS_BY_ACTION[action.type];
     const newAssertion: Assertion = {
       id: Date.now().toString(),
       type: availableAssertions[0],
     };
-    
+
     handleUpdateAction(actionId, {
       assertions: [...(action.assertions || []), newAssertion],
     });
@@ -741,35 +933,72 @@ export function TestCaseForm({
   ) => {
     const action = actions.find((a) => a.id === actionId);
     if (!action) return;
-    
+
     const updatedAssertions = (action.assertions || []).map((assertion) =>
       assertion.id === assertionId ? { ...assertion, ...updates } : assertion
     );
-    
+
     handleUpdateAction(actionId, { assertions: updatedAssertions });
   };
 
   const handleRemoveAssertion = (actionId: string, assertionId: string) => {
     const action = actions.find((a) => a.id === actionId);
     if (!action) return;
-    
+
     const updatedAssertions = (action.assertions || []).filter(
       (assertion) => assertion.id !== assertionId
     );
-    
+
     handleUpdateAction(actionId, { assertions: updatedAssertions });
   };
 
+  // State for delete confirmation dialog
+  const [actionToDelete, setActionToDelete] = useState<string | null>(null);
+
+  // Check if action has any filled data (besides id and type)
+  const actionHasData = (action: TestAction): boolean => {
+    // Check basic fields
+    if (action.selector || action.value || action.text || action.url) return true;
+    if (action.timeout || action.targetSelector || action.key || action.duration) return true;
+    if (action.customExpectedResult) return true;
+    
+    // Check if any assertion has filled data
+    if (action.assertions && action.assertions.length > 0) {
+      for (const assertion of action.assertions) {
+        if (assertion.selector || assertion.value || assertion.attributeName || assertion.attributeValue) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  };
+
   const handleRemoveAction = (id: string) => {
-    if (actions.length > 1) {
-      setActions(actions.filter((action) => action.id !== id));
+    const action = actions.find((a) => a.id === id);
+    if (!action) return;
+    
+    // If action has no data, delete immediately
+    if (!actionHasData(action)) {
+      setActions(actions.filter((a) => a.id !== id));
+      return;
+    }
+    
+    // Otherwise show confirmation dialog
+    setActionToDelete(id);
+  };
+
+  const confirmRemoveAction = () => {
+    if (actionToDelete) {
+      setActions(actions.filter((action) => action.id !== actionToDelete));
+      setActionToDelete(null);
     }
   };
 
   const handleDuplicateAction = (id: string) => {
     const actionIndex = actions.findIndex((a) => a.id === id);
     if (actionIndex === -1) return;
-    
+
     const actionToDuplicate = actions[actionIndex];
     const newActionId = Date.now().toString();
     const duplicatedAction: TestAction = {
@@ -780,7 +1009,7 @@ export function TestCaseForm({
         id: newActionId + "_" + Math.random().toString(36).substr(2, 9),
       })),
     };
-    
+
     const newActions = [...actions];
     newActions.splice(actionIndex + 1, 0, duplicatedAction);
     newActionIdRef.current = newActionId;
@@ -790,7 +1019,7 @@ export function TestCaseForm({
   const handleInsertActionBelow = (id: string) => {
     const actionIndex = actions.findIndex((a) => a.id === id);
     if (actionIndex === -1) return;
-    
+
     const actionType: ActionType = "click";
     const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
     const newActionId = Date.now().toString();
@@ -799,7 +1028,7 @@ export function TestCaseForm({
       type: actionType,
       assertions: [{ id: newActionId + "_a", type: defaultAssertionType }],
     };
-    
+
     const newActions = [...actions];
     newActions.splice(actionIndex + 1, 0, newAction);
     newActionIdRef.current = newActionId;
@@ -845,7 +1074,8 @@ export function TestCaseForm({
     );
   };
 
-  const inputClass = "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-all duration-150";
+  const inputClass =
+    "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-all duration-150";
 
   const renderActionFields = (action: TestAction) => {
     switch (action.type) {
@@ -854,7 +1084,9 @@ export function TestCaseForm({
           <input
             type="text"
             value={action.url || ""}
-            onChange={(e) => handleUpdateAction(action.id, { url: e.target.value })}
+            onChange={(e) =>
+              handleUpdateAction(action.id, { url: e.target.value })
+            }
             placeholder="URL (e.g. https://example.com) or relative path (e.g. /some-path)"
             className={`w-full ${inputClass}`}
           />
@@ -868,14 +1100,18 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { selector: e.target.value })
+              }
               placeholder="Selector (e.g., #submit-btn)"
               className={inputClass}
             />
             <input
               type="text"
               value={action.text || ""}
-              onChange={(e) => handleUpdateAction(action.id, { text: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { text: e.target.value })
+              }
               placeholder="Or Text (e.g., 'Submit')"
               className={inputClass}
             />
@@ -888,14 +1124,18 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { selector: e.target.value })
+              }
               placeholder="Selector (e.g., #email)"
               className={inputClass}
             />
             <input
               type="text"
               value={action.value || ""}
-              onChange={(e) => handleUpdateAction(action.id, { value: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { value: e.target.value })
+              }
               placeholder="Text to type"
               className={inputClass}
             />
@@ -908,7 +1148,9 @@ export function TestCaseForm({
           <input
             type="text"
             value={action.selector || ""}
-            onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+            onChange={(e) =>
+              handleUpdateAction(action.id, { selector: e.target.value })
+            }
             placeholder="Selector (e.g., #input-field)"
             className={`w-full ${inputClass}`}
           />
@@ -920,14 +1162,18 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { selector: e.target.value })
+              }
               placeholder="Selector (e.g., #country)"
               className={inputClass}
             />
             <input
               type="text"
               value={action.value || ""}
-              onChange={(e) => handleUpdateAction(action.id, { value: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { value: e.target.value })
+              }
               placeholder="Option value or text"
               className={inputClass}
             />
@@ -939,7 +1185,11 @@ export function TestCaseForm({
           <div className="grid grid-cols-2 gap-3">
             <select
               value={action.direction || "down"}
-              onChange={(e) => handleUpdateAction(action.id, { direction: e.target.value as any })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, {
+                  direction: e.target.value as any,
+                })
+              }
               className={inputClass}
             >
               <option value="down">Down</option>
@@ -950,7 +1200,9 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { selector: e.target.value })
+              }
               placeholder="Target selector (optional)"
               className={inputClass}
             />
@@ -962,7 +1214,11 @@ export function TestCaseForm({
           <div className="grid grid-cols-2 gap-3">
             <select
               value={action.direction || "up"}
-              onChange={(e) => handleUpdateAction(action.id, { direction: e.target.value as any })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, {
+                  direction: e.target.value as any,
+                })
+              }
               className={inputClass}
             >
               <option value="up">Swipe Up</option>
@@ -973,7 +1229,9 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { selector: e.target.value })
+              }
               placeholder="Element selector (optional)"
               className={inputClass}
             />
@@ -985,7 +1243,9 @@ export function TestCaseForm({
           <input
             type="text"
             value={action.timeout || ""}
-            onChange={(e) => handleUpdateAction(action.id, { timeout: e.target.value })}
+            onChange={(e) =>
+              handleUpdateAction(action.id, { timeout: e.target.value })
+            }
             placeholder="Duration in ms (e.g., 3000)"
             className={`w-full ${inputClass}`}
           />
@@ -997,14 +1257,18 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { selector: e.target.value })
+              }
               placeholder="Selector (e.g., .loading-complete)"
               className={inputClass}
             />
             <input
               type="text"
               value={action.timeout || ""}
-              onChange={(e) => handleUpdateAction(action.id, { timeout: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { timeout: e.target.value })
+              }
               placeholder="Timeout ms (e.g., 10000)"
               className={inputClass}
             />
@@ -1015,7 +1279,9 @@ export function TestCaseForm({
         return (
           <select
             value={action.key || "Enter"}
-            onChange={(e) => handleUpdateAction(action.id, { key: e.target.value })}
+            onChange={(e) =>
+              handleUpdateAction(action.id, { key: e.target.value })
+            }
             className={`w-full ${inputClass}`}
           >
             {KEY_OPTIONS.map((key) => (
@@ -1032,14 +1298,20 @@ export function TestCaseForm({
             <input
               type="text"
               value={action.selector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { selector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, { selector: e.target.value })
+              }
               placeholder="Source selector"
               className={inputClass}
             />
             <input
               type="text"
               value={action.targetSelector || ""}
-              onChange={(e) => handleUpdateAction(action.id, { targetSelector: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAction(action.id, {
+                  targetSelector: e.target.value,
+                })
+              }
               placeholder="Target selector"
               className={inputClass}
             />
@@ -1049,7 +1321,9 @@ export function TestCaseForm({
       case "back":
       case "refresh":
         return (
-          <p className="text-xs text-slate-500 italic">No additional parameters needed</p>
+          <p className="text-xs text-slate-500 italic">
+            No additional parameters needed
+          </p>
         );
 
       default:
@@ -1058,7 +1332,9 @@ export function TestCaseForm({
   };
 
   const renderAssertionFields = (action: TestAction, assertion: Assertion) => {
-    const assertionDef = ASSERTION_DEFINITIONS.find((a) => a.value === assertion.type);
+    const assertionDef = ASSERTION_DEFINITIONS.find(
+      (a) => a.value === assertion.type
+    );
     if (!assertionDef) return null;
 
     return (
@@ -1067,7 +1343,11 @@ export function TestCaseForm({
           <input
             type="text"
             value={assertion.selector || ""}
-            onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { selector: e.target.value })}
+            onChange={(e) =>
+              handleUpdateAssertion(action.id, assertion.id, {
+                selector: e.target.value,
+              })
+            }
             placeholder="Selector"
             className={`flex-1 ${inputClass} text-sm`}
           />
@@ -1076,7 +1356,11 @@ export function TestCaseForm({
           <input
             type="text"
             value={assertion.value || ""}
-            onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { value: e.target.value })}
+            onChange={(e) =>
+              handleUpdateAssertion(action.id, assertion.id, {
+                value: e.target.value,
+              })
+            }
             placeholder="Expected value"
             className={`flex-1 ${inputClass} text-sm`}
           />
@@ -1086,14 +1370,22 @@ export function TestCaseForm({
             <input
               type="text"
               value={assertion.attributeName || ""}
-              onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { attributeName: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAssertion(action.id, assertion.id, {
+                  attributeName: e.target.value,
+                })
+              }
               placeholder="Attr name"
               className={`flex-1 ${inputClass} text-sm`}
             />
             <input
               type="text"
               value={assertion.attributeValue || ""}
-              onChange={(e) => handleUpdateAssertion(action.id, assertion.id, { attributeValue: e.target.value })}
+              onChange={(e) =>
+                handleUpdateAssertion(action.id, assertion.id, {
+                  attributeValue: e.target.value,
+                })
+              }
               placeholder="Attr value"
               className={`flex-1 ${inputClass} text-sm`}
             />
@@ -1124,7 +1416,7 @@ export function TestCaseForm({
     };
     return colors[type];
   };
-  
+
   const getActionLabel = (type: ActionType) => {
     return ACTION_DEFINITIONS.find((a) => a.value === type)?.label || type;
   };
@@ -1538,6 +1830,17 @@ export function TestCaseForm({
           )}
         </div>
       </div>
+
+      {/* Delete Action Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!actionToDelete}
+        title="Delete Action Step?"
+        message="Are you sure you want to delete this action step? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmRemoveAction}
+        onCancel={() => setActionToDelete(null)}
+      />
     </div>
   );
 }

@@ -30,7 +30,7 @@ import { authService } from "../services/auth-service";
 import { getApiUrl } from "../lib/config";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+import { ConfirmDialog } from "./SimpleDialog";
 import {
   testCaseService,
   TestCaseSummary,
@@ -1214,9 +1214,16 @@ export function TestCasesList({
       )}
 
       {/* Delete Confirm Dialog */}
-      <DeleteConfirmDialog
+      <ConfirmDialog
         isOpen={showDeleteConfirm}
-        count={deleteTarget === "single" ? 1 : selectedIds.length}
+        title="Konfirmasi Hapus"
+        message={
+          deleteTarget === "single"
+            ? "Apakah Anda yakin ingin menghapus test case ini?"
+            : `Apakah Anda yakin ingin menghapus ${selectedIds.length} test case?`
+        }
+        confirmLabel={selectedIds.length > 1 && deleteTarget !== "single" ? `Hapus (${selectedIds.length})` : "Hapus"}
+        cancelLabel="Batal"
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
       />
