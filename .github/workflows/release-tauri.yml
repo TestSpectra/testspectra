@@ -66,6 +66,13 @@ jobs:
           let cargo = fs.readFileSync(cargoPath, 'utf8');
           cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
           fs.writeFileSync(cargoPath, cargo);
+
+          // Update app package version in src-tauri/Cargo.lock
+          const lockPath = 'src-tauri/Cargo.lock';
+          let lock = fs.readFileSync(lockPath, 'utf8');
+          // Target the [[package]] block with name = "app" and replace its version line
+          lock = lock.replace(/(\[\[package\]\]\s+name = "app"\s+version = ")[^"]+("?)/, `$1${version}$2`);
+          fs.writeFileSync(lockPath, lock);
           EOF
 
       - name: Commit and push version bump
