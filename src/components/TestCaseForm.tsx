@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, Plus, Trash2, Code, Save, X, Loader2, GripVertical } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, Plus, Trash2, Code, Save, X, Loader2, GripVertical, Copy, PlusCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { RichTextEditor } from "./ui/rich-text-editor";
@@ -190,10 +190,13 @@ interface SortableActionItemProps {
   index: number;
   actionsLength: number;
   inputClass: string;
+  isHighlighted: boolean;
   getActionColor: (type: ActionType) => string;
   getActionLabel: (type: ActionType) => string;
   handleUpdateAction: (id: string, updates: Partial<TestAction>) => void;
   handleRemoveAction: (id: string) => void;
+  handleDuplicateAction: (id: string) => void;
+  handleInsertActionBelow: (id: string) => void;
   handleAddAssertion: (actionId: string) => void;
   handleUpdateAssertion: (actionId: string, assertionId: string, updates: Partial<Assertion>) => void;
   handleRemoveAssertion: (actionId: string, assertionId: string) => void;
@@ -206,10 +209,13 @@ function SortableActionItem({
   index,
   actionsLength,
   inputClass,
+  isHighlighted,
   getActionColor,
   getActionLabel,
   handleUpdateAction,
   handleRemoveAction,
+  handleDuplicateAction,
+  handleInsertActionBelow,
   handleAddAssertion,
   handleUpdateAssertion,
   handleRemoveAssertion,
@@ -235,7 +241,8 @@ function SortableActionItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-slate-800/50 p-4 rounded-lg ${isDragging ? "ring-2 ring-blue-500" : ""}`}
+      data-action-id={action.id}
+      className={`bg-slate-800/50 p-4 rounded-lg transition-all duration-500 ${isDragging ? "ring-2 ring-blue-500" : ""} ${isHighlighted ? "action-card-highlighted" : ""}`}
     >
       {/* Action Header */}
       <div className="flex items-start gap-3">
@@ -282,13 +289,33 @@ function SortableActionItem({
           </div>
           {renderActionFields(action)}
         </div>
-        <button
-          onClick={() => handleRemoveAction(action.id)}
-          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors mt-1"
-          disabled={actionsLength === 1}
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 mt-1">
+          <button
+            onClick={() => handleDuplicateAction(action.id)}
+            className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+            title="Duplicate Action"
+            tabIndex={1000 + index}
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleInsertActionBelow(action.id)}
+            className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
+            title="Add Action Below"
+            tabIndex={1000 + index}
+          >
+            <PlusCircle className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleRemoveAction(action.id)}
+            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+            disabled={actionsLength === 1}
+            title="Delete Action"
+            tabIndex={1000 + index}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       
       {/* Expected Result - Assertions */}
@@ -643,14 +670,52 @@ export function TestCaseForm({
     }
   };
 
+  // Ref to track newly added action for auto-scroll and focus
+  const newActionIdRef = useRef<string | null>(null);
+  
+  // State to track highlighted action (for temporary glow effect)
+  const [highlightedActionId, setHighlightedActionId] = useState<string | null>(null);
+
+  // Auto-scroll, highlight, and focus on newly added action
+  useEffect(() => {
+    if (newActionIdRef.current) {
+      const actionId = newActionIdRef.current;
+      newActionIdRef.current = null;
+      
+      // Set highlight immediately
+      setHighlightedActionId(actionId);
+      
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        const actionElement = document.querySelector(`[data-action-id="${actionId}"]`);
+        if (actionElement) {
+          actionElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          
+          // Focus on the first input field in the action
+          const firstInput = actionElement.querySelector("input, select") as HTMLElement;
+          if (firstInput) {
+            setTimeout(() => firstInput.focus(), 300);
+          }
+        }
+      }, 50);
+      
+      // Remove highlight after animation completes
+      setTimeout(() => {
+        setHighlightedActionId(null);
+      }, 2000);
+    }
+  }, [actions]);
+
   const handleAddAction = () => {
     const actionType: ActionType = "click";
     const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
+    const newActionId = Date.now().toString();
     const newAction: TestAction = {
-      id: Date.now().toString(),
+      id: newActionId,
       type: actionType,
-      assertions: [{ id: Date.now().toString() + "_a", type: defaultAssertionType }],
+      assertions: [{ id: newActionId + "_a", type: defaultAssertionType }],
     };
+    newActionIdRef.current = newActionId;
     setActions([...actions, newAction]);
   };
 
@@ -701,6 +766,46 @@ export function TestCaseForm({
     }
   };
 
+  const handleDuplicateAction = (id: string) => {
+    const actionIndex = actions.findIndex((a) => a.id === id);
+    if (actionIndex === -1) return;
+    
+    const actionToDuplicate = actions[actionIndex];
+    const newActionId = Date.now().toString();
+    const duplicatedAction: TestAction = {
+      ...actionToDuplicate,
+      id: newActionId,
+      assertions: (actionToDuplicate.assertions || []).map((a) => ({
+        ...a,
+        id: newActionId + "_" + Math.random().toString(36).substr(2, 9),
+      })),
+    };
+    
+    const newActions = [...actions];
+    newActions.splice(actionIndex + 1, 0, duplicatedAction);
+    newActionIdRef.current = newActionId;
+    setActions(newActions);
+  };
+
+  const handleInsertActionBelow = (id: string) => {
+    const actionIndex = actions.findIndex((a) => a.id === id);
+    if (actionIndex === -1) return;
+    
+    const actionType: ActionType = "click";
+    const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
+    const newActionId = Date.now().toString();
+    const newAction: TestAction = {
+      id: newActionId,
+      type: actionType,
+      assertions: [{ id: newActionId + "_a", type: defaultAssertionType }],
+    };
+    
+    const newActions = [...actions];
+    newActions.splice(actionIndex + 1, 0, newAction);
+    newActionIdRef.current = newActionId;
+    setActions(newActions);
+  };
+
   // Drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -740,7 +845,7 @@ export function TestCaseForm({
     );
   };
 
-  const inputClass = "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+  const inputClass = "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-all duration-150";
 
   const renderActionFields = (action: TestAction) => {
     switch (action.type) {
@@ -1271,21 +1376,11 @@ export function TestCaseForm({
 
           {/* Action Steps */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="mb-1">Action Steps</h2>
-                <p className="text-sm text-slate-400">
-                  Define test actions in sequence (drag to reorder)
-                </p>
-              </div>
-              <Button
-                onClick={handleAddAction}
-                variant="outline"
-                className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Action
-              </Button>
+            <div className="mb-6">
+              <h2 className="mb-1">Action Steps</h2>
+              <p className="text-sm text-slate-400">
+                Define test actions in sequence (drag to reorder)
+              </p>
             </div>
 
             <DndContext
@@ -1305,10 +1400,13 @@ export function TestCaseForm({
                       index={index}
                       actionsLength={actions.length}
                       inputClass={inputClass}
+                      isHighlighted={highlightedActionId === action.id}
                       getActionColor={getActionColor}
                       getActionLabel={getActionLabel}
                       handleUpdateAction={handleUpdateAction}
                       handleRemoveAction={handleRemoveAction}
+                      handleDuplicateAction={handleDuplicateAction}
+                      handleInsertActionBelow={handleInsertActionBelow}
                       handleAddAssertion={handleAddAssertion}
                       handleUpdateAssertion={handleUpdateAssertion}
                       handleRemoveAssertion={handleRemoveAssertion}
@@ -1319,6 +1417,16 @@ export function TestCaseForm({
                 </div>
               </SortableContext>
             </DndContext>
+
+            {/* Add Action Button - at bottom for easy access */}
+            <Button
+              onClick={handleAddAction}
+              variant="outline"
+              className="w-full mt-4 border-slate-600 border-dashed bg-transparent text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-500"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Action
+            </Button>
           </div>
         </div>
 
