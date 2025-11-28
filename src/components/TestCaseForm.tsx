@@ -889,7 +889,7 @@ export function TestCaseForm({
         setTimeout(() => {
           setSaveSuccess(false);
           onSave(); // Navigate back to list
-        }, 1500);
+        }, 1000);
       } else {
         // EDIT mode: just show message, stay on form
         setTimeout(() => setSaveSuccess(false), 3000);
