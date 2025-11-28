@@ -683,19 +683,20 @@ export function TestCaseForm({
 
   // Track if message area is in viewport
   useEffect(() => {
+    const element = messageAreaRef.current;
+    if (!element) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsMessageInView(entry.isIntersecting);
       },
-      { threshold: 0 }
+      { threshold: 0, rootMargin: "0px" }
     );
 
-    if (messageAreaRef.current) {
-      observer.observe(messageAreaRef.current);
-    }
+    observer.observe(element);
 
     return () => observer.disconnect();
-  }, []);
+  });
 
   const isEditing = !!testCaseId;
 
@@ -881,8 +882,18 @@ export function TestCaseForm({
       // Success - show success message
       setSaveError(null);
       setSaveSuccess(true);
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => setSaveSuccess(false), 3000);
+
+      if (!isEditing) {
+        // CREATE mode: scroll to top, show message, then navigate back
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setTimeout(() => {
+          setSaveSuccess(false);
+          onSave(); // Navigate back to list
+        }, 1500);
+      } else {
+        // EDIT mode: just show message, stay on form
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
     } catch (error) {
       console.error("Failed to save test case:", error);
       setSaveError(
@@ -1536,7 +1547,7 @@ export function TestCaseForm({
       </div>
 
       {/* Message Area Anchor (for intersection observer) */}
-      <div ref={messageAreaRef} className="h-0" />
+      <div ref={messageAreaRef} className="h-px" />
 
       {/* Save Error Message */}
       {saveError && (
