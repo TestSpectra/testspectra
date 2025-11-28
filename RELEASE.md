@@ -4,12 +4,16 @@
 
 Download the appropriate installer for your platform from the assets below.
 
-**macOS:**
-- Apple Silicon (M1/M2/M3): `.dmg` file with `aarch64` in the name
-- Intel: `.dmg` file with `x64` in the name
+**macOS (Apple Silicon only):**
+- Apple Silicon: `.dmg` file with `aarch64` in the name
 
 **Windows:**
 - 64-bit: `.msi` installer file
+
+**Linux (x86_64):**
+- **AppImage**: portable build for most modern 64-bit Linux distributions. Download, make it executable with `chmod +x`, then run it directly (no package installation required).
+- **.deb**: for Debian/Ubuntu-based distributions (for example Ubuntu, Linux Mint, Pop!_OS). Install with `sudo dpkg -i testspectra-*.deb`.
+- **.rpm**: for Fedora/RHEL/openSUSE-based distributions. Install with `sudo rpm -i testspectra-*.rpm` or your distribution's package manager.
 
 ### 🚀 Installation
 
