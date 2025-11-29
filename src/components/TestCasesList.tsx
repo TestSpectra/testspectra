@@ -88,6 +88,9 @@ export function TestCasesList({
   const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
 
+  const [reorderSelectedIds, setReorderSelectedIds] = useState<string[]>([]);
+  const [reorderAnchorId, setReorderAnchorId] = useState<string | null>(null);
+
   // Suite Management State
   const [allSuites, setAllSuites] = useState<{ id: string; name: string }[]>(
     []
@@ -210,6 +213,60 @@ export function TestCasesList({
     } finally {
       setIsCreatingSuite(false);
     }
+  };
+
+  const handleRowClick = (
+    e: React.MouseEvent<HTMLTableRowElement>,
+    id: string
+  ) => {
+    if (bulkMode) {
+      // Bulk delete selection is handled via checkboxes
+      return;
+    }
+
+    // Meta/Ctrl + Click: toggle selection like file manager
+    if (e.metaKey || e.ctrlKey) {
+      const alreadySelected = reorderSelectedIds.includes(id);
+      if (alreadySelected) {
+        const next = reorderSelectedIds.filter((x) => x !== id);
+        setReorderSelectedIds(next);
+        setReorderAnchorId(next.length ? next[next.length - 1] : null);
+      } else {
+        const next = [...reorderSelectedIds, id];
+        setReorderSelectedIds(next);
+        setReorderAnchorId(id);
+      }
+      return;
+    }
+
+    // Shift + Click: select block from last anchor to this row
+    if (e.shiftKey) {
+      const orderedIds = currentItems.map((tc) => tc.id);
+      const anchorId = reorderAnchorId ?? id;
+      const anchorIndex = orderedIds.indexOf(anchorId);
+      const targetIndex = orderedIds.indexOf(id);
+
+      if (anchorIndex === -1 || targetIndex === -1) {
+        setReorderSelectedIds([id]);
+        setReorderAnchorId(id);
+        return;
+      }
+
+      const start = Math.min(anchorIndex, targetIndex);
+      const end = Math.max(anchorIndex, targetIndex);
+      const rangeIds = orderedIds.slice(start, end + 1);
+      setReorderSelectedIds(rangeIds);
+      setReorderAnchorId(anchorId);
+      return;
+    }
+    // Regular click (without modifiers): if there is an active selection, reset it
+    if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
+      if (reorderSelectedIds.length > 0) {
+        setReorderSelectedIds([]);
+        setReorderAnchorId(null);
+      }
+    }
+    return;
   };
 
   // Reset to page 1 when filters change
@@ -447,9 +504,9 @@ export function TestCasesList({
       return;
     }
 
-    // Determine which IDs are part of the moved block
-    const selectedSet = new Set(selectedIds);
-    const isMultiMove = selectedIds.length > 1 && selectedSet.has(draggedId);
+    // Determine which IDs are part of the moved block (separate from bulk delete selection)
+    const selectedSet = new Set(reorderSelectedIds);
+    const isMultiMove = reorderSelectedIds.length > 1 && selectedSet.has(draggedId);
 
     // Preserve relative order of moved items as they appear in the current list
     const movedIds = isMultiMove
@@ -906,6 +963,7 @@ export function TestCasesList({
                   <tr
                     key={tc.id}
                     draggable={editingId !== tc.id}
+                    onClick={(e) => handleRowClick(e, tc.id)}
                     onDragStart={(e) => handleDragStart(e, tc.id)}
                     onDragEnd={handleDragEnd}
                     onDragOver={(e) => handleDragOver(e, tc.id)}
@@ -921,6 +979,8 @@ export function TestCasesList({
                         ? "bg-blue-900/30 border-blue-500"
                         : draggedId === tc.id
                         ? "opacity-50"
+                        : reorderSelectedIds.includes(tc.id)
+                        ? "bg-blue-950/40 border-blue-500/40"
                         : "hover:bg-slate-800/50 hover:text-slate-100"
                     }`}
                   >
