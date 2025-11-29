@@ -644,7 +644,7 @@ export function TestCasesList({
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
+            className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Sync Codebase
@@ -1511,7 +1511,7 @@ export function TestCasesList({
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`min-w-[36px] px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    className={`min-w-9 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                       currentPage === pageNum
                         ? "bg-blue-600 text-white"
                         : "text-slate-400 hover:text-blue-400 hover:bg-slate-800"
