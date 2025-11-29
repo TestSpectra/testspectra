@@ -470,12 +470,16 @@ export function TestCasesList({
   };
 
   // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string) => {
+  const handleDragStart = (
+    e: React.DragEvent<HTMLTableRowElement>,
+    id: string
+  ) => {
     setDraggedId(id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", id);
     if (e.currentTarget) {
       e.currentTarget.style.opacity = "0.5";
+      e.currentTarget.classList.add("opacity-50", "bg-blue-950/40");
     }
 
     if (dragPreviewRef.current) {
@@ -567,7 +571,8 @@ export function TestCasesList({
 
     // Determine which IDs are part of the moved block (separate from bulk delete selection)
     const selectedSet = new Set(reorderSelectedIds);
-    const isMultiMove = reorderSelectedIds.length > 1 && selectedSet.has(draggedId);
+    const isMultiMove =
+      reorderSelectedIds.length > 1 && selectedSet.has(draggedId);
 
     // Preserve relative order of moved items as they appear in the current list
     const movedIds = isMultiMove
@@ -1033,22 +1038,25 @@ export function TestCasesList({
 
                 {currentItems.map((tc, index) => {
                   const isMoved = dragMovedSet.has(tc.id);
-                  const isSelectedForReorder = reorderSelectedIds.includes(tc.id);
+                  const isSelectedForReorder = reorderSelectedIds.includes(
+                    tc.id
+                  );
 
                   const baseCursorClass =
                     editingId === tc.id
                       ? "cursor-default"
                       : "cursor-grab active:cursor-grabbing";
 
-                  const rowStateClass = editingId === tc.id
-                    ? "border-b-2 border-blue-500/50 bg-blue-950/30"
-                    : isMoved && isSelectedForReorder
-                    ? "opacity-50 bg-blue-950/40 border-blue-500/40"
-                    : isMoved
-                    ? "opacity-50 bg-blue-950/40"
-                    : isSelectedForReorder
-                    ? "bg-blue-950/40 border-blue-500/40"
-                    : "hover:bg-slate-800/50 hover:text-slate-100";
+                  const rowStateClass =
+                    editingId === tc.id
+                      ? "border-b-2 border-blue-500/50 bg-blue-950/30"
+                      : isMoved && isSelectedForReorder
+                      ? "opacity-50 bg-blue-950/40 border-blue-500/40"
+                      : isMoved
+                      ? "opacity-50 bg-blue-950/40"
+                      : isSelectedForReorder
+                      ? "bg-blue-950/40 border-blue-500/40"
+                      : "hover:bg-slate-800/50 hover:text-slate-100";
 
                   return (
                     <tr
@@ -1066,344 +1074,349 @@ export function TestCasesList({
                       }
                       className={`border-b border-slate-800 transition-colors ${baseCursorClass} ${rowStateClass}`}
                     >
-                  
-                    {bulkMode && (
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(tc.id)}
-                          onChange={() => handleToggleSelect(tc.id)}
-                          className="w-4 h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                        />
+                      {bulkMode && (
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(tc.id)}
+                            onChange={() => handleToggleSelect(tc.id)}
+                            className="w-4 h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </td>
+                      )}
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <GripVertical className="w-3 h-3 text-slate-500" />
+                          <span className="text-xs text-slate-500 font-mono">
+                            {index + 1 + (currentPage - 1) * itemsPerPage}
+                          </span>
+                        </div>
                       </td>
-                    )}
-                    <td className="px-4 py-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <GripVertical className="w-3 h-3 text-slate-500" />
-                        <span className="text-xs text-slate-500 font-mono">
-                          {index + 1 + (currentPage - 1) * itemsPerPage}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="relative px-6 py-4">
-                      {dragOverId === tc.id && dropPosition && (
-                        <div
-                          className={`drop-indicator ${
-                            dropPosition === "above"
-                              ? "drop-indicator--top"
-                              : "drop-indicator--bottom"
-                          }`}
-                        />
-                      )}
-                      <span className="text-sm text-blue-400">{tc.id}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingId === tc.id ? (
-                        <input
-                          type="text"
-                          value={editingData.title}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              title: e.target.value,
-                            })
-                          }
-                          className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <>
-                          <p className="text-sm text-slate-200">{tc.title}</p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            {tc.lastRun}
-                          </p>
-                        </>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingId === tc.id ? (
-                        isCreatingNewSuiteEdit ? (
-                          <div className="flex gap-1">
-                            <input
-                              type="text"
-                              value={newSuiteNameEdit}
-                              onChange={(e) =>
-                                setNewSuiteNameEdit(e.target.value)
-                              }
-                              placeholder="Nama suite..."
-                              className="flex-1 bg-slate-800 border border-blue-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              autoFocus
-                              onKeyDown={(e) =>
-                                e.key === "Enter" && handleCreateSuite(true)
-                              }
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleCreateSuite(true)}
-                              disabled={isCreatingSuite}
-                              className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs disabled:opacity-50"
+                      <td className="relative px-6 py-4">
+                        {dragOverId === tc.id && dropPosition && (
+                          <div
+                            className={`drop-indicator ${
+                              dropPosition === "above"
+                                ? "drop-indicator--top"
+                                : "drop-indicator--bottom"
+                            }`}
+                          />
+                        )}
+                        <span className="text-sm text-blue-400">{tc.id}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingId === tc.id ? (
+                          <input
+                            type="text"
+                            value={editingData.title}
+                            onChange={(e) =>
+                              setEditingData({
+                                ...editingData,
+                                title: e.target.value,
+                              })
+                            }
+                            className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <>
+                            <p className="text-sm text-slate-200">{tc.title}</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {tc.lastRun}
+                            </p>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingId === tc.id ? (
+                          isCreatingNewSuiteEdit ? (
+                            <div className="flex gap-1">
+                              <input
+                                type="text"
+                                value={newSuiteNameEdit}
+                                onChange={(e) =>
+                                  setNewSuiteNameEdit(e.target.value)
+                                }
+                                placeholder="Nama suite..."
+                                className="flex-1 bg-slate-800 border border-blue-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                                onKeyDown={(e) =>
+                                  e.key === "Enter" && handleCreateSuite(true)
+                                }
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleCreateSuite(true)}
+                                disabled={isCreatingSuite}
+                                className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs disabled:opacity-50"
+                              >
+                                {isCreatingSuite ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  "OK"
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsCreatingNewSuiteEdit(false);
+                                  setNewSuiteNameEdit("");
+                                }}
+                                className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <select
+                              value={editingData.suite}
+                              onChange={(e) => {
+                                if (e.target.value === "__new__") {
+                                  setIsCreatingNewSuiteEdit(true);
+                                } else {
+                                  setEditingData({
+                                    ...editingData,
+                                    suite: e.target.value,
+                                  });
+                                }
+                              }}
+                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                              {isCreatingSuite ? (
-                                <Loader2 size={12} className="animate-spin" />
-                              ) : (
-                                "OK"
-                              )}
+                              {combinedSuites.map((suite) => (
+                                <option key={suite} value={suite}>
+                                  {suite}
+                                </option>
+                              ))}
+                              <option value="__new__">+ Buat Suite Baru</option>
+                            </select>
+                          )
+                        ) : (
+                          <span className="text-sm text-slate-300">
+                            {tc.suite}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingId === tc.id ? (
+                          <select
+                            value={editingData.priority}
+                            onChange={(e) =>
+                              setEditingData({
+                                ...editingData,
+                                priority: e.target.value,
+                              })
+                            }
+                            className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                          </select>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className={`${getPriorityColor(
+                              tc.priority
+                            )} border`}
+                          >
+                            {tc.priority}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingId === tc.id ? (
+                          <select
+                            value={editingData.caseType}
+                            onChange={(e) =>
+                              setEditingData({
+                                ...editingData,
+                                caseType: e.target.value,
+                              })
+                            }
+                            className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="Positive">Positive</option>
+                            <option value="Negative">Negative</option>
+                            <option value="Edge">Edge</option>
+                          </select>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className={`${getCaseTypeColor(
+                              tc.caseType
+                            )} border`}
+                          >
+                            {tc.caseType}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {editingId === tc.id ? (
+                          <select
+                            value={editingData.automation}
+                            onChange={(e) =>
+                              setEditingData({
+                                ...editingData,
+                                automation: e.target.value,
+                              })
+                            }
+                            className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="Automated">Automated</option>
+                            <option value="Manual">Manual</option>
+                          </select>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            {tc.automation === "Automated" ? (
+                              <>
+                                <Zap className="w-4 h-4 text-purple-400" />
+                                <span className="text-sm text-purple-400">
+                                  Auto
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <User className="w-4 h-4 text-slate-400" />
+                                <span className="text-sm text-slate-400">
+                                  Manual
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {tc.lastStatus === "passed" && (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-lg">
+                            <CheckCircle2 className="w-4 h-4 text-green-400" />
+                            <span className="text-sm text-green-400">
+                              Passed
+                            </span>
+                          </div>
+                        )}
+                        {tc.lastStatus === "failed" && (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-lg">
+                            <XCircle className="w-4 h-4 text-red-400" />
+                            <span className="text-sm text-red-400">Failed</span>
+                          </div>
+                        )}
+                        {tc.lastStatus === "pending" && (
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-500/20 rounded-lg">
+                            <Clock className="w-4 h-4 text-slate-400" />
+                            <span className="text-sm text-slate-400">
+                              Pending
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`text-sm ${
+                            tc.pageLoadAvg === "-"
+                              ? "text-slate-500"
+                              : "text-slate-300"
+                          }`}
+                        >
+                          {tc.pageLoadAvg}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingId === tc.id ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              disabled={
+                                !editingData.title.trim() || !editingData.suite
+                              }
+                              className="p-2 text-green-400 hover:text-green-300 hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Save"
+                            >
+                              <Save className="w-4 h-4" />
                             </button>
                             <button
-                              type="button"
-                              onClick={() => {
-                                setIsCreatingNewSuiteEdit(false);
-                                setNewSuiteNameEdit("");
-                              }}
-                              className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-xs"
+                              onClick={handleCancelEdit}
+                              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Cancel"
                             >
-                              <X size={12} />
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <select
-                            value={editingData.suite}
-                            onChange={(e) => {
-                              if (e.target.value === "__new__") {
-                                setIsCreatingNewSuiteEdit(true);
-                              } else {
-                                setEditingData({
-                                  ...editingData,
-                                  suite: e.target.value,
-                                });
-                              }
-                            }}
-                            className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            {combinedSuites.map((suite) => (
-                              <option key={suite} value={suite}>
-                                {suite}
-                              </option>
-                            ))}
-                            <option value="__new__">+ Buat Suite Baru</option>
-                          </select>
-                        )
-                      ) : (
-                        <span className="text-sm text-slate-300">
-                          {tc.suite}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingId === tc.id ? (
-                        <select
-                          value={editingData.priority}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              priority: e.target.value,
-                            })
-                          }
-                          className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="Critical">Critical</option>
-                          <option value="High">High</option>
-                          <option value="Medium">Medium</option>
-                          <option value="Low">Low</option>
-                        </select>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className={`${getPriorityColor(tc.priority)} border`}
-                        >
-                          {tc.priority}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingId === tc.id ? (
-                        <select
-                          value={editingData.caseType}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              caseType: e.target.value,
-                            })
-                          }
-                          className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="Positive">Positive</option>
-                          <option value="Negative">Negative</option>
-                          <option value="Edge">Edge</option>
-                        </select>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className={`${getCaseTypeColor(tc.caseType)} border`}
-                        >
-                          {tc.caseType}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {editingId === tc.id ? (
-                        <select
-                          value={editingData.automation}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              automation: e.target.value,
-                            })
-                          }
-                          className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="Automated">Automated</option>
-                          <option value="Manual">Manual</option>
-                        </select>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2">
-                          {tc.automation === "Automated" ? (
-                            <>
-                              <Zap className="w-4 h-4 text-purple-400" />
-                              <span className="text-sm text-purple-400">
-                                Auto
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <User className="w-4 h-4 text-slate-400" />
-                              <span className="text-sm text-slate-400">
-                                Manual
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {tc.lastStatus === "passed" && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-lg">
-                          <CheckCircle2 className="w-4 h-4 text-green-400" />
-                          <span className="text-sm text-green-400">Passed</span>
-                        </div>
-                      )}
-                      {tc.lastStatus === "failed" && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/20 rounded-lg">
-                          <XCircle className="w-4 h-4 text-red-400" />
-                          <span className="text-sm text-red-400">Failed</span>
-                        </div>
-                      )}
-                      {tc.lastStatus === "pending" && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-500/20 rounded-lg">
-                          <Clock className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm text-slate-400">
-                            Pending
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span
-                        className={`text-sm ${
-                          tc.pageLoadAvg === "-"
-                            ? "text-slate-500"
-                            : "text-slate-300"
-                        }`}
-                      >
-                        {tc.pageLoadAvg}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingId === tc.id ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={handleSaveEdit}
-                            disabled={
-                              !editingData.title.trim() || !editingData.suite
-                            }
-                            className="p-2 text-green-400 hover:text-green-300 hover:bg-green-900/30 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Save"
-                          >
-                            <Save className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition-colors"
-                            title="Cancel"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleStartEdit(tc)}
-                            className="p-2 text-slate-400 hover:text-orange-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Quick Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => onEditTestCase(tc.id)}
-                            className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Full Edit"
-                          >
-                            <FileEdit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDuplicate(tc.id)}
-                            className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Duplicate"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteSingle(tc.id)}
-                            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => onViewHistory(tc.id)}
-                            className="p-2 text-slate-400 hover:text-purple-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="View History"
-                          >
-                            <History className="w-4 h-4" />
-                          </button>
-                          {tc.automation === "Automated" ? (
+                          <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() =>
-                                onViewReport({
-                                  id: "RUN-" + tc.id.split("-")[1],
-                                  suite: tc.suite,
-                                  testCase: tc.title,
-                                  status: tc.lastStatus,
-                                  duration: "45s",
-                                  timestamp: tc.lastRun,
-                                })
-                              }
-                              className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-800 rounded-lg transition-colors"
-                              title="Run Test"
+                              onClick={() => handleStartEdit(tc)}
+                              className="p-2 text-slate-400 hover:text-orange-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Quick Edit"
                             >
-                              <Play className="w-4 h-4" />
+                              <Edit className="w-4 h-4" />
                             </button>
-                          ) : (
                             <button
-                              onClick={() => onRecordManualResult(tc.id)}
-                              className="p-2 text-slate-400 hover:text-teal-400 hover:bg-slate-800 rounded-lg transition-colors"
-                              title="Record Manual Result"
+                              onClick={() => onEditTestCase(tc.id)}
+                              className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Full Edit"
                             >
-                              <ClipboardCheck className="w-4 h-4" />
+                              <FileEdit className="w-4 h-4" />
                             </button>
-                          )}
-                          <button
-                            onClick={() => onViewDetail(tc.id)}
-                            className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="View Detail"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                            <button
+                              onClick={() => handleDuplicate(tc.id)}
+                              className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Duplicate"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSingle(tc.id)}
+                              className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => onViewHistory(tc.id)}
+                              className="p-2 text-slate-400 hover:text-purple-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="View History"
+                            >
+                              <History className="w-4 h-4" />
+                            </button>
+                            {tc.automation === "Automated" ? (
+                              <button
+                                onClick={() =>
+                                  onViewReport({
+                                    id: "RUN-" + tc.id.split("-")[1],
+                                    suite: tc.suite,
+                                    testCase: tc.title,
+                                    status: tc.lastStatus,
+                                    duration: "45s",
+                                    timestamp: tc.lastRun,
+                                  })
+                                }
+                                className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                title="Run Test"
+                              >
+                                <Play className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => onRecordManualResult(tc.id)}
+                                className="p-2 text-slate-400 hover:text-teal-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                title="Record Manual Result"
+                              >
+                                <ClipboardCheck className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onViewDetail(tc.id)}
+                              className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="View Detail"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1524,7 +1537,11 @@ export function TestCasesList({
             ? "Apakah Anda yakin ingin menghapus test case ini?"
             : `Apakah Anda yakin ingin menghapus ${selectedIds.length} test case?`
         }
-        confirmLabel={selectedIds.length > 1 && deleteTarget !== "single" ? `Hapus (${selectedIds.length})` : "Hapus"}
+        confirmLabel={
+          selectedIds.length > 1 && deleteTarget !== "single"
+            ? `Hapus (${selectedIds.length})`
+            : "Hapus"
+        }
         cancelLabel="Batal"
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
