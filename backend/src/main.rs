@@ -3,6 +3,7 @@ mod config;
 mod error;
 mod handlers;
 mod models;
+mod maintenance;
 
 use axum::Router;
 use sqlx::postgres::PgPoolOptions;
@@ -68,6 +69,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/definitions/actions", get(handlers::get_action_definitions))
         .route("/definitions/assertions", get(handlers::get_assertion_definitions))
         .with_state(action_def_state);
+
+    // Start background maintenance job for execution_order rebalancing
+    maintenance::start_execution_order_maintenance(db.clone());
 
     let app = Router::new()
         .nest("/api", handlers::user_routes(user_state))
