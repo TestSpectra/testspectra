@@ -698,7 +698,7 @@ export function TestCasesList({
                 placeholder="Cari test case berdasarkan ID atau title..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus"
               />
             </div>
           </div>
@@ -708,7 +708,7 @@ export function TestCasesList({
             <select
               value={filterAutomation}
               onChange={(e) => setFilterAutomation(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 input-field-focus"
             >
               <option value="all">Semua Status</option>
               <option value="automated">Automated</option>
@@ -721,7 +721,7 @@ export function TestCasesList({
             <select
               value={filterSuite}
               onChange={(e) => setFilterSuite(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 input-field-focus"
             >
               <option value="all">Semua Suite</option>
               {combinedSuites.map((suite) => (
@@ -737,7 +737,7 @@ export function TestCasesList({
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 input-field-focus"
             >
               <option value="all">Semua Prioritas</option>
               <option value="critical">Critical</option>
@@ -842,10 +842,10 @@ export function TestCasesList({
                     <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
                       Suite/Module
                     </th>
-                    <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
+                    <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap min-w-[125px]">
                       Prioritas
                     </th>
-                    <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
+                    <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap min-w-40">
                       Case Type
                     </th>
                     <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
@@ -889,7 +889,7 @@ export function TestCasesList({
                           }
                           placeholder="Masukkan judul test case..."
                           autoFocus
-                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus"
                         />
                       </td>
                       <td className="px-6 py-4">
@@ -900,7 +900,7 @@ export function TestCasesList({
                               value={newSuiteName}
                               onChange={(e) => setNewSuiteName(e.target.value)}
                               placeholder="Nama suite..."
-                              className="flex-1 bg-slate-800 border border-teal-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              className="flex-1 bg-slate-800 border border-teal-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus"
                               autoFocus
                               onKeyDown={(e) =>
                                 e.key === "Enter" && handleCreateSuite(false)
@@ -943,7 +943,7 @@ export function TestCasesList({
                               }
                             }}
                             disabled={isLoadingSuites}
-                            className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+                            className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus disabled:opacity-50"
                           >
                             <option value="">
                               {isLoadingSuites ? "Loading..." : "Pilih Suite"}
@@ -966,7 +966,7 @@ export function TestCasesList({
                               priority: e.target.value,
                             })
                           }
-                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus"
                         >
                           <option value="Critical">Critical</option>
                           <option value="High">High</option>
@@ -983,7 +983,7 @@ export function TestCasesList({
                               caseType: e.target.value,
                             })
                           }
-                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus"
                         >
                           <option value="Positive">Positive</option>
                           <option value="Negative">Negative</option>
@@ -999,7 +999,7 @@ export function TestCasesList({
                               automation: e.target.value,
                             })
                           }
-                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="w-full bg-slate-800 border border-teal-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus"
                         >
                           <option value="Automated">Automated</option>
                           <option value="Manual">Manual</option>
@@ -1126,7 +1126,7 @@ export function TestCasesList({
                                   title: e.target.value,
                                 })
                               }
-                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus"
                             />
                           ) : (
                             <>
@@ -1150,7 +1150,7 @@ export function TestCasesList({
                                     setNewSuiteNameEdit(e.target.value)
                                   }
                                   placeholder="Nama suite..."
-                                  className="flex-1 bg-slate-800 border border-blue-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  className="flex-1 bg-slate-800 border border-blue-500/50 rounded px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus"
                                   autoFocus
                                   onKeyDown={(e) =>
                                     e.key === "Enter" && handleCreateSuite(true)
@@ -1195,7 +1195,7 @@ export function TestCasesList({
                                     });
                                   }
                                 }}
-                                className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus"
                               >
                                 {combinedSuites.map((suite) => (
                                   <option key={suite} value={suite}>
@@ -1223,7 +1223,7 @@ export function TestCasesList({
                                   priority: e.target.value,
                                 })
                               }
-                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus"
                             >
                               <option value="Critical">Critical</option>
                               <option value="High">High</option>
@@ -1251,7 +1251,7 @@ export function TestCasesList({
                                   caseType: e.target.value,
                                 })
                               }
-                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus"
                             >
                               <option value="Positive">Positive</option>
                               <option value="Negative">Negative</option>
@@ -1278,7 +1278,7 @@ export function TestCasesList({
                                   automation: e.target.value,
                                 })
                               }
-                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full bg-slate-800 border border-blue-500/50 rounded px-3 py-1.5 text-sm text-slate-200 input-field-focus"
                             >
                               <option value="Automated">Automated</option>
                               <option value="Manual">Manual</option>
@@ -1457,7 +1457,7 @@ export function TestCasesList({
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 input-field-focus"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>

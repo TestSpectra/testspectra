@@ -1634,7 +1634,7 @@ export function TestCaseForm({
                   setFormData({ ...formData, title: e.target.value })
                 }
                 placeholder="Login dengan kredensial valid"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full ${inputClass}`}
               />
             </div>
 
@@ -1650,7 +1650,7 @@ export function TestCaseForm({
                       value={newSuiteName}
                       onChange={(e) => setNewSuiteName(e.target.value)}
                       placeholder="Nama suite baru..."
-                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`flex-1 ${inputClass}`}
                       autoFocus
                       onKeyDown={(e) =>
                         e.key === "Enter" && handleCreateSuite()
@@ -1690,7 +1690,7 @@ export function TestCaseForm({
                       }
                     }}
                     disabled={isLoadingSuites}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                    className={`w-full ${inputClass} disabled:opacity-50`}
                   >
                     <option value="">
                       {isLoadingSuites ? "Loading..." : "Pilih Test Suite..."}
@@ -1714,7 +1714,7 @@ export function TestCaseForm({
                   onChange={(e) =>
                     setFormData({ ...formData, priority: e.target.value })
                   }
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full ${inputClass}`}
                 >
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
@@ -1733,7 +1733,7 @@ export function TestCaseForm({
                 onChange={(e) =>
                   setFormData({ ...formData, caseType: e.target.value })
                 }
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full ${inputClass}`}
               >
                 <option value="Positive">Positive Case</option>
                 <option value="Negative">Negative Case</option>
