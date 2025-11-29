@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus,
   RefreshCw,
@@ -106,6 +106,10 @@ export function TestCasesList({
   // Drag and Drop State
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<"above" | "below" | null>(
+    null
+  );
+  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch test cases from API
   const fetchTestCases = useCallback(async () => {
@@ -274,10 +278,24 @@ export function TestCasesList({
     setCurrentPage(1);
   }, [searchQuery, filterSuite, filterPriority, filterAutomation]);
 
-  // Use API response directly - no client-side filtering needed
+  // Use API response directly - no client-side filtering needed for data
   const currentItems = testCasesList;
   const suites = availableSuites.length > 0 ? availableSuites : [];
   const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  // When dragging, determine which IDs are part of the moved block
+  const isDragging = !!draggedId;
+  let dragMovedIds: string[] = [];
+  if (isDragging && draggedId) {
+    const orderedIds = currentItems.map((tc) => tc.id);
+    const selectedSet = new Set(reorderSelectedIds);
+    const isMultiMove =
+      reorderSelectedIds.length > 1 && selectedSet.has(draggedId);
+    dragMovedIds = isMultiMove
+      ? orderedIds.filter((id) => selectedSet.has(id))
+      : [draggedId];
+  }
+  const dragMovedSet = new Set(dragMovedIds);
 
   const getPriorityColor = (priority: string) => {
     const colors: any = {
@@ -456,9 +474,41 @@ export function TestCasesList({
     setDraggedId(id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", id);
-    // Add visual feedback
     if (e.currentTarget) {
       e.currentTarget.style.opacity = "0.5";
+    }
+
+    if (dragPreviewRef.current) {
+      const preview = dragPreviewRef.current;
+      preview.innerHTML = "";
+
+      const orderedIds = currentItems.map((tc) => tc.id);
+      const selectedSet = new Set(reorderSelectedIds);
+      const isMultiMove = reorderSelectedIds.length > 1 && selectedSet.has(id);
+      const movedIds = isMultiMove
+        ? orderedIds.filter((x) => selectedSet.has(x))
+        : [id];
+
+      movedIds.forEach((movedId) => {
+        const sourceRow = document.querySelector<HTMLTableRowElement>(
+          `tr[data-case-id="${movedId}"]`
+        );
+        if (!sourceRow) return;
+        const clone = sourceRow.cloneNode(true) as HTMLTableRowElement;
+        // Remove draggable attributes and inline opacity from clone
+        clone.draggable = false;
+        (clone.style as any).opacity = "1";
+        preview.appendChild(clone);
+      });
+
+      if (preview.childElementCount > 0) {
+        preview.style.display = "block";
+        const rect = e.currentTarget.getBoundingClientRect();
+        preview.style.width = `${rect.width}px`;
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+        e.dataTransfer.setDragImage(preview, offsetX, offsetY);
+      }
     }
   };
 
@@ -468,18 +518,29 @@ export function TestCasesList({
     if (e.currentTarget) {
       e.currentTarget.style.opacity = "1";
     }
+    if (dragPreviewRef.current) {
+      dragPreviewRef.current.style.display = "none";
+      dragPreviewRef.current.innerHTML = "";
+    }
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>, id: string) => {
+  const handleDragOver = (
+    e: React.DragEvent<HTMLTableRowElement>,
+    id: string
+  ) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (draggedId && id !== draggedId) {
+    if (draggedId && !dragMovedSet.has(id)) {
       setDragOverId(id);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
+      setDropPosition(offsetY < rect.height / 2 ? "above" : "below");
     }
   };
 
   const handleDragLeave = () => {
     setDragOverId(null);
+    setDropPosition(null);
   };
 
   const handleDrop = async (
@@ -494,7 +555,7 @@ export function TestCasesList({
       return;
     }
 
-    // Build the visible order of IDs on the current page (already sorted by executionOrder)
+    // Build the full order of IDs on the current page (backend order)
     const orderedIds = currentItems.map((tc) => tc.id);
 
     const targetIndex = orderedIds.indexOf(targetId);
@@ -515,11 +576,16 @@ export function TestCasesList({
 
     // Remove moved IDs from the ordered list, then insert the block before target row
     const withoutMoved = orderedIds.filter((id) => !movedIds.includes(id));
-    const insertIndex = withoutMoved.indexOf(targetId);
+    let insertIndex = withoutMoved.indexOf(targetId);
 
     if (insertIndex === -1) {
       setDraggedId(null);
       return;
+    }
+
+    // Adjust insert index based on whether we drop above or below the target row
+    if (dropPosition === "below") {
+      insertIndex += 1;
     }
 
     const finalOrder = [...withoutMoved];
@@ -548,6 +614,7 @@ export function TestCasesList({
     }
 
     setDraggedId(null);
+    setDropPosition(null);
   };
 
   // Combine API suites with any from test cases that might not be in the suites table
@@ -557,6 +624,11 @@ export function TestCasesList({
 
   return (
     <div className="p-8 bg-slate-950">
+      <div
+        ref={dragPreviewRef}
+        className="fixed z-50 pointer-events-none opacity-80"
+        style={{ display: "none", top: -9999, left: -9999 }}
+      />
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -584,7 +656,7 @@ export function TestCasesList({
             className={
               bulkMode
                 ? "bg-orange-600/20 border-orange-500 text-orange-300 hover:bg-orange-600/30 hover:text-orange-200"
-                : "bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
+                : "bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white"
             }
           >
             <Trash2 className="w-4 h-4 mr-2" />
@@ -959,31 +1031,42 @@ export function TestCasesList({
                   </tr>
                 )}
 
-                {currentItems.map((tc, index) => (
-                  <tr
-                    key={tc.id}
-                    draggable={editingId !== tc.id}
-                    onClick={(e) => handleRowClick(e, tc.id)}
-                    onDragStart={(e) => handleDragStart(e, tc.id)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={(e) => handleDragOver(e, tc.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, tc.id)}
-                    onDoubleClick={() =>
-                      editingId !== tc.id && onViewDetail(tc.id)
-                    }
-                    className={`border-b border-slate-800 transition-colors cursor-grab active:cursor-grabbing ${
-                      editingId === tc.id
-                        ? "border-b-2 border-blue-500/50 bg-blue-950/30 cursor-default"
-                        : dragOverId === tc.id
-                        ? "bg-blue-900/30 border-blue-500"
-                        : draggedId === tc.id
-                        ? "opacity-50"
-                        : reorderSelectedIds.includes(tc.id)
-                        ? "bg-blue-950/40 border-blue-500/40"
-                        : "hover:bg-slate-800/50 hover:text-slate-100"
-                    }`}
-                  >
+                {currentItems.map((tc, index) => {
+                  const isMoved = dragMovedSet.has(tc.id);
+                  const isSelectedForReorder = reorderSelectedIds.includes(tc.id);
+
+                  const baseCursorClass =
+                    editingId === tc.id
+                      ? "cursor-default"
+                      : "cursor-grab active:cursor-grabbing";
+
+                  const rowStateClass = editingId === tc.id
+                    ? "border-b-2 border-blue-500/50 bg-blue-950/30"
+                    : isMoved && isSelectedForReorder
+                    ? "opacity-50 bg-blue-950/40 border-blue-500/40"
+                    : isMoved
+                    ? "opacity-50"
+                    : isSelectedForReorder
+                    ? "bg-blue-950/40 border-blue-500/40"
+                    : "hover:bg-slate-800/50 hover:text-slate-100";
+
+                  return (
+                    <tr
+                      key={tc.id}
+                      data-case-id={tc.id}
+                      draggable={editingId !== tc.id}
+                      onClick={(e) => handleRowClick(e, tc.id)}
+                      onDragStart={(e) => handleDragStart(e, tc.id)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => handleDragOver(e, tc.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, tc.id)}
+                      onDoubleClick={() =>
+                        editingId !== tc.id && onViewDetail(tc.id)
+                      }
+                      className={`border-b border-slate-800 transition-colors ${baseCursorClass} ${rowStateClass}`}
+                    >
+                  
                     {bulkMode && (
                       <td className="px-6 py-4">
                         <input
@@ -1002,7 +1085,16 @@ export function TestCasesList({
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="relative px-6 py-4">
+                      {dragOverId === tc.id && dropPosition && (
+                        <div
+                          className={`drop-indicator ${
+                            dropPosition === "above"
+                              ? "drop-indicator--top"
+                              : "drop-indicator--bottom"
+                          }`}
+                        />
+                      )}
                       <span className="text-sm text-blue-400">{tc.id}</span>
                     </td>
                     <td className="px-6 py-4">
@@ -1310,7 +1402,8 @@ export function TestCasesList({
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>

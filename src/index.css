@@ -924,6 +924,24 @@
     cursor: pointer;
   }
 
+  .drop-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-blue-500);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-blue-500) 40%, transparent);
+    pointer-events: none;
+  }
+
+  .drop-indicator--top {
+    top: -1px;
+  }
+
+  .drop-indicator--bottom {
+    bottom: -1px;
+  }
+
   .resize-none {
     resize: none;
   }
