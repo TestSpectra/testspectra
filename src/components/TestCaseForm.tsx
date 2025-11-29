@@ -413,7 +413,7 @@ function SortableActionItem({
       ref={setNodeRef}
       style={style}
       data-action-id={action.id}
-      className={`bg-slate-800/50 p-4 rounded-lg transition-all duration-500 ${
+      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${
         isDragging ? "ring-2 ring-blue-500" : ""
       } ${isHighlighted ? "action-card-highlighted" : ""}`}
     >
@@ -526,7 +526,7 @@ function SortableActionItem({
                         type: e.target.value as AssertionType,
                       })
                     }
-                    className={`${inputClass} text-sm min-w-[160px]`}
+                    className={`${inputClass} text-sm min-w-40`}
                   >
                     {filteredDefs.map((assertDef) => (
                       <option key={assertDef.value} value={assertDef.value}>
@@ -1142,7 +1142,7 @@ export function TestCaseForm({
   };
 
   const inputClass =
-    "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-all duration-150";
+    "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-colors duration-150";
 
   const renderActionFields = (action: TestAction) => {
     switch (action.type) {
