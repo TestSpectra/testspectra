@@ -28,6 +28,7 @@ export interface TestCase {
   expectedOutcome?: string;
   tags?: string[];
   steps?: TestStep[];
+  executionOrder: number;
   createdById?: string;
   createdByName?: string;
   createdAt?: string;
@@ -44,6 +45,7 @@ export interface TestCaseSummary {
   lastStatus: 'passed' | 'failed' | 'pending';
   pageLoadAvg?: string;
   lastRun?: string;
+  executionOrder: number;
   updatedAt: string;
   createdByName?: string;
 }
@@ -87,6 +89,12 @@ export interface UpdateTestCasePayload {
   automation?: string;
   expectedOutcome?: string;
   tags?: string[];
+}
+
+export interface ReorderPayload {
+  movedIds: string[];
+  prevId?: string | null;
+  nextId?: string | null;
 }
 
 class TestCaseService {
@@ -245,6 +253,44 @@ class TestCaseService {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to delete test cases' }));
       throw new Error(error.error || 'Failed to delete test cases');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Duplicate a test case
+   */
+  async duplicateTestCase(testCaseId: string): Promise<TestCase> {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}/duplicate`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to duplicate test case' }));
+      throw new Error(error.error || 'Failed to duplicate test case');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Reorder one or more test cases as a block using global execution order.
+   * Backend computes the exact executionOrder values based on prev/next.
+   */
+  async reorderTestCases(payload: ReorderPayload): Promise<{ success: boolean }> {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/reorder`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to reorder test cases' }));
+      throw new Error(error.error || 'Failed to reorder test cases');
     }
 
     return response.json();

@@ -25,6 +25,8 @@ import {
   ClipboardCheck,
   Loader2,
   FolderPlus,
+  Copy,
+  GripVertical,
 } from "lucide-react";
 import { authService } from "../services/auth-service";
 import { getApiUrl } from "../lib/config";
@@ -97,6 +99,10 @@ export function TestCasesList({
   // For quick edit row
   const [isCreatingNewSuiteEdit, setIsCreatingNewSuiteEdit] = useState(false);
   const [newSuiteNameEdit, setNewSuiteNameEdit] = useState("");
+
+  // Drag and Drop State
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   // Fetch test cases from API
   const fetchTestCases = useCallback(async () => {
@@ -375,6 +381,118 @@ export function TestCasesList({
     setSingleDeleteId(null);
   };
 
+  // Duplicate Test Case Handler
+  const handleDuplicate = async (testCaseId: string) => {
+    try {
+      await testCaseService.duplicateTestCase(testCaseId);
+      await fetchTestCases();
+    } catch (err) {
+      console.error("Failed to duplicate test case:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to duplicate test case"
+      );
+    }
+  };
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+    // Add visual feedback
+    if (e.currentTarget) {
+      e.currentTarget.style.opacity = "0.5";
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    setDraggedId(null);
+    setDragOverId(null);
+    if (e.currentTarget) {
+      e.currentTarget.style.opacity = "1";
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (draggedId && id !== draggedId) {
+      setDragOverId(id);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverId(null);
+  };
+
+  const handleDrop = async (
+    e: React.DragEvent<HTMLTableRowElement>,
+    targetId: string
+  ) => {
+    e.preventDefault();
+    setDragOverId(null);
+
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      return;
+    }
+
+    // Build the visible order of IDs on the current page (already sorted by executionOrder)
+    const orderedIds = currentItems.map((tc) => tc.id);
+
+    const targetIndex = orderedIds.indexOf(targetId);
+
+    if (targetIndex === -1) {
+      setDraggedId(null);
+      return;
+    }
+
+    // Determine which IDs are part of the moved block
+    const selectedSet = new Set(selectedIds);
+    const isMultiMove = selectedIds.length > 1 && selectedSet.has(draggedId);
+
+    // Preserve relative order of moved items as they appear in the current list
+    const movedIds = isMultiMove
+      ? orderedIds.filter((id) => selectedSet.has(id))
+      : [draggedId];
+
+    // Remove moved IDs from the ordered list, then insert the block before target row
+    const withoutMoved = orderedIds.filter((id) => !movedIds.includes(id));
+    const insertIndex = withoutMoved.indexOf(targetId);
+
+    if (insertIndex === -1) {
+      setDraggedId(null);
+      return;
+    }
+
+    const finalOrder = [...withoutMoved];
+    finalOrder.splice(insertIndex, 0, ...movedIds);
+
+    // Compute prev/next around the whole block in the new order
+    const firstIndex = finalOrder.indexOf(movedIds[0]);
+    const lastIndex = firstIndex + movedIds.length - 1;
+
+    const prevId = firstIndex > 0 ? finalOrder[firstIndex - 1] : null;
+    const nextId =
+      lastIndex < finalOrder.length - 1 ? finalOrder[lastIndex + 1] : null;
+
+    try {
+      await testCaseService.reorderTestCases({
+        movedIds,
+        prevId,
+        nextId,
+      });
+      await fetchTestCases();
+    } catch (err) {
+      console.error("Failed to reorder test case:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to reorder test case"
+      );
+    }
+
+    setDraggedId(null);
+  };
+
   // Combine API suites with any from test cases that might not be in the suites table
   const combinedSuites = [
     ...new Set([...allSuites.map((s) => s.name), ...availableSuites]),
@@ -564,6 +682,9 @@ export function TestCasesList({
                       />
                     </th>
                   )}
+                  <th className="text-center px-4 py-4 text-sm text-slate-400 whitespace-nowrap w-16">
+                    #
+                  </th>
                   <th className="text-left px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
                     ID
                   </th>
@@ -605,6 +726,9 @@ export function TestCasesList({
                         <span className="text-xs text-teal-400">NEW</span>
                       </td>
                     )}
+                    <td className="px-4 py-4 text-center">
+                      <span className="text-xs text-teal-400">-</span>
+                    </td>
                     <td className="px-6 py-4">
                       <span className="text-xs text-teal-400">AUTO</span>
                     </td>
@@ -778,15 +902,25 @@ export function TestCasesList({
                   </tr>
                 )}
 
-                {currentItems.map((tc) => (
+                {currentItems.map((tc, index) => (
                   <tr
                     key={tc.id}
+                    draggable={editingId !== tc.id}
+                    onDragStart={(e) => handleDragStart(e, tc.id)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => handleDragOver(e, tc.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, tc.id)}
                     onDoubleClick={() =>
                       editingId !== tc.id && onViewDetail(tc.id)
                     }
-                    className={`border-b border-slate-800 transition-colors cursor-pointer ${
+                    className={`border-b border-slate-800 transition-colors cursor-grab active:cursor-grabbing ${
                       editingId === tc.id
-                        ? "border-b-2 border-blue-500/50 bg-blue-950/30"
+                        ? "border-b-2 border-blue-500/50 bg-blue-950/30 cursor-default"
+                        : dragOverId === tc.id
+                        ? "bg-blue-900/30 border-blue-500"
+                        : draggedId === tc.id
+                        ? "opacity-50"
                         : "hover:bg-slate-800/50 hover:text-slate-100"
                     }`}
                   >
@@ -800,6 +934,14 @@ export function TestCasesList({
                         />
                       </td>
                     )}
+                    <td className="px-4 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <GripVertical className="w-3 h-3 text-slate-500" />
+                        <span className="text-xs text-slate-500 font-mono">
+                          {index + 1 + (currentPage - 1) * itemsPerPage}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-blue-400">{tc.id}</span>
                     </td>
@@ -1049,6 +1191,13 @@ export function TestCasesList({
                             title="Full Edit"
                           >
                             <FileEdit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(tc.id)}
+                            className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Duplicate"
+                          >
+                            <Copy className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteSingle(tc.id)}

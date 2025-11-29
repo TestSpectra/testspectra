@@ -21,6 +21,7 @@ pub struct TestCase {
     pub pre_condition: Option<String>,  // Rich text HTML
     pub post_condition: Option<String>, // Rich text HTML
     pub tags: Vec<String>,
+    pub execution_order: f64,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -59,6 +60,7 @@ pub struct TestCaseSummary {
     pub last_status: String,
     pub page_load_avg: Option<String>,
     pub last_run: Option<String>,
+    pub execution_order: f64,
     pub updated_at: DateTime<Utc>,
     pub created_by_name: Option<String>,
 }
@@ -80,6 +82,7 @@ pub struct TestCaseResponse {
     pub pre_condition: Option<String>,
     pub post_condition: Option<String>,
     pub tags: Vec<String>,
+    pub execution_order: f64,
     pub steps: Vec<TestStepResponse>,
     pub created_by_id: String,
     pub created_by_name: Option<String>,
@@ -115,6 +118,7 @@ impl TestCaseResponse {
             pre_condition: tc.test_case.pre_condition,
             post_condition: tc.test_case.post_condition,
             tags: tc.test_case.tags,
+            execution_order: tc.test_case.execution_order,
             steps: tc.steps.into_iter().map(|s| TestStepResponse {
                 id: s.id.to_string(),
                 step_order: s.step_order,
@@ -205,6 +209,14 @@ pub struct ListTestCasesResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BulkDeleteRequest {
     pub test_case_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReorderRequest {
+    pub moved_ids: Vec<String>,
+    pub prev_id: Option<String>,
+    pub next_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

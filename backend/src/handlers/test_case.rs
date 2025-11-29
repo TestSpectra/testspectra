@@ -26,6 +26,8 @@ pub fn test_case_routes(state: TestCaseState) -> Router {
         .route("/test-cases/:id", put(update_test_case))
         .route("/test-cases/:id", delete(delete_test_case))
         .route("/test-cases/:id/steps", put(update_test_steps))
+        .route("/test-cases/:id/duplicate", post(duplicate_test_case))
+        .route("/test-cases/reorder", put(reorder_test_case))
         .with_state(state)
 }
 
@@ -86,7 +88,7 @@ async fn list_test_cases(
            FROM test_cases tc
            LEFT JOIN users u ON tc.created_by = u.id
            WHERE {}
-           ORDER BY tc.created_at DESC
+           ORDER BY tc.execution_order ASC
            LIMIT {} OFFSET {}"#,
         where_clause, page_size, offset
     );
@@ -111,6 +113,7 @@ async fn list_test_cases(
             last_status: tc.last_status,
             page_load_avg: tc.page_load_avg,
             last_run: tc.last_run,
+            execution_order: tc.execution_order,
             updated_at: tc.updated_at,
             created_by_name: tc.created_by_name,
         }).collect(),
@@ -134,6 +137,7 @@ struct TestCaseSummaryRow {
     last_status: String,
     page_load_avg: Option<String>,
     last_run: Option<String>,
+    execution_order: f64,
     updated_at: chrono::DateTime<chrono::Utc>,
     created_by_name: Option<String>,
 }
@@ -218,11 +222,17 @@ async fn create_test_case(
         .await?;
     let case_id = format!("TC-{:04}", next_seq.0);
 
+    // Get next execution_order (max + 1)
+    let max_order: (Option<f64>,) = sqlx::query_as("SELECT MAX(execution_order) FROM test_cases")
+        .fetch_one(&state.db)
+        .await?;
+    let next_order = max_order.0.unwrap_or(0.0) + 1.0;
+
     let test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, pre_condition, post_condition, tags, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13)
+            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14)
            RETURNING *"#
     )
     .bind(id)
@@ -238,6 +248,7 @@ async fn create_test_case(
     .bind(&payload.post_condition)
     .bind(&payload.tags.unwrap_or_default())
     .bind(user_uuid)
+    .bind(next_order)
     .fetch_one(&state.db)
     .await?;
 
@@ -519,6 +530,221 @@ async fn bulk_delete_test_cases(
         deleted_count,
         message: format!("{} test case(s) deleted successfully", deleted_count),
     }))
+}
+
+async fn duplicate_test_case(
+    State(state): State<TestCaseState>,
+    headers: HeaderMap,
+    Path(case_id): Path<String>,
+) -> Result<Json<TestCaseResponse>, AppError> {
+    let user_id = verify_token(&state, &headers)?;
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| AppError::Internal("Invalid user ID".to_string()))?;
+
+    // Get the original test case
+    let original: TestCase = sqlx::query_as(
+        "SELECT * FROM test_cases WHERE case_id = $1"
+    )
+    .bind(&case_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
+
+    // Get original steps
+    let original_steps: Vec<TestStep> = sqlx::query_as(
+        "SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order"
+    )
+    .bind(original.id)
+    .fetch_all(&state.db)
+    .await?;
+
+    // Generate new IDs
+    let new_id = Uuid::new_v4();
+    let next_seq: (i64,) = sqlx::query_as("SELECT nextval('test_case_id_seq')")
+        .fetch_one(&state.db)
+        .await?;
+    let new_case_id = format!("TC-{:04}", next_seq.0);
+
+    // Get next execution_order - place duplicate right below original
+    // Find the next item after the original by execution_order
+    let next_item: Option<(f64,)> = sqlx::query_as(
+        "SELECT execution_order FROM test_cases WHERE execution_order > $1 ORDER BY execution_order ASC LIMIT 1"
+    )
+    .bind(original.execution_order)
+    .fetch_optional(&state.db)
+    .await?;
+
+    let next_order = match next_item {
+        // Place between original and next item
+        Some((next_exec_order,)) => (original.execution_order + next_exec_order) / 2.0,
+        // No next item, place after original
+        None => original.execution_order + 1.0,
+    };
+
+    // Create duplicated test case
+    let new_test_case: TestCase = sqlx::query_as(
+        r#"INSERT INTO test_cases 
+           (id, case_id, title, description, suite, priority, case_type, automation, 
+            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14)
+           RETURNING *"#
+    )
+    .bind(new_id)
+    .bind(&new_case_id)
+    .bind(format!("{} (Copy)", original.title))
+    .bind(&original.description)
+    .bind(&original.suite)
+    .bind(&original.priority)
+    .bind(&original.case_type)
+    .bind(&original.automation)
+    .bind(&original.expected_outcome)
+    .bind(&original.pre_condition)
+    .bind(&original.post_condition)
+    .bind(&original.tags)
+    .bind(user_uuid)
+    .bind(next_order)
+    .fetch_one(&state.db)
+    .await?;
+
+    // Duplicate steps
+    let mut new_steps = Vec::new();
+    for step in original_steps {
+        let step_id = Uuid::new_v4();
+        let inserted: TestStep = sqlx::query_as(
+            r#"INSERT INTO test_steps 
+               (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               RETURNING *"#
+        )
+        .bind(step_id)
+        .bind(new_id)
+        .bind(step.step_order)
+        .bind(&step.action_type)
+        .bind(&step.action_params)
+        .bind(&step.assertions)
+        .bind(&step.custom_expected_result)
+        .fetch_one(&state.db)
+        .await?;
+        new_steps.push(inserted);
+    }
+
+    let creator_name: Option<(String,)> = sqlx::query_as(
+        "SELECT name FROM users WHERE id = $1"
+    )
+    .bind(user_uuid)
+    .fetch_optional(&state.db)
+    .await?;
+
+    Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
+        test_case: new_test_case,
+        steps: new_steps,
+        created_by_name: creator_name.map(|(n,)| n),
+    })))
+}
+
+async fn reorder_test_case(
+    State(state): State<TestCaseState>,
+    headers: HeaderMap,
+    Json(payload): Json<ReorderRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    verify_token(&state, &headers)?;
+
+    // Nothing to reorder
+    if payload.moved_ids.is_empty() {
+        return Ok(Json(serde_json::json!({
+            "success": true,
+            "message": "No items to reorder",
+        })));
+    }
+
+    // Fetch prev and next execution_order if provided (global ordering)
+    let prev_order: Option<f64> = if let Some(ref prev_id) = payload.prev_id {
+        let row: Option<(f64,)> = sqlx::query_as(
+            "SELECT execution_order FROM test_cases WHERE case_id = $1"
+        )
+        .bind(prev_id)
+        .fetch_optional(&state.db)
+        .await?;
+        row.map(|(v,)| v)
+    } else {
+        None
+    };
+
+    let next_order: Option<f64> = if let Some(ref next_id) = payload.next_id {
+        let row: Option<(f64,)> = sqlx::query_as(
+            "SELECT execution_order FROM test_cases WHERE case_id = $1"
+        )
+        .bind(next_id)
+        .fetch_optional(&state.db)
+        .await?;
+        row.map(|(v,)| v)
+    } else {
+        None
+    };
+
+    // Fetch current execution_order for all moved items and keep their relative order
+    let mut moved_rows: Vec<(String, f64)> = sqlx::query_as(
+        "SELECT case_id, execution_order FROM test_cases WHERE case_id = ANY($1)"
+    )
+    .bind(&payload.moved_ids)
+    .fetch_all(&state.db)
+    .await?;
+
+    // Sort by current execution_order to preserve internal ordering
+    moved_rows.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    let len = moved_rows.len() as f64;
+    let mut new_orders: Vec<(String, f64)> = Vec::with_capacity(moved_rows.len());
+
+    match (prev_order, next_order) {
+        (Some(a), Some(b)) if b > a => {
+            // Place block strictly between prev and next, evenly spaced
+            let step = (b - a) / (len + 1.0);
+            for (i, (case_id, _)) in moved_rows.into_iter().enumerate() {
+                let idx = (i as f64) + 1.0;
+                let new_order = a + step * idx;
+                new_orders.push((case_id, new_order));
+            }
+        }
+        (Some(a), _) => {
+            // Only prev known: place block after prev, growing downwards
+            for (i, (case_id, _)) in moved_rows.into_iter().enumerate() {
+                let new_order = a + (i as f64) + 1.0;
+                new_orders.push((case_id, new_order));
+            }
+        }
+        (None, Some(b)) => {
+            // Only next known: place block before next, growing upwards
+            let n = moved_rows.len();
+            for (i, (case_id, _)) in moved_rows.into_iter().enumerate() {
+                let offset = (n - i) as f64;
+                let new_order = b - offset;
+                new_orders.push((case_id, new_order));
+            }
+        }
+        (None, None) => {
+            // No context (shouldn't normally happen) - normalize around 0
+            for (i, (case_id, _)) in moved_rows.into_iter().enumerate() {
+                let new_order = (i as f64) + 1.0;
+                new_orders.push((case_id, new_order));
+            }
+        }
+    }
+
+    // Apply updates
+    for (case_id, new_order) in new_orders {
+        sqlx::query(
+            "UPDATE test_cases SET execution_order = $1, updated_at = NOW() WHERE case_id = $2",
+        )
+        .bind(new_order)
+        .bind(&case_id)
+        .execute(&state.db)
+        .await?;
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+    })))
 }
 
 fn verify_token(state: &TestCaseState, headers: &HeaderMap) -> Result<String, AppError> {
