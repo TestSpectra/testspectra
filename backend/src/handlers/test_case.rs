@@ -28,6 +28,7 @@ pub fn test_case_routes(state: TestCaseState) -> Router {
         .route("/test-cases/:id/steps", put(update_test_steps))
         .route("/test-cases/:id/duplicate", post(duplicate_test_case))
         .route("/test-cases/reorder", put(reorder_test_case))
+        .route("/test-cases/rebalance-order", post(rebalance_execution_order))
         .with_state(state)
 }
 
@@ -744,6 +745,39 @@ async fn reorder_test_case(
 
     Ok(Json(serde_json::json!({
         "success": true,
+    })))
+}
+
+async fn rebalance_execution_order(
+    State(state): State<TestCaseState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // Only authenticated users can trigger rebalancing (no extra role check for now)
+    verify_token(&state, &headers)?;
+
+    // Re-normalize execution_order so that it is a dense sequence 1.0, 2.0, 3.0, ...
+    // based on the current ordering. This keeps fractional indexing stable over time.
+    let result = sqlx::query(
+        r#"
+        WITH ordered AS (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY execution_order ASC, created_at ASC, case_id ASC) AS rn
+            FROM test_cases
+        )
+        UPDATE test_cases t
+        SET execution_order = ordered.rn::double precision,
+            updated_at = NOW()
+        FROM ordered
+        WHERE t.id = ordered.id
+        "#,
+    )
+    .execute(&state.db)
+    .await?;
+
+    let updated_count = result.rows_affected() as i64;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "updatedCount": updated_count,
     })))
 }
 
