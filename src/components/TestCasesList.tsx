@@ -1045,7 +1045,7 @@ export function TestCasesList({
                     : isMoved && isSelectedForReorder
                     ? "opacity-50 bg-blue-950/40 border-blue-500/40"
                     : isMoved
-                    ? "opacity-50"
+                    ? "opacity-50 bg-blue-950/40"
                     : isSelectedForReorder
                     ? "bg-blue-950/40 border-blue-500/40"
                     : "hover:bg-slate-800/50 hover:text-slate-100";
