@@ -1910,7 +1910,7 @@ export function TestCaseForm({
 
               <Button
                 onClick={handleGenerateScript}
-                className="w-full bg-linear-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white"
+                className="w-full bg-linear-to-r from-orange-600 to-orange-500 cursor-pointer text-white"
               >
                 <Code className="w-4 h-4 mr-2" />
                 Generate Script Skeleton
