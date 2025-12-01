@@ -41,7 +41,8 @@
     ],
     "resources": [
       "resources/default-config.env"
-    ]
+    ],
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "updater": {
