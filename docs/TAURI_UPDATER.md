@@ -108,23 +108,18 @@ pnpm tauri:build
 
 ## CI/CD Integration
 
-Add to your GitHub Actions workflow:
+The workflow is already configured in `.github/workflows/release-tauri.yml`.
 
-```yaml
-- name: Build Tauri App
-  uses: tauri-apps/tauri-action@v0
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-  with:
-    tagName: v__VERSION__
-    releaseName: 'TestSpectra v__VERSION__'
-    releaseBody: 'See CHANGELOG.md for details'
-    releaseDraft: false
-    prerelease: false
-```
+Required GitHub Secrets:
+- `TAURI_SIGNING_PRIVATE_KEY` - Your private key from `~/.tauri/testspectra.key`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` - Password if you set one (optional)
+- `API_URL` - Your backend API URL
 
-Store your private key in GitHub Secrets as `TAURI_PRIVATE_KEY`.
+The workflow automatically:
+- Syncs versions across all files
+- Builds for all platforms
+- Signs the binaries
+- Creates GitHub release with `latest.json`
 
 ## Testing Updates
 
