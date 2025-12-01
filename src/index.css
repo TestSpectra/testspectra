@@ -4562,3 +4562,15 @@ html {
   border-color: rgba(96, 165, 250, 0.8);
   box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.5);
 }
+
+
+
+/* Hide default browser scrollbar */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
