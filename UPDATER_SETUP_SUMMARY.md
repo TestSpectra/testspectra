@@ -158,11 +158,20 @@
 
 ## Next Steps
 
-1. ⚠️ **Generate signing keys** (required before first release)
-2. ⚠️ **Update tauri.conf.json with public key** (required)
+1. ✅ **Signing keys generated** (at `~/.tauri/testspectra.key`)
+2. ✅ **Public key added to tauri.conf.json** (already done)
 3. ⚠️ **Add private key to GitHub Secrets** (required for CI/CD)
-4. Test locally with `pnpm tauri:build`
-5. Create a test release to verify everything works
+   - Secret name: `TAURI_SIGNING_PRIVATE_KEY`
+   - Value: Content of `~/.tauri/testspectra.key`
+4. Create new release (v0.1.27+) to test updater
+
+## Why v0.1.26 Doesn't Have Updater Support
+
+v0.1.26 was released before the updater was configured, so it doesn't have:
+- `latest.json` file
+- `.sig` signature files
+
+The next release (v0.1.27+) will automatically include these files via `tauri-action`.
 
 ## Support
 

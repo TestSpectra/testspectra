@@ -198,3 +198,5 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+          # Automatically upload latest.json for updater (default: true)
+          uploadUpdaterJson: true
