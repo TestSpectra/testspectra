@@ -2,7 +2,7 @@ export function TitleBar() {
     return (
         <div
             data-tauri-drag-region
-            className="h-[30px] w-full bg-slate-900 border-b border-slate-800 flex items-center select-none shrink-0"
+            className="h-8 w-full bg-slate-900 border-b border-slate-800 flex items-center select-none shrink-0"
         >
             {/* Left side - Reserve space for macOS traffic lights */}
             <div className="w-20" />
