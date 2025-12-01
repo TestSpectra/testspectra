@@ -1,5 +1,6 @@
-import { check, DownloadEvent } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { check, DownloadEvent } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { stringify } from "querystring";
 
 export interface UpdateInfo {
   available: boolean;
@@ -32,7 +33,7 @@ export class TauriUpdateService {
       }
 
       const update = await check();
-      
+
       if (update) {
         return {
           available: true,
@@ -44,7 +45,7 @@ export class TauriUpdateService {
 
       return null;
     } catch (error) {
-      console.error('Failed to check for updates:', error);
+      console.error("Failed to check for updates:", error);
       return null;
     }
   }
@@ -57,7 +58,7 @@ export class TauriUpdateService {
     onProgress?: (progress: number) => void
   ): Promise<boolean> {
     if (this.isUpdating) {
-      console.warn('Update already in progress');
+      console.warn("Update already in progress");
       return false;
     }
 
@@ -65,44 +66,50 @@ export class TauriUpdateService {
       this.isUpdating = true;
 
       const update = await check();
-      
+
       if (update == null) {
-        console.log('No update available');
+        console.log("No update available");
         return false;
       }
 
       console.log(`Downloading update ${update.version}...`);
 
-      let contentLength: number | undefined = 1
+      let contentLength: number | undefined = 1;
+      let downloaded: number = 0;
 
       // Download and install the update
       await update.downloadAndInstall((event: DownloadEvent) => {
         switch (event.event) {
-          case 'Started':
-            console.log(`Started downloading ${event.data.contentLength} bytes`);
+          case "Started":
+            console.log(
+              `Started downloading ${event.data.contentLength} bytes`
+            );
             contentLength = event.data.contentLength;
             onProgress?.(0);
             break;
-          case 'Progress':
-            const progress = (event.data.chunkLength / (contentLength ?? 1)) * 100;
-            console.log(`Downloaded ${event.data.chunkLength} of ${contentLength}`);
+          case "Progress":
+            downloaded += event.data.chunkLength;
+            const progress = (downloaded / (contentLength ?? 1)) * 100;
+            console.log(
+              `Downloaded ${event.data.chunkLength} of ${JSON.stringify(event)}`
+            );
             onProgress?.(progress);
             break;
-          case 'Finished':
-            console.log('Download finished');
+          case "Finished":
+            console.log("Download finished");
             onProgress?.(100);
             break;
         }
       });
 
-      console.log('Update installed, restarting...');
-      
+      console.log("Update installed, restarting...");
+
       // Restart the app to apply the update
       await relaunch();
-      
+
       return true;
     } catch (error) {
-      console.error('Failed to download and install update:', error);
+      console.error("Failed to download and install update:", error);
       return false;
     } finally {
       this.isUpdating = false;

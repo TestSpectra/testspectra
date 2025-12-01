@@ -134,7 +134,7 @@ export function VersionGuard({ children }: VersionGuardProps) {
                 </div>
                 {latestVersion && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Latest Available:</span>
+                    <span className="text-slate-400">Latest Version Available:</span>
                     <span className="text-green-400 font-mono">{latestVersion}</span>
                   </div>
                 )}
