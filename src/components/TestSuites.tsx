@@ -20,6 +20,7 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
     const [editingSuite, setEditingSuite] = useState<TestSuite | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
     
     // Delete confirmation state
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -52,6 +53,7 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
     const handleCreateSuite = async () => {
         if (newSuiteName.trim()) {
             try {
+                setFormError(null);
                 await testSuiteService.createTestSuite({
                     name: newSuiteName.trim(),
                     description: newSuiteDescription.trim() || undefined
@@ -61,7 +63,7 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
                 setNewSuiteDescription('');
                 loadSuites();
             } catch (err: any) {
-                alert(err.message || 'Failed to create suite');
+                setFormError(err.message || 'Failed to create suite');
             }
         }
     };
@@ -69,6 +71,7 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
     const handleUpdateSuite = async () => {
         if (editingSuite && newSuiteName.trim()) {
             try {
+                setFormError(null);
                 await testSuiteService.updateTestSuite(editingSuite.id, {
                     name: newSuiteName.trim(),
                     description: newSuiteDescription.trim() || undefined
@@ -79,7 +82,7 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
                 setShowCreateDialog(false);
                 loadSuites();
             } catch (err: any) {
-                alert(err.message || 'Failed to update suite');
+                setFormError(err.message || 'Failed to update suite');
             }
         }
     };
@@ -117,6 +120,7 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
         setEditingSuite(null);
         setNewSuiteName('');
         setNewSuiteDescription('');
+        setFormError(null);
     };
 
     const getPassRateColor = (rate: number) => {
@@ -285,12 +289,20 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
                                     <input
                                         type="text"
                                         value={newSuiteName}
-                                        onChange={(e) => setNewSuiteName(e.target.value)}
+                                        onChange={(e) => {
+                                            setNewSuiteName(e.target.value);
+                                            setFormError(null);
+                                        }}
                                         placeholder="e.g., Authentication"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className={`w-full bg-slate-800 border rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:border-transparent ${
+                                            formError ? 'border-red-500 focus:ring-red-500' : 'border-slate-700 focus:ring-blue-500'
+                                        }`}
                                         autoFocus
                                         required
                                     />
+                                    {formError && (
+                                        <p className="mt-2 text-sm text-red-400">{formError}</p>
+                                    )}
                                 </div>
 
                                 <div>
