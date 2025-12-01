@@ -1,6 +1,6 @@
 {
     "name": "testspectra",
-    "version": "0.1.27-rc.1",
+    "version": "0.1.27-rc.2",
     "private": false,
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",
