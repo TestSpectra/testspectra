@@ -58,7 +58,7 @@ export function TestCasesList({
   onRecordManualResult,
 }: TestCasesListProps) {
   const [searchParams] = useSearchParams();
-  
+
   // State for test cases data
   const [testCasesList, setTestCasesList] = useState<TestCaseSummary[]>([]);
   const [availableSuites, setAvailableSuites] = useState<string[]>([]);
@@ -1127,8 +1127,8 @@ export function TestCasesList({
                           {dragOverId === tc.id && dropPosition && (
                             <div
                               className={`drop-indicator ${dropPosition === "above"
-                                  ? "drop-indicator--top"
-                                  : "drop-indicator--bottom"
+                                ? "drop-indicator--top"
+                                : "drop-indicator--bottom"
                                 }`}
                             />
                           )}
@@ -1155,16 +1155,18 @@ export function TestCasesList({
                             />
                           ) : (
                             <>
-                              <p
+                              <span
                                 className="text-sm text-slate-200 cursor-text"
                                 onMouseEnter={() => setTextHoverRowId(tc.id)}
                                 onMouseLeave={() => setTextHoverRowId(null)}
+                                onDoubleClick={e => e.stopPropagation()}
                               >
                                 {tc.title}
-                              </p>
-                              <p className="text-xs text-slate-500 mt-1">
+                              </span>
+                              <br />
+                              <span className="text-xs text-slate-500 mt-1">
                                 {getTimeAgo(tc.lastRun, "Belum dijalankan")}
-                              </p>
+                              </span>
                             </>
                           )}
                         </td>
@@ -1361,8 +1363,8 @@ export function TestCasesList({
                         <td className="px-6 py-4 text-center">
                           <span
                             className={`text-sm ${!tc.pageLoadAvg
-                                ? "text-slate-500"
-                                : "text-slate-300"
+                              ? "text-slate-500"
+                              : "text-slate-300"
                               }`}
                           >
                             {tc.pageLoadAvg || "-"}
@@ -1540,8 +1542,8 @@ export function TestCasesList({
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
                     className={`min-w-9 px-3 py-1.5 rounded-lg text-sm transition-colors ${currentPage === pageNum
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-400 hover:text-blue-400 hover:bg-slate-800"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-400 hover:text-blue-400 hover:bg-slate-800"
                       }`}
                   >
                     {pageNum}
