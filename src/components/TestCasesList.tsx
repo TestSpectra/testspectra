@@ -1527,6 +1527,7 @@ export function TestCasesList({
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={500}>500</option>
             </select>
             <span className="text-sm text-slate-400">entri per halaman</span>
           </div>

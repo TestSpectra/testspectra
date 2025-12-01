@@ -15,13 +15,27 @@ export function UpdateNotification({ onDismiss, forceShow = false, isChecking = 
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [checkComplete, setCheckComplete] = useState(false);
 
   useEffect(() => {
     checkForUpdate();
   }, []);
 
+  // Auto-dismiss after 2 seconds when up to date
+  useEffect(() => {
+    if (checkComplete && !updateAvailable && !isChecking) {
+      const timer = setTimeout(() => {
+        handleDismiss();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [checkComplete, updateAvailable, isChecking]);
+
   const checkForUpdate = async () => {
-    if (!tauriUpdateService.isTauriApp()) return;
+    if (!tauriUpdateService.isTauriApp()) {
+      setCheckComplete(true);
+      return;
+    }
 
     try {
       const updateInfo = await tauriUpdateService.checkForUpdate();
@@ -29,8 +43,10 @@ export function UpdateNotification({ onDismiss, forceShow = false, isChecking = 
         setUpdateAvailable(true);
         setLatestVersion(updateInfo.latestVersion || '');
       }
+      setCheckComplete(true);
     } catch (error) {
       console.error('Update check failed:', error);
+      setCheckComplete(true);
     }
   };
 
