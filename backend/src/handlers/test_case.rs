@@ -258,7 +258,11 @@ async fn create_test_case(
     if let Some(step_data) = payload.steps {
         for (order, step) in step_data.iter().enumerate() {
             let step_id = Uuid::new_v4();
-            let action_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+            
+            // Clean up action_params to only include relevant fields
+            let raw_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+            let action_params = cleanup_action_params(&step.action_type, &raw_params);
+            
             let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
             
             let inserted: TestStep = sqlx::query_as(
@@ -345,7 +349,11 @@ async fn update_test_case(
         let mut new_steps = Vec::new();
         for (order, step) in step_data.iter().enumerate() {
             let step_id = Uuid::new_v4();
-            let action_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+            
+            // Clean up action_params to only include relevant fields
+            let raw_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+            let action_params = cleanup_action_params(&step.action_type, &raw_params);
+            
             let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
             
             let inserted: TestStep = sqlx::query_as(
@@ -390,6 +398,96 @@ async fn update_test_case(
     })))
 }
 
+// Helper function to clean up action_params based on action_type
+fn cleanup_action_params(action_type: &str, params: &serde_json::Value) -> serde_json::Value {
+    if !params.is_object() {
+        return serde_json::json!({});
+    }
+
+    let obj = params.as_object().unwrap();
+    let mut cleaned = serde_json::Map::new();
+
+    match action_type {
+        "navigate" => {
+            if let Some(url) = obj.get("url") {
+                cleaned.insert("url".to_string(), url.clone());
+            }
+        }
+        "click" | "doubleClick" | "longPress" => {
+            if let Some(selector) = obj.get("selector") {
+                cleaned.insert("selector".to_string(), selector.clone());
+            }
+            if let Some(text) = obj.get("text") {
+                cleaned.insert("text".to_string(), text.clone());
+            }
+        }
+        "type" => {
+            if let Some(selector) = obj.get("selector") {
+                cleaned.insert("selector".to_string(), selector.clone());
+            }
+            if let Some(value) = obj.get("value") {
+                cleaned.insert("value".to_string(), value.clone());
+            }
+        }
+        "clear" | "hover" => {
+            if let Some(selector) = obj.get("selector") {
+                cleaned.insert("selector".to_string(), selector.clone());
+            }
+        }
+        "select" => {
+            if let Some(selector) = obj.get("selector") {
+                cleaned.insert("selector".to_string(), selector.clone());
+            }
+            if let Some(value) = obj.get("value") {
+                cleaned.insert("value".to_string(), value.clone());
+            }
+        }
+        "scroll" | "swipe" => {
+            if let Some(direction) = obj.get("direction") {
+                cleaned.insert("direction".to_string(), direction.clone());
+            }
+            if let Some(selector) = obj.get("selector") {
+                cleaned.insert("selector".to_string(), selector.clone());
+            }
+        }
+        "wait" => {
+            if let Some(timeout) = obj.get("timeout") {
+                cleaned.insert("timeout".to_string(), timeout.clone());
+            }
+        }
+        "waitForElement" => {
+            if let Some(selector) = obj.get("selector") {
+                cleaned.insert("selector".to_string(), selector.clone());
+            }
+            if let Some(timeout) = obj.get("timeout") {
+                cleaned.insert("timeout".to_string(), timeout.clone());
+            }
+        }
+        "pressKey" => {
+            if let Some(key) = obj.get("key") {
+                cleaned.insert("key".to_string(), key.clone());
+            }
+        }
+        "dragDrop" => {
+            if let Some(selector) = obj.get("selector") {
+                cleaned.insert("selector".to_string(), selector.clone());
+            }
+            if let Some(target) = obj.get("targetSelector") {
+                cleaned.insert("targetSelector".to_string(), target.clone());
+            }
+        }
+        "back" | "refresh" => {
+            // No params needed
+        }
+        _ => {
+            // Unknown action type, keep all params
+            return params.clone();
+        }
+    }
+
+    serde_json::Value::Object(cleaned)
+}
+
 async fn update_test_steps(
     State(state): State<TestCaseState>,
     headers: HeaderMap,
@@ -416,7 +514,11 @@ async fn update_test_steps(
     let mut steps = Vec::new();
     for (order, step) in payload.steps.iter().enumerate() {
         let step_id = Uuid::new_v4();
-        let action_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+        
+        // Clean up action_params to only include relevant fields
+        let raw_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
+        let action_params = cleanup_action_params(&step.action_type, &raw_params);
+        
         let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
         
         let inserted: TestStep = sqlx::query_as(

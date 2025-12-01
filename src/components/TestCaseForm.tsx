@@ -432,11 +432,26 @@ function SortableActionItem({
               onChange={(e) => {
                 const newType = e.target.value as ActionType;
                 const defaultAssertionType = ASSERTIONS_BY_ACTION[newType][0];
+                
+                // Reset all action-specific fields when changing type
                 handleUpdateAction(action.id, {
                   type: newType,
+                  // Reset all optional fields
+                  selector: undefined,
+                  value: undefined,
+                  text: undefined,
+                  url: undefined,
+                  timeout: undefined,
+                  direction: undefined,
+                  targetSelector: undefined,
+                  key: undefined,
+                  duration: undefined,
+                  // Keep assertions but reset to default for new type
                   assertions: [
                     { id: Date.now().toString(), type: defaultAssertionType },
                   ],
+                  // Keep custom expected result
+                  customExpectedResult: action.customExpectedResult,
                 });
               }}
               className={inputClass}
@@ -777,6 +792,7 @@ export function TestCaseForm({
   const convertActionsToSteps = () => {
     return actions.map((action, index) => {
       // Build action_params from action properties
+      // Backend will clean up irrelevant fields
       const actionParams: Record<string, any> = {};
       if (action.url) actionParams.url = action.url;
       if (action.selector) actionParams.selector = action.selector;
@@ -786,6 +802,8 @@ export function TestCaseForm({
       if (action.direction) actionParams.direction = action.direction;
       if (action.targetSelector)
         actionParams.targetSelector = action.targetSelector;
+      if (action.value) actionParams.value = action.value;
+      if (action.timeout) actionParams.timeout = action.timeout;
 
       // Convert assertions
       const assertions = (action.assertions || []).map((assertion) => ({
