@@ -12,6 +12,7 @@ import { TestCaseForm } from './components/TestCaseForm';
 import { TestCasesList } from './components/TestCasesList';
 import { TestReport } from './components/TestReport';
 import { TestSuites } from './components/TestSuites';
+import { TitleBar } from './components/TitleBar';
 import { Tools } from './components/Tools';
 import { UserManagement } from './components/UserManagement';
 import { VersionGuard } from './components/VersionGuard';
@@ -208,14 +209,20 @@ function AppContent() {
   };
 
   if (!isAuthenticated) {
-    return <Routes>
-      <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>;
+    return (
+      <>
+        <TitleBar />
+        <Routes>
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </>
+    );
   }
 
   return (
     <>
+      <TitleBar />
       <Routes>
         <Route element={<Layout currentView={currentView} onViewChange={handleViewChange} onLogout={handleLogout} currentUser={currentUser} onCheckForUpdates={handleCheckForUpdates} />}>
         <Route path="/" element={<Dashboard
@@ -301,7 +308,9 @@ export default function App() {
   return (
     <VersionGuard>
       <Router>
-        <AppContent />
+        <div className="h-screen flex flex-col overflow-hidden">
+          <AppContent />
+        </div>
       </Router>
     </VersionGuard>
   );

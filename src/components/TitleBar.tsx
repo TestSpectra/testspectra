@@ -1,0 +1,21 @@
+export function TitleBar() {
+    return (
+        <div
+            data-tauri-drag-region
+            className="h-[30px] w-full bg-slate-900 border-b border-slate-800 flex items-center select-none shrink-0"
+        >
+            {/* Left side - Reserve space for macOS traffic lights */}
+            <div className="w-20" />
+
+            {/* Center - App info (draggable area) */}
+            <div className="w-full flex items-center gap-2 flex-1 justify-center cursor-default select-none" data-tauri-drag-region>
+                <span className="text-xs font-semibold text-slate-300">TestSpectra</span>
+                <span className="text-xs text-slate-500">•</span>
+                <span className="text-xs text-slate-400">QA Automation Platform</span>
+            </div>
+
+            {/* Right side - Empty space for balance */}
+            <div className="w-20" />
+        </div>
+    );
+}

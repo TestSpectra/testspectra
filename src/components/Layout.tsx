@@ -11,7 +11,7 @@ interface LayoutProps {
 
 export function Layout({ currentView, onViewChange, onLogout, currentUser, onCheckForUpdates }: LayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex flex-1 overflow-hidden bg-slate-950 text-slate-100">
       <Sidebar 
         currentView={currentView} 
         onViewChange={onViewChange} 
