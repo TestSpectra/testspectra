@@ -1,29 +1,26 @@
-import { useState, useEffect } from "react";
 import {
+  CheckCircle2,
+  Clock,
   FileCheck,
-  Zap,
   PlayCircle,
   TrendingUp,
-  Clock,
-  AlertCircle,
-  CheckCircle2,
   XCircle,
+  Zap
 } from "lucide-react";
-import { testCaseService } from "../services/test-case-service";
+import { useEffect, useState } from "react";
 import {
-  AreaChart,
   Area,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
   ComposedChart,
-  Bar,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
 } from "recharts";
+import { testCaseService } from "../services/test-case-service";
+import { getTimeAgo } from "../lib/utils";
 import { StatCard } from "./StatCard";
 
 interface DashboardProps {
@@ -121,20 +118,8 @@ export function Dashboard({
   }, []);
 
   // Format time ago
-  const getTimeAgo = (dateString?: string) => {
-    if (!dateString) return "Recently";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+  // Removed local getTimeAgo implementation in favor of shared utility
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} menit lalu`;
-    if (diffHours < 24) return `${diffHours} jam lalu`;
-    return `${diffDays} hari lalu`;
-  };
 
   const recentRuns = [
     {

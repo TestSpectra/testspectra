@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { authService } from "../services/auth-service";
 import { getApiUrl } from "../lib/config";
+import { getTimeAgo } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ConfirmDialog } from "./SimpleDialog";
@@ -109,6 +110,8 @@ export function TestCasesList({
   const [dropPosition, setDropPosition] = useState<"above" | "below" | null>(
     null
   );
+  // State to track which row has text being hovered (disabling drag)
+  const [textHoverRowId, setTextHoverRowId] = useState<string | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch test cases from API
@@ -225,6 +228,11 @@ export function TestCasesList({
   ) => {
     if (bulkMode) {
       // Bulk delete selection is handled via checkboxes
+      return;
+    }
+
+    // If text is selected, do not trigger row click logic
+    if (window.getSelection()?.toString()) {
       return;
     }
 
@@ -1056,24 +1064,26 @@ export function TestCasesList({
                     const baseCursorClass =
                       editingId === tc.id
                         ? "cursor-default"
-                        : "cursor-grab active:cursor-grabbing";
+                        : textHoverRowId === tc.id
+                          ? ""
+                          : "cursor-grab active:cursor-grabbing";
 
                     const rowStateClass =
                       editingId === tc.id
                         ? "border-b-2 border-blue-500/50 bg-blue-950/30"
                         : isMoved && isSelectedForReorder
-                        ? "opacity-50 bg-blue-950/40 border-blue-500/40"
-                        : isMoved
-                        ? "opacity-50 bg-blue-950/40"
-                        : isSelectedForReorder
-                        ? "bg-blue-950/40 border-blue-500/40"
-                        : "hover:bg-slate-800/50 hover:text-slate-100";
+                          ? "opacity-50 bg-blue-950/40 border-blue-500/40"
+                          : isMoved
+                            ? "opacity-50 bg-blue-950/40"
+                            : isSelectedForReorder
+                              ? "bg-blue-950/40 border-blue-500/40"
+                              : "hover:bg-slate-800/50 hover:text-slate-100";
 
                     return (
                       <tr
                         key={tc.id}
                         data-case-id={tc.id}
-                        draggable={editingId !== tc.id}
+                        draggable={editingId !== tc.id && textHoverRowId !== tc.id}
                         onClick={(e) => handleRowClick(e, tc.id)}
                         onDragStart={(e) => handleDragStart(e, tc.id)}
                         onDragEnd={handleDragEnd}
@@ -1106,14 +1116,19 @@ export function TestCasesList({
                         <td className="relative px-6 py-4">
                           {dragOverId === tc.id && dropPosition && (
                             <div
-                              className={`drop-indicator ${
-                                dropPosition === "above"
+                              className={`drop-indicator ${dropPosition === "above"
                                   ? "drop-indicator--top"
                                   : "drop-indicator--bottom"
-                              }`}
+                                }`}
                             />
                           )}
-                          <span className="text-sm text-blue-400">{tc.id}</span>
+                          <span
+                            className="text-sm text-blue-400 cursor-text"
+                            onMouseEnter={() => setTextHoverRowId(tc.id)}
+                            onMouseLeave={() => setTextHoverRowId(null)}
+                          >
+                            {tc.id}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           {editingId === tc.id ? (
@@ -1130,11 +1145,15 @@ export function TestCasesList({
                             />
                           ) : (
                             <>
-                              <p className="text-sm text-slate-200">
+                              <p
+                                className="text-sm text-slate-200 cursor-text"
+                                onMouseEnter={() => setTextHoverRowId(tc.id)}
+                                onMouseLeave={() => setTextHoverRowId(null)}
+                              >
                                 {tc.title}
                               </p>
                               <p className="text-xs text-slate-500 mt-1">
-                                {tc.lastRun}
+                                {getTimeAgo(tc.lastRun, "Belum dijalankan")}
                               </p>
                             </>
                           )}
@@ -1331,11 +1350,10 @@ export function TestCasesList({
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span
-                            className={`text-sm ${
-                              !tc.pageLoadAvg
+                            className={`text-sm ${!tc.pageLoadAvg
                                 ? "text-slate-500"
                                 : "text-slate-300"
-                            }`}
+                              }`}
                           >
                             {tc.pageLoadAvg || "-"}
                           </span>
@@ -1511,11 +1529,10 @@ export function TestCasesList({
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`min-w-9 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                      currentPage === pageNum
+                    className={`min-w-9 px-3 py-1.5 rounded-lg text-sm transition-colors ${currentPage === pageNum
                         ? "bg-blue-600 text-white"
                         : "text-slate-400 hover:text-blue-400 hover:bg-slate-800"
-                    }`}
+                      }`}
                   >
                     {pageNum}
                   </button>
