@@ -75,7 +75,7 @@
 
 3. **Add Private Key to GitHub Secrets**:
    - Go to: Repository Settings → Secrets → Actions
-   - Create secret: `TAURI_PRIVATE_KEY`
+   - Create secret: `TAURI_SIGNING_PRIVATE_KEY`
    - Paste content from `~/.tauri/testspectra.key`
 
 ### For Each Release:
@@ -136,7 +136,7 @@
 - `package.json` - Added dependencies and script
 
 ### CI/CD:
-- `.github/workflows/release.yml` - NEW: Automated releases
+- `.github/workflows/release-tauri.yml` - Automated releases (already exists)
 
 ### Documentation:
 - `docs/TAURI_UPDATER.md` - NEW: Technical docs

@@ -22,7 +22,7 @@ Edit `src-tauri/tauri.conf.json`:
 
 ### 3️⃣ Add to GitHub Secrets
 1. Go to: **Settings** → **Secrets** → **Actions**
-2. Create: `TAURI_PRIVATE_KEY`
+2. Create: `TAURI_SIGNING_PRIVATE_KEY`
 3. Value: Content of `~/.tauri/testspectra.key`
 
 ## 📦 Create Release

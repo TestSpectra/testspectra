@@ -35,9 +35,10 @@ Copy the public key from the output and paste it into `src-tauri/tauri.conf.json
 1. Go to your repository on GitHub
 2. Navigate to: **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret**
-4. Name: `TAURI_PRIVATE_KEY`
-5. Value: Copy the entire content of `~/.tauri/testspectra.key`
-6. Click **Add secret**
+4. Add these secrets:
+   - Name: `TAURI_SIGNING_PRIVATE_KEY`
+   - Value: Copy the entire content of `~/.tauri/testspectra.key`
+   - (Optional) Name: `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if you set a password
 
 To get the private key content:
 
@@ -130,7 +131,7 @@ Check:
 ### "GitHub Actions workflow fails"
 
 Check:
-- [ ] `TAURI_PRIVATE_KEY` secret is set
+- [ ] `TAURI_SIGNING_PRIVATE_KEY` secret is set
 - [ ] All version numbers match
 - [ ] Dependencies are installed correctly
 

@@ -15,7 +15,7 @@ Quick reference for creating a new release with auto-update support.
 
 3. **Add private key to GitHub Secrets**:
    - Go to: Repository Settings → Secrets and variables → Actions
-   - Create new secret: `TAURI_PRIVATE_KEY`
+   - Create new secret: `TAURI_SIGNING_PRIVATE_KEY`
    - Paste content from `~/.tauri/testspectra.key`
 
 ## Release Process
@@ -90,7 +90,7 @@ Patch versions are always compatible!
 
 ### Release workflow fails
 - Check GitHub Actions logs
-- Verify `TAURI_PRIVATE_KEY` secret is set
+- Verify `TAURI_SIGNING_PRIVATE_KEY` secret is set
 - Ensure all version numbers match
 
 ### Update not detected
