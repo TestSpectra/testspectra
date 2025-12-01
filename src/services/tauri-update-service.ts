@@ -35,7 +35,7 @@ export class TauriUpdateService {
       
       if (update) {
         return {
-          available: update.available,
+          available: true,
           currentVersion: update.currentVersion,
           latestVersion: update.version,
           body: update.body,
@@ -66,7 +66,7 @@ export class TauriUpdateService {
 
       const update = await check();
       
-      if (!update?.available) {
+      if (update == null) {
         console.log('No update available');
         return false;
       }
