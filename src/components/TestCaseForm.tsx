@@ -126,23 +126,23 @@ const ACTION_DEFINITIONS: {
   label: string;
   platform: "both" | "web" | "mobile";
 }[] = [
-  { value: "navigate", label: "Navigate to URL", platform: "both" },
-  { value: "click", label: "Click / Tap", platform: "both" },
-  { value: "type", label: "Type Text", platform: "both" },
-  { value: "clear", label: "Clear Input", platform: "both" },
-  { value: "select", label: "Select Option", platform: "both" },
-  { value: "scroll", label: "Scroll", platform: "both" },
-  { value: "swipe", label: "Swipe", platform: "mobile" },
-  { value: "wait", label: "Wait (Duration)", platform: "both" },
-  { value: "waitForElement", label: "Wait for Element", platform: "both" },
-  { value: "pressKey", label: "Press Key", platform: "both" },
-  { value: "longPress", label: "Long Press / Hold", platform: "both" },
-  { value: "doubleClick", label: "Double Click / Tap", platform: "both" },
-  { value: "hover", label: "Hover", platform: "web" },
-  { value: "dragDrop", label: "Drag and Drop", platform: "both" },
-  { value: "back", label: "Go Back", platform: "both" },
-  { value: "refresh", label: "Refresh Page", platform: "web" },
-];
+    { value: "navigate", label: "Navigate to URL", platform: "both" },
+    { value: "click", label: "Click / Tap", platform: "both" },
+    { value: "type", label: "Type Text", platform: "both" },
+    { value: "clear", label: "Clear Input", platform: "both" },
+    { value: "select", label: "Select Option", platform: "both" },
+    { value: "scroll", label: "Scroll", platform: "both" },
+    { value: "swipe", label: "Swipe", platform: "mobile" },
+    { value: "wait", label: "Wait (Duration)", platform: "both" },
+    { value: "waitForElement", label: "Wait for Element", platform: "both" },
+    { value: "pressKey", label: "Press Key", platform: "both" },
+    { value: "longPress", label: "Long Press / Hold", platform: "both" },
+    { value: "doubleClick", label: "Double Click / Tap", platform: "both" },
+    { value: "hover", label: "Hover", platform: "web" },
+    { value: "dragDrop", label: "Drag and Drop", platform: "both" },
+    { value: "back", label: "Go Back", platform: "both" },
+    { value: "refresh", label: "Refresh Page", platform: "web" },
+  ];
 
 // Assertion definitions with labels
 const ASSERTION_DEFINITIONS: {
@@ -152,133 +152,133 @@ const ASSERTION_DEFINITIONS: {
   needsValue: boolean;
   needsAttribute: boolean;
 }[] = [
-  {
-    value: "elementDisplayed",
-    label: "Element is Visible",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-  {
-    value: "elementNotDisplayed",
-    label: "Element is Hidden",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-  {
-    value: "elementExists",
-    label: "Element Exists",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-  {
-    value: "elementClickable",
-    label: "Element is Clickable",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-  {
-    value: "elementInViewport",
-    label: "Element in Viewport",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-  {
-    value: "textEquals",
-    label: "Text Equals",
-    needsSelector: true,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "textContains",
-    label: "Text Contains",
-    needsSelector: true,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "valueEquals",
-    label: "Value Equals",
-    needsSelector: true,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "valueContains",
-    label: "Value Contains",
-    needsSelector: true,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "urlEquals",
-    label: "URL Equals",
-    needsSelector: false,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "urlContains",
-    label: "URL Contains",
-    needsSelector: false,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "titleEquals",
-    label: "Title Equals",
-    needsSelector: false,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "titleContains",
-    label: "Title Contains",
-    needsSelector: false,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "hasClass",
-    label: "Has CSS Class",
-    needsSelector: true,
-    needsValue: true,
-    needsAttribute: false,
-  },
-  {
-    value: "hasAttribute",
-    label: "Has Attribute",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: true,
-  },
-  {
-    value: "isEnabled",
-    label: "Is Enabled",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-  {
-    value: "isDisabled",
-    label: "Is Disabled",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-  {
-    value: "isSelected",
-    label: "Is Selected / Checked",
-    needsSelector: true,
-    needsValue: false,
-    needsAttribute: false,
-  },
-];
+    {
+      value: "elementDisplayed",
+      label: "Element is Visible",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+    {
+      value: "elementNotDisplayed",
+      label: "Element is Hidden",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+    {
+      value: "elementExists",
+      label: "Element Exists",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+    {
+      value: "elementClickable",
+      label: "Element is Clickable",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+    {
+      value: "elementInViewport",
+      label: "Element in Viewport",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+    {
+      value: "textEquals",
+      label: "Text Equals",
+      needsSelector: true,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "textContains",
+      label: "Text Contains",
+      needsSelector: true,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "valueEquals",
+      label: "Value Equals",
+      needsSelector: true,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "valueContains",
+      label: "Value Contains",
+      needsSelector: true,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "urlEquals",
+      label: "URL Equals",
+      needsSelector: false,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "urlContains",
+      label: "URL Contains",
+      needsSelector: false,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "titleEquals",
+      label: "Title Equals",
+      needsSelector: false,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "titleContains",
+      label: "Title Contains",
+      needsSelector: false,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "hasClass",
+      label: "Has CSS Class",
+      needsSelector: true,
+      needsValue: true,
+      needsAttribute: false,
+    },
+    {
+      value: "hasAttribute",
+      label: "Has Attribute",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: true,
+    },
+    {
+      value: "isEnabled",
+      label: "Is Enabled",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+    {
+      value: "isDisabled",
+      label: "Is Disabled",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+    {
+      value: "isSelected",
+      label: "Is Selected / Checked",
+      needsSelector: true,
+      needsValue: false,
+      needsAttribute: false,
+    },
+  ];
 
 // Assertions available per action type
 const ASSERTIONS_BY_ACTION: Record<ActionType, AssertionType[]> = {
@@ -413,9 +413,8 @@ function SortableActionItem({
       ref={setNodeRef}
       style={style}
       data-action-id={action.id}
-      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${
-        isDragging ? "ring-2 ring-blue-500" : ""
-      } ${isHighlighted ? "action-card-highlighted" : ""}`}
+      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${isDragging ? "ring-2 ring-blue-500" : ""
+        } ${isHighlighted ? "action-card-highlighted" : ""}`}
     >
       {/* Action Header */}
       <div className="flex items-start gap-3">
@@ -833,22 +832,12 @@ export function TestCaseForm({
           caseType: formData.caseType,
           automation:
             formData.automationStatus === "automated" ? "Automated" : "Manual",
+          preCondition: formData.preCondition || null,
+          postCondition: formData.postCondition || null,
         });
 
         // Update steps separately using the new format
-        const token = authService.getAccessToken();
-        await fetch(`${apiUrl}/test-cases/${testCaseId}/steps`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            preCondition: formData.preCondition || null,
-            postCondition: formData.postCondition || null,
-            steps,
-          }),
-        });
+        await testCaseService.updateTestSteps(testCaseId, steps)
       } else {
         // Create new test case
         const token = authService.getAccessToken();
@@ -1134,10 +1123,10 @@ export function TestCaseForm({
   const handleGenerateScript = () => {
     alert(
       "Script skeleton akan dibuat di working directory:\n\n/tests/" +
-        formData.suite.toLowerCase().replace(/\s+/g, "-") +
-        "/" +
-        formData.id.toLowerCase() +
-        ".test.ts"
+      formData.suite.toLowerCase().replace(/\s+/g, "-") +
+      "/" +
+      formData.id.toLowerCase() +
+      ".test.ts"
     );
   };
 
@@ -1559,9 +1548,8 @@ export function TestCaseForm({
           }
         >
           <div
-            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${
-              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-            }`}
+            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+              }`}
           >
             {saveError}
           </div>
@@ -1578,9 +1566,8 @@ export function TestCaseForm({
           }
         >
           <div
-            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${
-              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-            }`}
+            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+              }`}
           >
             <svg
               className="w-5 h-5"
