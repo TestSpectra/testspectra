@@ -52,11 +52,13 @@ git push origin v0.1.27-rc.0
 
 ## Platform Matrix
 
-| Platform | Target | Output |
-|----------|--------|--------|
-| macOS | `aarch64-apple-darwin` | `.dmg`, `.app.tar.gz` |
-| Linux | `x86_64-unknown-linux-gnu` | `.AppImage`, `.deb` |
-| Windows | `x86_64-pc-windows-msvc` | `.exe`, `.msi` |
+| Platform | Target | Stable Output | Prerelease Output |
+|----------|--------|---------------|-------------------|
+| macOS | `aarch64-apple-darwin` | `.dmg`, `.app.tar.gz` | `.dmg`, `.app.tar.gz` |
+| Linux | `x86_64-unknown-linux-gnu` | `.AppImage`, `.deb`, `.rpm` | `.AppImage`, `.deb`, `.rpm` |
+| Windows | `x86_64-pc-windows-msvc` | `.exe` (NSIS), `.msi` | `.exe` (NSIS) only* |
+
+*MSI doesn't support non-numeric prerelease identifiers (rc, alpha, beta). Prereleases only build NSIS (`.exe`).
 
 ## Caching
 

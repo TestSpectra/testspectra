@@ -84,6 +84,7 @@ v1.0.0-alpha.1  →  v1.0.0-beta.1  →  v1.0.0-rc.1  →  v1.0.0
 
 - ⚠️ **Format matters**: Use `rc.0` not `rc0` (dot is required)
 - ⚠️ **Updater behavior**: Stable users won't get prerelease updates
+- ⚠️ **Windows MSI**: Not available for prereleases (use `.exe` instead)
 - ✅ **Auto-detection**: Workflow automatically detects prerelease
 - ✅ **Version sync**: All files updated automatically
 

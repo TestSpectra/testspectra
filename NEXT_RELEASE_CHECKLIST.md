@@ -78,6 +78,10 @@ Check that the release includes:
 - [ ] Release notes
 - [ ] Correct release type (stable or prerelease badge)
 
+**Note for prereleases**:
+- Windows will only have `.exe` (NSIS), no `.msi`
+- This is expected due to MSI limitations with non-numeric prerelease identifiers
+
 Verify `latest.json` is accessible:
 ```bash
 curl https://github.com/TestSpectra/testspectra/releases/latest/download/latest.json

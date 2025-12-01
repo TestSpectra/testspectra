@@ -222,6 +222,33 @@ git tag v1.0.0-beta.1
 git push origin v1.0.0-beta.1
 ```
 
+## Windows MSI Limitation
+
+### The Issue
+
+Windows MSI installer has a limitation:
+- ❌ Cannot use non-numeric prerelease identifiers (`rc`, `alpha`, `beta`)
+- ✅ Only accepts numeric identifiers (e.g., `0.1.27.1`)
+
+### Our Solution
+
+The workflow automatically:
+- **Prerelease**: Builds only NSIS (`.exe`) installer for Windows
+- **Stable**: Builds both NSIS (`.exe`) and MSI (`.msi`) for Windows
+
+This means:
+- ✅ macOS: `.dmg` and `.app.tar.gz` (both stable and prerelease)
+- ✅ Linux: `.AppImage`, `.deb`, `.rpm` (both stable and prerelease)
+- ✅ Windows Stable: `.exe` (NSIS) and `.msi`
+- ✅ Windows Prerelease: `.exe` (NSIS) only
+
+### Impact
+
+For prerelease users on Windows:
+- Use the `.exe` installer (NSIS)
+- MSI is not available for prereleases
+- This is a Windows Installer limitation, not a bug
+
 ## Troubleshooting
 
 ### Prerelease not detected
@@ -236,6 +263,13 @@ v1.0.0-alpha.1
 v0.1.27-rc0
 v1.0.0-alpha1
 ```
+
+### Windows build fails with "prerelease identifier must be numeric-only"
+
+This is expected for MSI. The workflow now automatically:
+- Skips MSI for prereleases
+- Builds NSIS (`.exe`) only
+- No action needed from you
 
 ### Stable release marked as prerelease
 
