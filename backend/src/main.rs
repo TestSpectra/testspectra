@@ -74,6 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     maintenance::start_execution_order_maintenance(db.clone());
 
     let app = Router::new()
+        .route("/api/version", get(handlers::get_version))
         .nest("/api", handlers::user_routes(user_state))
         .nest("/api", handlers::test_case_routes(test_case_state))
         .nest("/api", handlers::test_suite_routes(test_suite_state))
