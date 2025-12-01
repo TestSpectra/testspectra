@@ -59,7 +59,7 @@ export function UpdateNotification({ onDismiss, forceShow = false, isChecking = 
   if (isDismissed && !forceShow) {
     return null;
   }
-  
+
   // Only show if checking, forced, or update available
   if (!isChecking && !forceShow && !updateAvailable) {
     return null;
@@ -88,7 +88,7 @@ export function UpdateNotification({ onDismiss, forceShow = false, isChecking = 
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {!isChecking && (
+            {!isChecking && !updateAvailable && (
               <span className="text-xs text-slate-400 font-mono">{APP_VERSION}</span>
             )}
             {!isUpdating && !isChecking && (
