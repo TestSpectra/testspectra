@@ -2,7 +2,17 @@ use axum::{Json, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const MIN_CLIENT_VERSION: &str = "0.1.0"; // Update this when breaking changes occur
+
+/// Get minimum client version from major.minor of server version
+/// Patch versions are always compatible
+fn get_min_client_version() -> String {
+    let parts: Vec<&str> = VERSION.split('.').collect();
+    if parts.len() >= 2 {
+        format!("{}.{}.0", parts[0], parts[1])
+    } else {
+        VERSION.to_string()
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VersionResponse {
@@ -15,6 +25,6 @@ pub struct VersionResponse {
 pub async fn get_version() -> impl IntoResponse {
     Json(VersionResponse {
         version: VERSION.to_string(),
-        min_client_version: MIN_CLIENT_VERSION.to_string(),
+        min_client_version: get_min_client_version(),
     })
 }

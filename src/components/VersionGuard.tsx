@@ -123,7 +123,7 @@ export function VersionGuard({ children }: VersionGuardProps) {
               <Button
                 onClick={handleReload}
                 variant="outline"
-                className="w-full bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800"
+                className="w-full border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Check Again
