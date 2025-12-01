@@ -46,6 +46,9 @@
   },
   "plugins": {
     "updater": {
+      "windows": {
+        "installMode": "passive"
+      },
       "active": true,
       "endpoints": [
         "https://github.com/TestSpectra/testspectra/releases/latest/download/latest.json"

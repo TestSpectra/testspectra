@@ -66,6 +66,8 @@ pub fn run() {
         })
         .build(),
     )
+    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_process::init())
     .setup(|app| {
       if let Ok(dir) = app.path().app_log_dir() {
         log::info!("Tauri log directory: {}", dir.display());
