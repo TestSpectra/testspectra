@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Download, RefreshCw } from 'lucide-react';
 import { versionService, APP_VERSION } from '../services/version-service';
+import { tauriUpdateService } from '../services/tauri-update-service';
 import { Button } from './ui/button';
 
 interface VersionGuardProps {
@@ -12,13 +13,18 @@ export function VersionGuard({ children }: VersionGuardProps) {
   const [serverVersion, setServerVersion] = useState<string>('');
   const [minClientVersion, setMinClientVersion] = useState<string>('');
   const [isChecking, setIsChecking] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
 
   useEffect(() => {
     checkVersion();
+    checkForTauriUpdate();
     
     // Start periodic version check (every 5 minutes)
     versionService.startPeriodicCheck(() => {
       checkVersion();
+      checkForTauriUpdate();
     }, 300000);
 
     return () => {
@@ -42,14 +48,39 @@ export function VersionGuard({ children }: VersionGuardProps) {
     }
   };
 
+  const checkForTauriUpdate = async () => {
+    if (!tauriUpdateService.isTauriApp()) return;
+    
+    try {
+      const updateInfo = await tauriUpdateService.checkForUpdate();
+      if (updateInfo?.available) {
+        setUpdateAvailable(true);
+        console.log(`Update available: ${updateInfo.latestVersion}`);
+      }
+    } catch (error) {
+      console.error('Tauri update check failed:', error);
+    }
+  };
+
   const handleReload = () => {
     window.location.reload();
   };
 
-  const handleDownload = () => {
-    // For Tauri app, open download page
-    if ((window as any).__TAURI__) {
-      window.open('https://github.com/your-repo/releases', '_blank');
+  const handleDownload = async () => {
+    // For Tauri app, use built-in updater
+    if (tauriUpdateService.isTauriApp()) {
+      setIsUpdating(true);
+      setUpdateProgress(0);
+      
+      const success = await tauriUpdateService.downloadAndInstall((progress) => {
+        setUpdateProgress(progress);
+      });
+      
+      if (!success) {
+        setIsUpdating(false);
+        // Fallback to manual download
+        window.open('https://github.com/TestSpectra/testspectra/releases', '_blank');
+      }
     } else {
       // For web, just reload to get latest version
       window.location.reload();
@@ -114,20 +145,32 @@ export function VersionGuard({ children }: VersionGuardProps) {
             <div className="space-y-3">
               <Button
                 onClick={handleDownload}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isUpdating}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
               >
-                <Download className="w-4 h-4 mr-2" />
-                {(window as any).__TAURI__ ? 'Download Update' : 'Reload Application'}
+                {isUpdating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Updating... {Math.round(updateProgress)}%
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    {tauriUpdateService.isTauriApp() ? 'Download & Install Update' : 'Reload Application'}
+                  </>
+                )}
               </Button>
               
-              <Button
-                onClick={handleReload}
-                variant="outline"
-                className="w-full border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Check Again
-              </Button>
+              {!isUpdating && (
+                <Button
+                  onClick={handleReload}
+                  variant="outline"
+                  className="w-full border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Check Again
+                </Button>
+              )}
             </div>
 
             {/* Footer note */}

@@ -69,4 +69,16 @@
   - The desktop app reads its runtime API URL from a `config.env` file in the
     user configuration directory; see `RELEASE.md` for OS‑specific paths and
     examples.
+
+  ## Auto-updates
+
+  The desktop app includes automatic update functionality:
+
+  - Updates are distributed via GitHub Releases
+  - Version compatibility is checked against the backend server
+  - Patch versions (0.1.x) are always compatible within the same major.minor
+  - When an incompatible version is detected, users are prompted to update
+  - Updates download and install automatically with progress indication
+
+  For setup and configuration details, see `docs/TAURI_UPDATER.md`.
   

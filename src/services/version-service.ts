@@ -73,12 +73,8 @@ export class VersionService {
     }
 
     // Minor version must be >= min
+    // Patch versions are always compatible within same major.minor
     if (client.minor < min.minor) {
-      return false;
-    }
-
-    // If minor matches, patch must be >= min
-    if (client.minor === min.minor && client.patch < min.patch) {
       return false;
     }
 

@@ -32,6 +32,8 @@
         "@radix-ui/react-toggle": "^1.1.2",
         "@radix-ui/react-toggle-group": "^1.1.2",
         "@radix-ui/react-tooltip": "^1.1.8",
+        "@tauri-apps/plugin-process": "^2.3.1",
+        "@tauri-apps/plugin-updater": "^2.9.0",
         "@tiptap/extension-placeholder": "^3.11.0",
         "@tiptap/react": "^3.11.0",
         "@tiptap/starter-kit": "^3.11.0",
@@ -69,6 +71,7 @@
         "build": "vite build",
         "tauri": "tauri",
         "tauri:dev": "tauri dev",
-        "tauri:build": "tauri build"
+        "tauri:build": "tauri build",
+        "generate-keys": "./scripts/generate-signing-key.sh"
     }
 }

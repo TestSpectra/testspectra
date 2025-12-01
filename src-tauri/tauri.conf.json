@@ -42,5 +42,15 @@
     "resources": [
       "resources/default-config.env"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/TestSpectra/testspectra/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": ""
+    }
   }
 }
