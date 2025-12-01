@@ -15,8 +15,10 @@ import { TestSuites } from './components/TestSuites';
 import { Tools } from './components/Tools';
 import { UserManagement } from './components/UserManagement';
 import { VersionGuard } from './components/VersionGuard';
+import { UpdateNotification } from './components/UpdateNotification';
 import { getUserServiceClient } from './services/api-client';
 import { authService } from './services/auth-service';
+import { useUpdateManager } from './hooks/useUpdateManager';
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,6 +29,16 @@ function AppContent() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Update manager for patch updates
+  const { updateInfo, isChecking, checkForUpdates } = useUpdateManager();
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+
+  // Trigger notification check from menu
+  const handleCheckForUpdates = async () => {
+    setShowUpdateNotification(true);
+    await checkForUpdates();
+  };
 
   // Determine current view for Sidebar highlighting
   const getCurrentView = () => {
@@ -203,8 +215,9 @@ function AppContent() {
   }
 
   return (
-    <Routes>
-      <Route element={<Layout currentView={currentView} onViewChange={handleViewChange} onLogout={handleLogout} currentUser={currentUser} />}>
+    <>
+      <Routes>
+        <Route element={<Layout currentView={currentView} onViewChange={handleViewChange} onLogout={handleLogout} currentUser={currentUser} onCheckForUpdates={handleCheckForUpdates} />}>
         <Route path="/" element={<Dashboard
           onNavigateToTestCases={() => navigate('/test-cases')}
           onViewReport={handleViewReport}
@@ -271,6 +284,16 @@ function AppContent() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    
+    {/* Update notification - show when triggered or patch update available */}
+    {(showUpdateNotification || updateInfo?.isPatchUpdate) && (
+      <UpdateNotification 
+        forceShow={showUpdateNotification}
+        isChecking={isChecking}
+        onDismiss={() => setShowUpdateNotification(false)}
+      />
+    )}
+  </>
   );
 }
 

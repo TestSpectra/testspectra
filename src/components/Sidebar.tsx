@@ -4,7 +4,6 @@ import {
   FolderTree,
   History,
   Settings,
-  Globe,
   CheckCircle2,
   XCircle,
   Clock,
@@ -14,6 +13,7 @@ import {
   ChevronDown,
   UserCircle,
   LogOut,
+  Info,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { TestSpectraLogo } from "./TestSpectraLogo";
@@ -33,6 +33,7 @@ interface SidebarProps {
   onViewChange: (view: View) => void;
   onLogout?: () => void;
   currentUser?: any;
+  onCheckForUpdates?: () => void;
 }
 
 const COLLAPSE_BREAKPOINT = 1400;
@@ -42,6 +43,7 @@ export function Sidebar({
   onViewChange,
   onLogout,
   currentUser,
+  onCheckForUpdates,
 }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -300,6 +302,17 @@ export function Sidebar({
                 >
                   <UserCircle className="w-4 h-4" />
                   <span className="text-sm">View Account</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCheckForUpdates?.();
+                    setAccountMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                >
+                  <Info className="w-4 h-4" />
+                  <span className="text-sm">Check for Updates</span>
                 </button>
                 <button
                   onClick={(e) => {

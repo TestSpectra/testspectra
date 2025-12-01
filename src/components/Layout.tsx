@@ -6,16 +6,18 @@ interface LayoutProps {
   onViewChange: (view: string) => void;
   onLogout: () => void;
   currentUser: any;
+  onCheckForUpdates?: () => void;
 }
 
-export function Layout({ currentView, onViewChange, onLogout, currentUser }: LayoutProps) {
+export function Layout({ currentView, onViewChange, onLogout, currentUser, onCheckForUpdates }: LayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
       <Sidebar 
         currentView={currentView} 
         onViewChange={onViewChange} 
         onLogout={onLogout} 
-        currentUser={currentUser} 
+        currentUser={currentUser}
+        onCheckForUpdates={onCheckForUpdates}
       />
       <main className="flex-1 overflow-auto">
         <Outlet />
