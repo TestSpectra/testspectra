@@ -13,13 +13,69 @@ on:
     paths:
       - 'backend/**'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v0.1.0'
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: testspectra/server
 
 jobs:
+  prepare-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      raw_version: ${{ steps.version.outputs.VERSION }}
+      normalized_version: ${{ steps.normalized_version.outputs.VERSION }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Normalize version (strip leading v)
+        id: normalized_version
+        shell: bash
+        run: |
+          RAW="${{ steps.version.outputs.VERSION }}"
+          CLEAN="${RAW#v}"
+          echo "VERSION=${CLEAN}" >> $GITHUB_OUTPUT
+
+      - name: Sync backend Cargo.toml version
+        shell: bash
+        env:
+          VERSION: ${{ steps.normalized_version.outputs.VERSION }}
+        run: |
+          sed -i 's/^version = ".*"/version = "'"$VERSION"'"/' backend/Cargo.toml
+
+      - name: Commit and push version bump
+        shell: bash
+        env:
+          VERSION: ${{ steps.normalized_version.outputs.VERSION }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add backend/Cargo.toml
+
+          git commit -m "chore: bump backend version to ${VERSION}" || echo "No version changes to commit"
+
+          git push origin HEAD:${GITHUB_REF}
+
   build-and-push:
+    needs: prepare-version
     runs-on: ubuntu-latest
     permissions:
       contents: read
