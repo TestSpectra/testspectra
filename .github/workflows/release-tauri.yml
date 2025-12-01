@@ -19,6 +19,7 @@ jobs:
     outputs:
       raw_version: ${{ steps.version.outputs.VERSION }}
       normalized_version: ${{ steps.normalized_version.outputs.VERSION }}
+      is_prerelease: ${{ steps.prerelease.outputs.IS_PRERELEASE }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,6 +46,20 @@ jobs:
           RAW="${{ steps.version.outputs.VERSION }}"
           CLEAN="${RAW#v}"
           echo "VERSION=${CLEAN}" >> $GITHUB_OUTPUT
+
+      - name: Detect prerelease
+        id: prerelease
+        shell: bash
+        run: |
+          VERSION="${{ steps.normalized_version.outputs.VERSION }}"
+          # Check if version contains prerelease identifiers (rc, alpha, beta, etc.)
+          if [[ "$VERSION" =~ (rc|alpha|beta|dev|preview|pre)\. ]]; then
+            echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
+            echo "Detected prerelease version: $VERSION"
+          else
+            echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
+            echo "Detected stable version: $VERSION"
+          fi
 
       - name: Sync Tauri app version
         shell: bash
@@ -202,6 +217,6 @@ jobs:
           releaseName: "TestSpectra ${{ needs.prepare-version.outputs.raw_version }}"
           releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: false
-          prerelease: false
+          prerelease: ${{ needs.prepare-version.outputs.is_prerelease == 'true' }}
           args: ${{ matrix.args }}
           includeUpdaterJson: true

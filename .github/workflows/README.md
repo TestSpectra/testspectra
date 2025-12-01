@@ -8,8 +8,13 @@
 Builds and releases the Tauri desktop application for all platforms.
 
 **Triggers**:
-- Push to tags matching `v*` (e.g., `v0.1.25`)
+- Push to tags matching `v*` (e.g., `v0.1.25`, `v0.1.27-rc.0`)
 - Manual workflow dispatch
+
+**Prerelease Detection**:
+- Automatically detects prereleases from version identifiers
+- Supported: `rc`, `alpha`, `beta`, `dev`, `preview`, `pre`
+- Example: `v0.1.27-rc.0` → Marked as prerelease
 
 **What it does**:
 1. Syncs version across all files (tauri.conf.json, Cargo.toml, Cargo.lock)
@@ -24,13 +29,25 @@ Builds and releases the Tauri desktop application for all platforms.
 - `API_URL` - Backend API URL
 
 **Usage**:
+
+Stable release:
 ```bash
-# Update versions in package.json, tauri.conf.json, backend/Cargo.toml
-git add .
-git commit -m "chore: bump version to 0.1.25"
-git tag v0.1.25
+# Update backend/Cargo.toml only
+git add backend/Cargo.toml
+git commit -m "chore: bump version to 0.1.27"
+git tag v0.1.27
 git push origin main
-git push origin v0.1.25
+git push origin v0.1.27
+```
+
+Prerelease:
+```bash
+# Update backend/Cargo.toml with prerelease version
+git add backend/Cargo.toml
+git commit -m "chore: bump version to 0.1.27-rc.0"
+git tag v0.1.27-rc.0
+git push origin main
+git push origin v0.1.27-rc.0
 ```
 
 ## Platform Matrix
