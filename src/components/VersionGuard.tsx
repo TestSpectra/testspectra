@@ -16,6 +16,7 @@ export function VersionGuard({ children }: VersionGuardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [latestVersion, setLatestVersion] = useState<string>('');
 
   useEffect(() => {
     checkVersion();
@@ -55,6 +56,7 @@ export function VersionGuard({ children }: VersionGuardProps) {
       const updateInfo = await tauriUpdateService.checkForUpdate();
       if (updateInfo?.available) {
         setUpdateAvailable(true);
+        setLatestVersion(updateInfo.latestVersion || '');
         console.log(`Update available: ${updateInfo.latestVersion}`);
       }
     } catch (error) {
@@ -130,6 +132,12 @@ export function VersionGuard({ children }: VersionGuardProps) {
                   <span className="text-slate-400">Required Version:</span>
                   <span className="text-green-400 font-mono">{minClientVersion}+</span>
                 </div>
+                {latestVersion && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Latest Available:</span>
+                    <span className="text-green-400 font-mono">{latestVersion}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-400">Server Version:</span>
                   <span className="text-blue-400 font-mono">{serverVersion}</span>

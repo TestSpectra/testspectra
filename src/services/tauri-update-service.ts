@@ -1,4 +1,4 @@
-import { check } from '@tauri-apps/plugin-updater';
+import { check, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
 export interface UpdateInfo {
@@ -73,16 +73,19 @@ export class TauriUpdateService {
 
       console.log(`Downloading update ${update.version}...`);
 
+      let contentLength: number | undefined = 1
+
       // Download and install the update
-      await update.downloadAndInstall((event: any) => {
+      await update.downloadAndInstall((event: DownloadEvent) => {
         switch (event.event) {
           case 'Started':
             console.log(`Started downloading ${event.data.contentLength} bytes`);
+            contentLength = event.data.contentLength;
             onProgress?.(0);
             break;
           case 'Progress':
-            const progress = (event.data.chunkLength / event.data.contentLength) * 100;
-            console.log(`Downloaded ${event.data.chunkLength} of ${event.data.contentLength}`);
+            const progress = (event.data.chunkLength / (contentLength ?? 1)) * 100;
+            console.log(`Downloaded ${event.data.chunkLength} of ${contentLength}`);
             onProgress?.(progress);
             break;
           case 'Finished':
