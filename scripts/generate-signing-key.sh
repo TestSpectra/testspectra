@@ -24,14 +24,19 @@ KEY_FILE="$KEY_DIR/testspectra.key"
 mkdir -p "$KEY_DIR"
 
 # Check if key already exists
+FORCE_FLAG=""
 if [ -f "$KEY_FILE" ]; then
     echo "⚠️  Key already exists at: $KEY_FILE"
+    echo ""
+    echo "To view existing public key, run: pnpm view-pubkey"
+    echo ""
     read -p "Do you want to overwrite it? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Aborted."
         exit 0
     fi
+    FORCE_FLAG="--force"
 fi
 
 echo ""
@@ -40,7 +45,7 @@ echo ""
 
 # Generate the key
 cd src-tauri
-tauri signer generate -w "$KEY_FILE"
+tauri signer generate -w "$KEY_FILE" $FORCE_FLAG
 
 echo ""
 echo "✅ Keys generated successfully!"
