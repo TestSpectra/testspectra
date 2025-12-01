@@ -172,7 +172,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
         {/* Footer */}
         <p className="text-center text-slate-500 text-sm mt-6">
-          © 2024 TestSpectra. All rights reserved.
+          © 2025 TestSpectra. All rights reserved.
         </p>
       </div>
     </div>
