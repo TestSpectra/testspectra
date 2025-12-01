@@ -81,15 +81,15 @@ export function Sidebar({
 
   const displayUser = currentUser
     ? {
-        name: currentUser.name || "User",
-        email: currentUser.email || "user@example.com",
-        avatar: getInitials(currentUser.name || "User"),
-      }
+      name: currentUser.name || "User",
+      email: currentUser.email || "user@example.com",
+      avatar: getInitials(currentUser.name || "User"),
+    }
     : {
-        name: "Guest",
-        email: "guest@testspectra.com",
-        avatar: "G",
-      };
+      name: "Guest",
+      email: "guest@testspectra.com",
+      avatar: "G",
+    };
 
   // Determine if sidebar should show expanded
   const isExpanded = !isCollapsed || isHovered;
@@ -110,56 +110,38 @@ export function Sidebar({
           ${isCollapsed ? "fixed left-0 top-0 h-screen z-50" : "relative"}
           ${isExpanded ? "w-64" : "w-16"}
           bg-slate-900 border-r border-slate-800 flex flex-col h-screen
-          transition-all duration-300 ease-in-out
+          transition-[width] duration-200 ease-out
           ${isCollapsed && isHovered ? "shadow-2xl shadow-black/50" : ""}
         `}
       >
         {/* Logo & Header - Sticky */}
         <div className="sticky top-0 z-10 bg-slate-900 shrink-0">
-          <div
-            className={`${
-              isExpanded ? "p-6" : "p-4"
-            } border-b border-slate-800`}
-          >
-            <div className="flex items-center gap-3">
+          <div className={`border-b border-slate-800 h-[88px] flex items-center transition-all duration-300 ${isExpanded ? 'px-4 justify-start' : 'px-0 justify-center'}`}>
+            <div className="flex items-center relative">
               <TestSpectraLogo
                 size={isExpanded ? 40 : 32}
-                className="shrink-0"
+                className="shrink-0 transition-all duration-300"
               />
-              {isExpanded && (
-                <div className="overflow-hidden">
-                  <h1 className="text-white whitespace-nowrap">TestSpectra</h1>
-                  <p className="text-xs text-slate-400 whitespace-nowrap">
-                    Automation Lifecycle
-                  </p>
-                </div>
-              )}
+              <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 ml-3 w-auto' : 'opacity-0 ml-0 w-0'}`}>
+                <h1 className="text-white whitespace-nowrap">TestSpectra</h1>
+                <p className="text-xs text-slate-400 whitespace-nowrap">
+                  Automation Lifecycle
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Sync Status Indicator */}
-          <div
-            className={`${
-              isExpanded ? "px-6" : "px-2"
-            } py-4 border-b border-slate-800`}
-          >
-            <div
-              className={
-                isExpanded
-                  ? "flex items-center gap-2 text-sm"
-                  : "flex items-center gap-2 text-sm justify-center"
-              }
-            >
+          <div className={`border-b border-slate-800 h-[68px] flex flex-col justify-center transition-[padding] duration-300 ${isExpanded ? 'px-4' : 'items-center px-0'}`}>
+            <div className={`flex items-center text-sm ${isExpanded ? 'gap-2' : 'justify-center'}`}>
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shrink-0"></div>
-              {isExpanded && (
-                <span className="text-slate-300 whitespace-nowrap">Synced</span>
-              )}
+              <span className={`text-slate-300 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                Synced
+              </span>
             </div>
-            {isExpanded && (
-              <p className="text-xs text-slate-500 mt-1">
-                Last sync: 2 minutes ago
-              </p>
-            )}
+            <p className={`text-xs text-slate-500 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100 mt-1' : 'opacity-0 h-0 mt-0'}`}>
+              Last sync: 2 minutes ago
+            </p>
           </div>
         </div>
 
@@ -179,18 +161,16 @@ export function Sidebar({
                   <button
                     onClick={() => onViewChange(item.id as View)}
                     title={!isExpanded ? item.label : undefined}
-                    className={`w-full flex items-center gap-3 ${
-                      isExpanded ? "px-4" : "px-3 justify-center"
-                    } py-3 rounded-lg transition-all ${
-                      isActive
+                    className={`w-full flex items-center py-3 rounded-lg transition-colors ${isExpanded ? 'gap-3 px-4' : 'justify-center'
+                      } ${isActive
                         ? "bg-blue-600 text-white"
                         : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5 shrink-0" />
-                    {isExpanded && (
-                      <span className="whitespace-nowrap">{item.label}</span>
-                    )}
+                    <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                      {item.label}
+                    </span>
                   </button>
                 </li>
               );
@@ -201,97 +181,78 @@ export function Sidebar({
         {/* Bottom Section - Sticky */}
         <div className="sticky bottom-0 z-10 bg-slate-900 shrink-0">
           {/* Quick Stats */}
-          <div
-            className={`${
-              isExpanded ? "p-4" : "p-2"
-            } border-t border-slate-800 space-y-3`}
-          >
-            <div
-              className={`flex items-center ${
-                isExpanded ? "justify-between" : "justify-center"
-              } text-sm`}
-            >
+          <div className={`border-t border-slate-800 space-y-3 transition-[padding] duration-300 ${isExpanded ? 'p-4' : 'py-4 flex flex-col items-center'}`}>
+            <div className={`flex items-center text-sm h-5 ${isExpanded ? 'justify-between w-full' : 'justify-center'}`}>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                {isExpanded && <span className="text-slate-400">Passed</span>}
+                <span className={`text-slate-400 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                  Passed
+                </span>
               </div>
-              {isExpanded && <span className="text-green-500">847</span>}
+              <span className={`text-green-500 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                847
+              </span>
             </div>
-            <div
-              className={`flex items-center ${
-                isExpanded ? "justify-between" : "justify-center"
-              } text-sm`}
-            >
+            <div className={`flex items-center text-sm h-5 ${isExpanded ? 'justify-between w-full' : 'justify-center'}`}>
               <div className="flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-red-500 shrink-0" />
-                {isExpanded && <span className="text-slate-400">Failed</span>}
+                <span className={`text-slate-400 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                  Failed
+                </span>
               </div>
-              {isExpanded && <span className="text-red-500">23</span>}
+              <span className={`text-red-500 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                23
+              </span>
             </div>
-            <div
-              className={`flex items-center ${
-                isExpanded ? "justify-between" : "justify-center"
-              } text-sm`}
-            >
+            <div className={`flex items-center text-sm h-5 ${isExpanded ? 'justify-between w-full' : 'justify-center'}`}>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-orange-500 shrink-0" />
-                {isExpanded && <span className="text-slate-400">Running</span>}
+                <span className={`text-slate-400 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                  Running
+                </span>
               </div>
-              {isExpanded && <span className="text-orange-500">5</span>}
+              <span className={`text-orange-500 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                5
+              </span>
             </div>
           </div>
 
           {/* User Profile */}
-          <div
-            className={`${
-              isExpanded ? "p-4" : "p-2"
-            } border-t border-slate-800 bg-slate-800/30`}
-          >
-            <div
-              onClick={() =>
-                isExpanded && setAccountMenuOpen(!isAccountMenuOpen)
-              }
-              className={`flex items-center gap-3 cursor-pointer hover:bg-slate-800 rounded-lg ${
-                isExpanded ? "p-2" : "p-1 justify-center"
-              } transition-colors`}
-            >
+          <div className={`border-t border-slate-800 bg-slate-800/30 transition-all duration-300 ${isExpanded ? 'p-4' : 'py-4 px-0'}`}>
+            <div className={`flex items-center transition-all duration-300 ${isExpanded ? 'justify-start' : 'justify-center'}`}>
               <div
-                className={`${
-                  isExpanded ? "w-10 h-10" : "w-8 h-8"
-                } bg-linear-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center shrink-0`}
+                onClick={() =>
+                  isExpanded && setAccountMenuOpen(!isAccountMenuOpen)
+                }
+                className={`flex items-center cursor-pointer hover:bg-slate-800 rounded-lg p-2 transition-all duration-300 ${isExpanded ? 'w-full' : ''}`}
               >
-                <span
-                  className={`text-white ${
-                    isExpanded ? "text-sm" : "text-xs"
-                  } font-semibold`}
+                <div
+                  className="w-10 h-10 bg-linear-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center shrink-0"
                 >
-                  {displayUser.avatar}
-                </span>
-              </div>
-              {isExpanded && (
-                <>
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-2 mb-1">
-                      <GitBranch className="w-3 h-3 text-slate-400 shrink-0" />
-                      <p className="text-sm text-slate-200 truncate">
-                        {displayUser.name}
-                      </p>
-                    </div>
-                    <p className="text-xs text-slate-500 truncate">
-                      {displayUser.email}
+                  <span className="text-white text-sm font-semibold">
+                    {displayUser.avatar}
+                  </span>
+                </div>
+                <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 ml-3 w-auto' : 'opacity-0 ml-0 w-0'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <GitBranch className="w-3 h-3 text-slate-400 shrink-0" />
+                    <p className="text-sm text-slate-200 truncate">
+                      {displayUser.name}
                     </p>
                   </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ${
-                      isAccountMenuOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </>
-              )}
+                  <p className="text-xs text-slate-500 truncate">
+                    {displayUser.email}
+                  </p>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-400 transition-all duration-300 shrink-0 ${isAccountMenuOpen ? "rotate-180" : ""
+                    } ${isExpanded ? 'ml-1.5' : 'opacity-0 hidden'}`}
+                />
+              </div>
             </div>
 
-            {isExpanded && isAccountMenuOpen && (
-              <div className="mt-2 pt-2 border-t border-slate-700 space-y-1">
+            <div className={`overflow-hidden transition-all duration-300 ${isExpanded && isAccountMenuOpen ? 'max-h-48 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+              <div className="pt-2 border-t border-slate-700 space-y-1">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -325,7 +286,7 @@ export function Sidebar({
                   <span className="text-sm">Logout</span>
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
