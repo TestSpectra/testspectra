@@ -66,19 +66,53 @@ export function TestCasesList({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterAutomation, setFilterAutomation] = useState("all");
-  const [filterPriority, setFilterPriority] = useState("all");
-  const [filterSuite, setFilterSuite] = useState(searchParams.get("suite") || "all");
+  // Load persisted state from localStorage
+  const loadPersistedState = () => {
+    try {
+      const saved = localStorage.getItem("testCasesList_filters");
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (err) {
+      console.error("Failed to load persisted state:", err);
+    }
+    return null;
+  };
+
+  const persistedState = loadPersistedState();
+
+  const [searchQuery, setSearchQuery] = useState(persistedState?.searchQuery || "");
+  const [filterAutomation, setFilterAutomation] = useState(persistedState?.filterAutomation || "all");
+  const [filterPriority, setFilterPriority] = useState(persistedState?.filterPriority || "all");
+  const [filterSuite, setFilterSuite] = useState(searchParams.get("suite") || persistedState?.filterSuite || "all");
 
   // Sync URL params with state
   useEffect(() => {
     const suite = searchParams.get("suite");
-    setFilterSuite(suite || "all");
+    if (suite) {
+      setFilterSuite(suite);
+    }
   }, [searchParams]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(persistedState?.currentPage || 1);
+  const [itemsPerPage, setItemsPerPage] = useState(persistedState?.itemsPerPage || 10);
+
+  // Persist state to localStorage whenever filters or pagination change
+  useEffect(() => {
+    const stateToSave = {
+      searchQuery,
+      filterAutomation,
+      filterPriority,
+      filterSuite,
+      currentPage,
+      itemsPerPage,
+    };
+    try {
+      localStorage.setItem("testCasesList_filters", JSON.stringify(stateToSave));
+    } catch (err) {
+      console.error("Failed to persist state:", err);
+    }
+  }, [searchQuery, filterAutomation, filterPriority, filterSuite, currentPage, itemsPerPage]);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [quickCreateData, setQuickCreateData] = useState({
     title: "",

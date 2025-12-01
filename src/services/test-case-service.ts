@@ -76,8 +76,8 @@ export interface CreateTestCasePayload {
   priority: string;
   caseType: string;
   automation: string;
-  preCondition: string | null;
-  postCondition: string | null;
+  preCondition?: string;
+  postCondition?: string;
   tags?: string[];
   steps?: TestStep[];
 }
@@ -89,8 +89,8 @@ export interface UpdateTestCasePayload {
   priority?: string;
   caseType?: string;
   automation?: string;
-  preCondition: string | null;
-  postCondition: string | null;
+  preCondition?: string;
+  postCondition?: string;
   tags?: string[];
 }
 
