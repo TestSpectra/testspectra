@@ -1,4 +1,32 @@
+import { useEffect, useState } from 'react';
+
 export function TitleBar() {
+    const [isMacOS, setIsMacOS] = useState(false);
+
+    useEffect(() => {
+        // Check if running on macOS
+        const checkPlatform = async () => {
+            try {
+                // @ts-ignore
+                if (window.__TAURI__) {
+                    const { platform } = await import('@tauri-apps/plugin-os');
+                    const currentPlatform = platform();
+                    setIsMacOS(currentPlatform === 'macos');
+                }
+            } catch (error) {
+                // Fallback to user agent check for browser
+                setIsMacOS(navigator.userAgent.includes('Mac'));
+            }
+        };
+        
+        checkPlatform();
+    }, []);
+
+    // Don't render if not macOS
+    if (!isMacOS) {
+        return null;
+    }
+
     return (
         <div
             data-tauri-drag-region
