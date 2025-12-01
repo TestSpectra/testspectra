@@ -200,19 +200,24 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Set bundle targets for Windows
-        if: matrix.platform == 'windows-latest'
+      - name: Adjust bundle targets for Windows prerelease
+        if: matrix.platform == 'windows-latest' && needs.prepare-version.outputs.is_prerelease == 'true'
         shell: bash
         run: |
           # MSI doesn't support non-numeric prerelease identifiers
-          # For prereleases, only build NSIS (exe) installer
-          if [ "${{ needs.prepare-version.outputs.is_prerelease }}" == "true" ]; then
-            echo "TAURI_BUNDLE_TARGETS=nsis" >> $GITHUB_ENV
-            echo "Building Windows prerelease with NSIS only (MSI doesn't support rc/alpha/beta)"
-          else
-            echo "TAURI_BUNDLE_TARGETS=all" >> $GITHUB_ENV
-            echo "Building Windows stable release with all targets"
-          fi
+          # Temporarily modify tauri.conf.json to exclude MSI
+          node - << 'EOF'
+          const fs = require('fs');
+          const path = 'src-tauri/tauri.conf.json';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          
+          // Change targets from "all" to "nsis" for Windows prerelease
+          config.bundle.targets = "nsis";
+          
+          fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\n');
+          console.log('✅ Modified bundle targets to "nsis" for Windows prerelease');
+          console.log('   (MSI does not support non-numeric prerelease identifiers like rc/alpha/beta)');
+          EOF
 
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0
