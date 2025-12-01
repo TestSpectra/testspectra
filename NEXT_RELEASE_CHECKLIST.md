@@ -22,10 +22,14 @@ This will be the **first release with auto-update support**!
 
 ### 1. Update Version Numbers
 
-Update to `0.1.27` in these files:
-- [ ] `package.json` → `"version": "0.1.27"`
-- [ ] `src-tauri/tauri.conf.json` → `"version": "0.1.27"`
+Update to `0.1.27` in:
 - [ ] `backend/Cargo.toml` → `version = "0.1.27"`
+
+**Note**: The workflow will automatically update these files:
+- ✅ `package.json`
+- ✅ `src-tauri/tauri.conf.json`
+- ✅ `src-tauri/Cargo.toml`
+- ✅ `src-tauri/Cargo.lock`
 
 ### 2. Update Release Notes
 

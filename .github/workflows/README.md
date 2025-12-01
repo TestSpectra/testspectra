@@ -64,10 +64,12 @@ Desktop apps automatically check for updates every 5 minutes and prompt users wh
 - Regenerate keys if needed: `pnpm generate-keys`
 
 ### Version mismatch errors
-- Ensure versions match in all three files:
+- The workflow automatically syncs versions across:
   - `package.json`
   - `src-tauri/tauri.conf.json`
-  - `backend/Cargo.toml`
+  - `src-tauri/Cargo.toml`
+  - `src-tauri/Cargo.lock`
+- Only `backend/Cargo.toml` needs manual update
 
 ### Ubuntu build fails
 - Check that all system dependencies are installed

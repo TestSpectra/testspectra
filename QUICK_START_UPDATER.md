@@ -28,19 +28,19 @@ Edit `src-tauri/tauri.conf.json`:
 ## 📦 Create Release
 
 ```bash
-# 1. Update versions in:
-#    - package.json
-#    - src-tauri/tauri.conf.json
-#    - backend/Cargo.toml
+# 1. Update backend version only
+# Edit backend/Cargo.toml: version = "0.1.27"
 
 # 2. Commit and tag
-git add .
-git commit -m "chore: bump version to 0.1.25"
-git tag v0.1.25
+git add backend/Cargo.toml
+git commit -m "chore: bump version to 0.1.27"
+git tag v0.1.27
 git push origin main
-git push origin v0.1.25
+git push origin v0.1.27
 
-# 3. GitHub Actions builds automatically!
+# 3. GitHub Actions automatically:
+#    - Updates package.json, tauri.conf.json, Cargo.toml
+#    - Builds and releases!
 ```
 
 ## ✅ How It Works

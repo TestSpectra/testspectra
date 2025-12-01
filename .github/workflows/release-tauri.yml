@@ -55,6 +55,12 @@ jobs:
           const fs = require('fs');
           const version = process.env.VERSION;
 
+          // Update package.json
+          const packagePath = 'package.json';
+          const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          packageJson.version = version;
+          fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 4) + '\n');
+
           // Update src-tauri/tauri.conf.json
           const tauriPath = 'src-tauri/tauri.conf.json';
           const tauriJson = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
@@ -83,7 +89,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
 
           # Commit may be empty if versions are already up to date
           git commit -m "chore: bump app version to ${VERSION}" || echo "No version changes to commit"
@@ -198,5 +204,4 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-          # Automatically upload latest.json for updater (default: true)
-          uploadUpdaterJson: true
+          includeUpdaterJson: true

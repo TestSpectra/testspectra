@@ -22,12 +22,14 @@ Quick reference for creating a new release with auto-update support.
 
 ### 1. Update Version Numbers
 
-Update version in **all** these files to match:
-- `package.json` → `version`
-- `src-tauri/tauri.conf.json` → `version`
-- `backend/Cargo.toml` → `version`
+Update version in:
+- `backend/Cargo.toml` → `version = "0.1.25"`
 
-Example: `"0.1.25"`
+**Note**: The GitHub Actions workflow automatically updates:
+- `package.json`
+- `src-tauri/tauri.conf.json`
+- `src-tauri/Cargo.toml`
+- `src-tauri/Cargo.lock`
 
 ### 2. Update Changelog
 
