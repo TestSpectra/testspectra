@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Dashboard } from './components/Dashboard';
 import { TestCasesList } from './components/TestCasesList';
+import { TestSuites } from './components/TestSuites';
 import { TestCaseForm } from './components/TestCaseForm';
 import { TestCaseDetail } from './components/TestCaseDetail';
 import { TestReport } from './components/TestReport';
@@ -32,6 +33,7 @@ function AppContent() {
      const path = location.pathname;
      if (path === '/' || path === '/dashboard') return 'dashboard';
      if (path.startsWith('/test-cases')) return 'test-cases';
+     if (path.startsWith('/test-suites')) return 'test-suites';
      if (path.startsWith('/runs-history')) return 'runs-history';
      if (path.startsWith('/configuration')) return 'configuration';
      if (path.startsWith('/tools')) return 'tools';
@@ -139,6 +141,7 @@ function AppContent() {
       switch(view) {
           case 'dashboard': navigate('/'); break;
           case 'test-cases': navigate('/test-cases'); break;
+          case 'test-suites': navigate('/test-suites'); break;
           case 'runs-history': navigate('/runs-history'); break;
           case 'configuration': navigate('/configuration'); break;
           case 'tools': navigate('/tools'); break;
@@ -218,6 +221,8 @@ function AppContent() {
                 onViewDetail={handleViewDetail}
                 onRecordManualResult={handleRecordManualResult}
             />} />
+
+            <Route path="/test-suites" element={<TestSuites />} />
             
             <Route path="/test-cases/new" element={<TestCaseForm 
                 onSave={handleSaveTestCase}

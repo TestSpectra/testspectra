@@ -28,6 +28,7 @@ import {
   Copy,
   GripVertical,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { authService } from "../services/auth-service";
 import { getApiUrl } from "../lib/config";
 import { getTimeAgo } from "../lib/utils";
@@ -56,6 +57,8 @@ export function TestCasesList({
   onViewDetail,
   onRecordManualResult,
 }: TestCasesListProps) {
+  const [searchParams] = useSearchParams();
+  
   // State for test cases data
   const [testCasesList, setTestCasesList] = useState<TestCaseSummary[]>([]);
   const [availableSuites, setAvailableSuites] = useState<string[]>([]);
@@ -66,7 +69,14 @@ export function TestCasesList({
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAutomation, setFilterAutomation] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
-  const [filterSuite, setFilterSuite] = useState("all");
+  const [filterSuite, setFilterSuite] = useState(searchParams.get("suite") || "all");
+
+  // Sync URL params with state
+  useEffect(() => {
+    const suite = searchParams.get("suite");
+    setFilterSuite(suite || "all");
+  }, [searchParams]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showQuickCreate, setShowQuickCreate] = useState(false);

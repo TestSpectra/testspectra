@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   FileCheck,
+  FolderTree,
   History,
   Settings,
   Globe,
@@ -20,6 +21,7 @@ import { TestSpectraLogo } from "./TestSpectraLogo";
 type View =
   | "dashboard"
   | "test-cases"
+  | "test-suites"
   | "runs-history"
   | "configuration"
   | "tools"
@@ -59,6 +61,7 @@ export function Sidebar({
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "test-cases", label: "Test Cases", icon: FileCheck },
+    { id: "test-suites", label: "Test Suites", icon: FolderTree },
     { id: "runs-history", label: "Runs History", icon: History },
     { id: "configuration", label: "Configuration", icon: Settings },
     { id: "tools", label: "Tools", icon: Wrench },
@@ -253,7 +256,7 @@ export function Sidebar({
               <div
                 className={`${
                   isExpanded ? "w-10 h-10" : "w-8 h-8"
-                } bg-gradient-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center flex-shrink-0`}
+                } bg-linear-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center shrink-0`}
               >
                 <span
                   className={`text-white ${
