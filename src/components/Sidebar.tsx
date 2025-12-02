@@ -174,7 +174,7 @@ export function Sidebar({
         `}
       >
         {/* Logo & Header - Sticky */}
-        <div className="sticky top-0 z-10 bg-slate-900 shrink-0">
+        <div className="z-10 mt-8 bg-slate-900 shrink-0">
           <div className={`border-b border-slate-800 h-[88px] flex items-center transition-all duration-300 ${isExpanded ? 'px-4 justify-start' : 'px-0 justify-center'}`}>
             <div className="flex items-center relative">
               <TestSpectraLogo
