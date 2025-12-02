@@ -63,7 +63,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewRefreshTrigger, setReviewRefreshTrigger] = useState(0);
-  const [reviewStatus, setReviewStatus] = useState<'pending' | 'approved' | 'needs_revision'>('pending');
+  const [reviewStatus, setReviewStatus] = useState<'pending' | 'pending_revision' | 'approved' | 'needs_revision'>('pending');
   const [isMarkingRevised, setIsMarkingRevised] = useState(false);
 
   useEffect(() => {
@@ -100,8 +100,8 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
         description: 'Reviewers have been notified to review again.',
       });
       
-      // Refresh review status
-      setReviewStatus('pending');
+      // Refresh review status to pending_revision
+      setReviewStatus('pending_revision');
       setReviewRefreshTrigger(prev => prev + 1);
     } catch (err) {
       console.error('Failed to mark as revised:', err);

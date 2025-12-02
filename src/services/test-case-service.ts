@@ -14,7 +14,7 @@ export interface TestStep {
   customExpectedResult?: string | null;
 }
 
-export type ReviewStatus = "pending" | "approved" | "needs_revision";
+export type ReviewStatus = "pending" | "pending_revision" | "approved" | "needs_revision";
 
 export interface TestCase {
   id: string;

@@ -29,7 +29,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
   const [filterSuite, setFilterSuite] = useState('all');
 
   // Stats
-  const [stats, setStats] = useState<ReviewStats>({ pending: 0, approved: 0, needs_revision: 0 });
+  const [stats, setStats] = useState<ReviewStats>({ pending: 0, pending_revision: 0, approved: 0, needs_revision: 0 });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   // Last review cache
@@ -152,7 +152,11 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
       item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.createdByName && item.createdByName.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const matchesStatus = filterStatus === 'all' || item.reviewStatus === filterStatus;
+    // When filtering by 'pending', show both 'pending' and 'pending_revision'
+    const matchesStatus = filterStatus === 'all' || 
+      item.reviewStatus === filterStatus ||
+      (filterStatus === 'pending' && item.reviewStatus === 'pending_revision');
+    
     const matchesPriority = filterPriority === 'all' || item.priority.toLowerCase() === filterPriority;
     const matchesSuite = filterSuite === 'all' || item.suite === filterSuite;
     
@@ -181,9 +185,16 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
     switch (status) {
       case 'pending':
         return (
-          <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 border">
+          <Badge variant="outline" className="bg-blue-500/20 text-blue-400 border-blue-500/30 border">
             <Clock className="w-3 h-3 mr-1" />
-            Pending Review
+            New Review
+          </Badge>
+        );
+      case 'pending_revision':
+        return (
+          <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 border">
+            <MessageSquare className="w-3 h-3 mr-1" />
+            Revised
           </Badge>
         );
       case 'approved':
@@ -220,18 +231,20 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
       <div className="grid grid-cols-3 gap-6 mb-8">
         <div 
           onClick={() => handleStatsCardClick('pending')}
-          className={`bg-linear-to-br from-yellow-500/10 to-yellow-600/5 border rounded-xl p-6 cursor-pointer transition-all ${
-            filterStatus === 'pending' 
-              ? 'border-yellow-500/50 ring-2 ring-yellow-500/30 bg-yellow-500/15' 
-              : 'border-yellow-500/20 hover:border-yellow-500/40 hover:bg-yellow-500/15'
+          className={`bg-linear-to-br from-blue-500/10 to-blue-600/5 border rounded-xl p-6 cursor-pointer transition-all ${
+            filterStatus === 'pending' || filterStatus === 'pending_revision'
+              ? 'border-blue-500/50 ring-2 ring-blue-500/30 bg-blue-500/15' 
+              : 'border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-500/15'
           }`}
         >
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm text-slate-400">Pending Review</h3>
-            <Clock className="w-5 h-5 text-yellow-400" />
+            <Clock className="w-5 h-5 text-blue-400" />
           </div>
-          <p className="text-3xl text-yellow-400">{isLoadingStats ? '-' : pendingCount}</p>
-          <p className="text-xs text-slate-500 mt-1">Awaiting your review</p>
+          <p className="text-3xl text-blue-400">{isLoadingStats ? '-' : (pendingCount + stats.pending_revision)}</p>
+          <p className="text-xs text-slate-500 mt-1">
+            {pendingCount} new, {stats.pending_revision} revised
+          </p>
         </div>
 
         <div 
@@ -454,10 +467,20 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                       {item.reviewStatus === 'pending' && canReview && (
                         <Button
                           onClick={() => onReviewTestCase(item.id)}
-                          className="bg-teal-600 hover:bg-teal-700 text-white"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                           <MessageSquare className="w-4 h-4 mr-2" />
                           Review Now
+                        </Button>
+                      )}
+
+                      {item.reviewStatus === 'pending_revision' && canReview && (
+                        <Button
+                          onClick={() => onReReviewTestCase(item.id)}
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Re-review
                         </Button>
                       )}
 

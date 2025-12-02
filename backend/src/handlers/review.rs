@@ -304,9 +304,9 @@ async fn mark_as_revised(
         ));
     }
 
-    // Update test case status to pending
+    // Update test case status to pending_revision (not pending, to differentiate from new test cases)
     sqlx::query(
-        "UPDATE test_cases SET review_status = 'pending', updated_at = NOW() WHERE id = $1"
+        "UPDATE test_cases SET review_status = 'pending_revision', updated_at = NOW() WHERE id = $1"
     )
     .bind(test_case.id)
     .execute(&state.db)
@@ -370,6 +370,12 @@ async fn get_review_stats(
     .fetch_one(&state.db)
     .await?;
 
+    let pending_revision_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'pending_revision'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
     let approved_count: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM test_cases WHERE review_status = 'approved'"
     )
@@ -384,6 +390,7 @@ async fn get_review_stats(
 
     Ok(Json(serde_json::json!({
         "pending": pending_count.0,
+        "pending_revision": pending_revision_count.0,
         "approved": approved_count.0,
         "needs_revision": needs_revision_count.0
     })))
@@ -454,6 +461,12 @@ async fn broadcast_review_stats_update(state: &ReviewState) -> Result<(), AppErr
     .fetch_one(&state.db)
     .await?;
 
+    let pending_revision_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'pending_revision'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
     let approved_count: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM test_cases WHERE review_status = 'approved'"
     )
@@ -471,6 +484,7 @@ async fn broadcast_review_stats_update(state: &ReviewState) -> Result<(), AppErr
         "type": "review_stats_update",
         "data": {
             "pending": pending_count.0,
+            "pending_revision": pending_revision_count.0,
             "approved": approved_count.0,
             "needs_revision": needs_revision_count.0
         }

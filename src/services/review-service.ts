@@ -8,7 +8,7 @@ import { getApiUrl } from "../lib/config";
 
 // Review types
 export type ReviewAction = 'approved' | 'needs_revision';
-export type ReviewStatus = 'pending' | 'approved' | 'needs_revision';
+export type ReviewStatus = 'pending' | 'pending_revision' | 'approved' | 'needs_revision';
 
 export interface Review {
   id: string;
@@ -151,6 +151,7 @@ class ReviewService {
 
 export interface ReviewStats {
   pending: number;
+  pending_revision: number;
   approved: number;
   needs_revision: number;
 }

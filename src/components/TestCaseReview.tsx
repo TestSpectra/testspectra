@@ -138,13 +138,18 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
           <div className="border-l border-slate-700 h-8"></div>
           <TestCaseHeader testCase={testCase} />
           
-          {/* Re-Review Badge */}
-          {isReReview && (
+          {/* Review Type Badge */}
+          {testCase.reviewStatus === 'pending_revision' || isReReview ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
               <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
               <span className="text-sm font-medium text-purple-400">Re-Review</span>
             </div>
-          )}
+          ) : testCase.reviewStatus === 'pending' ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-blue-400">New Review</span>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -281,8 +286,8 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
             )}
           </div>
 
-          {/* Review History - Show if re-review or not pending */}
-          {(isReReview || (testCase.reviewStatus && testCase.reviewStatus !== 'pending')) && (
+          {/* Review History - Show if pending_revision or not pending */}
+          {(testCase.reviewStatus === 'pending_revision' || isReReview || (testCase.reviewStatus && testCase.reviewStatus !== 'pending')) && (
             <ReviewHistory testCaseId={testCase.id} />
           )}
 
