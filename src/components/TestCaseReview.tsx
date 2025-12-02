@@ -34,7 +34,7 @@ interface TestCase {
   createdByName?: string;
   createdAt?: string;
   updatedAt?: string;
-  reviewStatus?: string;
+  reviewStatus?: 'pending' | 'pending_revision' | 'approved' | 'needs_revision';
 }
 
 interface TestCaseReviewProps {
@@ -290,7 +290,10 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
 
           {/* Review History - Show if pending_revision or not pending */}
           {(testCase.reviewStatus === 'pending_revision' || isReReview || (testCase.reviewStatus && testCase.reviewStatus !== 'pending')) && (
-            <ReviewHistory testCaseId={testCase.id} />
+            <ReviewHistory 
+              testCaseId={testCase.id}
+              reviewStatus={testCase.reviewStatus}
+            />
           )}
 
           <TestCaseMetadata testCase={testCase} />

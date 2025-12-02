@@ -5,10 +5,10 @@ import { reviewService, type Review } from '../services/review-service';
 interface ReviewHistoryProps {
   testCaseId: string;
   refreshTrigger?: number;
-  onStatusChange?: (status: 'pending' | 'approved' | 'needs_revision') => void;
+  reviewStatus?: 'pending' | 'pending_revision' | 'approved' | 'needs_revision';
 }
 
-export function ReviewHistory({ testCaseId, refreshTrigger, onStatusChange }: ReviewHistoryProps) {
+export function ReviewHistory({ testCaseId, refreshTrigger, reviewStatus }: ReviewHistoryProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,18 +31,7 @@ export function ReviewHistory({ testCaseId, refreshTrigger, onStatusChange }: Re
     fetchReviews();
   }, [testCaseId, refreshTrigger]);
 
-  // Get current status based on latest review
-  const getCurrentStatus = () => {
-    if (reviews.length === 0) return 'pending';
-    return reviews[0].action; // Latest review is first
-  };
-
-  const currentStatus = getCurrentStatus();
-
-  // Notify parent of status changes
-  useEffect(() => {
-    onStatusChange?.(currentStatus);
-  }, [currentStatus, onStatusChange]);
+  // Use reviewStatus from props (from test case data)
 
   const getActionColor = (action: string) => {
     if (action === 'approved') {
@@ -98,23 +87,29 @@ export function ReviewHistory({ testCaseId, refreshTrigger, onStatusChange }: Re
           Review History
         </h2>
         
-        {/* Status Badge */}
-        {currentStatus === 'approved' && (
+        {/* Status Badge - from test case reviewStatus */}
+        {reviewStatus === 'pending' && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-500/20 rounded-full border border-blue-500/30">
+            <Clock className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-xs font-medium text-blue-400">Waiting for Review</span>
+          </div>
+        )}
+        {reviewStatus === 'pending_revision' && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-500/20 rounded-full border border-purple-500/30">
+            <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+            <span className="text-xs font-medium text-purple-400">Revised - Waiting for Review</span>
+          </div>
+        )}
+        {reviewStatus === 'approved' && (
           <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 rounded-full border border-green-500/30">
             <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
             <span className="text-xs font-medium text-green-400">Approved</span>
           </div>
         )}
-        {currentStatus === 'needs_revision' && (
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/20 rounded-full border border-orange-500/30">
-            <XCircle className="w-3.5 h-3.5 text-orange-400" />
-            <span className="text-xs font-medium text-orange-400">Needs Revision</span>
-          </div>
-        )}
-        {currentStatus === 'pending' && (
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-500/20 rounded-full border border-slate-500/30">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-xs font-medium text-slate-400">Pending</span>
+        {reviewStatus === 'needs_revision' && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 rounded-full border border-red-500/30">
+            <XCircle className="w-3.5 h-3.5 text-red-400" />
+            <span className="text-xs font-medium text-red-400">Needs Revision</span>
           </div>
         )}
       </div>

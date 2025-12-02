@@ -320,6 +320,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           <ReviewHistory
             testCaseId={testCase.id}
             refreshTrigger={reviewRefreshTrigger}
+            reviewStatus={testCase.reviewStatus}
           />
 
           {/* Last Execution Status */}
