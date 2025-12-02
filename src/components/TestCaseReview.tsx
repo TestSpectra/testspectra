@@ -281,8 +281,8 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
             )}
           </div>
 
-          {/* Review History - Show if not pending */}
-          {testCase.reviewStatus && testCase.reviewStatus !== 'pending' && (
+          {/* Review History - Show if re-review or not pending */}
+          {(isReReview || (testCase.reviewStatus && testCase.reviewStatus !== 'pending')) && (
             <ReviewHistory testCaseId={testCase.id} />
           )}
 
