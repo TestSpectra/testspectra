@@ -17,6 +17,8 @@ import { Tools } from './components/Tools';
 import { UserManagement } from './components/UserManagement';
 import { VersionGuard } from './components/VersionGuard';
 import { UpdateNotification } from './components/UpdateNotification';
+import { Toaster } from './components/ui/sonner';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 import { getUserServiceClient } from './services/api-client';
 import { authService } from './services/auth-service';
 import { useUpdateManager } from './hooks/useUpdateManager';
@@ -308,9 +310,12 @@ export default function App() {
   return (
     <VersionGuard>
       <Router>
-        <div className="h-screen flex flex-col overflow-hidden">
-          <AppContent />
-        </div>
+        <WebSocketProvider>
+          <div className="h-screen flex flex-col overflow-hidden">
+            <AppContent />
+          </div>
+          <Toaster />
+        </WebSocketProvider>
       </Router>
     </VersionGuard>
   );
