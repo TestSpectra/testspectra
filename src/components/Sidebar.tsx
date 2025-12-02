@@ -233,11 +233,10 @@ export function Sidebar({
 
                     {/* Badge when expanded - inline */}
                     {isExpanded && item.badge && item.badge > 0 && (
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${
-                        isActive 
-                          ? 'bg-white/20 text-white' 
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${isActive
+                          ? 'bg-white/20 text-white'
                           : 'bg-yellow-500/20 text-yellow-400'
-                      }`}>
+                        }`}>
                         {item.badge}
                       </span>
                     )}
@@ -245,11 +244,10 @@ export function Sidebar({
 
                   {/* Badge when collapsed - absolute positioned */}
                   {!isExpanded && item.badge && item.badge > 0 && (
-                    <span className={`absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-semibold rounded-full ${
-                      isActive 
-                        ? 'bg-white/20 text-white' 
+                    <span className={`absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-semibold rounded-full ${isActive
+                        ? 'bg-white/20 text-white'
                         : 'bg-yellow-500/20 text-yellow-400'
-                    }`}>
+                      }`}>
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
                   )}
@@ -262,7 +260,7 @@ export function Sidebar({
         {/* Bottom Section - Sticky */}
         <div className="sticky bottom-0 z-10 bg-slate-900 shrink-0">
           {/* Quick Stats */}
-          <div className={`border-t border-slate-800 space-y-3 transition-[padding] duration-300 ${isExpanded ? 'p-4' : 'py-4 flex flex-col items-center'}`}>
+          {/* <div className={`border-t border-slate-800 space-y-3 transition-[padding] duration-300 ${isExpanded ? 'p-4' : 'py-4 flex flex-col items-center'}`}>
             <div className={`flex items-center text-sm h-5 ${isExpanded ? 'justify-between w-full' : 'justify-center'}`}>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
@@ -296,7 +294,7 @@ export function Sidebar({
                 5
               </span>
             </div>
-          </div>
+          </div> */}
 
           {/* User Profile */}
           <div className={`border-t border-slate-800 bg-slate-800/30 transition-all duration-300 ${isExpanded ? 'p-4' : 'py-4 px-0'}`}>
