@@ -53,6 +53,9 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
     setIsLoading(true);
     setError(null);
     try {
+      // TODO: Update backend to accept array of review statuses (reviewStatusFilter: string[])
+      // This will allow filtering multiple statuses on backend side instead of client side
+      // Example: reviewStatusFilter: ['pending', 'pending_revision']
       const response = await testCaseService.listTestCases({
         searchQuery: searchQuery || undefined,
         priorityFilter: filterPriority !== 'all' ? filterPriority : undefined,
@@ -456,14 +459,6 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
 
                     {/* Right: Actions */}
                     <div className="flex flex-col gap-2">
-                      <Button
-                        onClick={() => onViewDetail(item.id)}
-                        variant="outline"
-                        className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
 
                       {item.reviewStatus === 'pending' && canReview && (
                         <Button
