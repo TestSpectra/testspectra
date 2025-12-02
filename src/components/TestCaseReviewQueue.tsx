@@ -56,7 +56,8 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
       const response = await testCaseService.listTestCases({
         searchQuery: searchQuery || undefined,
         priorityFilter: filterPriority !== 'all' ? filterPriority : undefined,
-        reviewStatusFilter: filterStatus !== 'all' ? filterStatus : undefined,
+        // Don't send reviewStatusFilter to backend - we'll filter on client side
+        // This allows us to show both 'pending' and 'pending_revision' when filtering by 'pending'
         page: 1,
         pageSize: 100, // Get more items for review queue
       });
@@ -78,7 +79,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, filterStatus, filterPriority, filterSuite]);
+  }, [searchQuery, filterPriority, filterSuite]);
 
   useEffect(() => {
     fetchTestCases();
