@@ -24,16 +24,6 @@ export function TitleBar() {
                     const appWindow = getCurrentWindow();
                     const maximized = await appWindow.isMaximized();
                     setIsMaximized(maximized);
-
-                    // Listen for window resize events
-                    const unlisten = await appWindow.onResized(async () => {
-                        const maximized = await appWindow.isMaximized();
-                        setIsMaximized(maximized);
-                    });
-
-                    return () => {
-                        unlisten();
-                    };
                 }
             } catch (error) {
                 console.error('Failed to detect platform:', error);
@@ -65,6 +55,8 @@ export function TitleBar() {
             if (window.__TAURI__) {
                 const { getCurrentWindow } = await import('@tauri-apps/api/window');
                 await getCurrentWindow().toggleMaximize();
+                const isMaximized = await getCurrentWindow().isMaximized()
+                setIsMaximized(isMaximized)
             }
         } catch (error) {
             console.error('Failed to maximize:', error);
