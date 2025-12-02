@@ -98,6 +98,8 @@ pub struct CreateUserRequest {
     pub password: String,
     pub name: String,
     pub role: String,
+    #[serde(rename = "specialPermissions")]
+    pub special_permissions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -105,6 +107,8 @@ pub struct UpdateUserRequest {
     pub email: Option<String>,
     pub name: Option<String>,
     pub role: Option<String>,
+    #[serde(rename = "specialPermissions")]
+    pub special_permissions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]

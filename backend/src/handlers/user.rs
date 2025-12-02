@@ -241,7 +241,11 @@ async fn create_user(
     headers: HeaderMap,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    verify_token(&state, &headers)?;
+    let token = extract_bearer_token(headers.get("authorization").and_then(|v| v.to_str().ok()))
+        .ok_or_else(|| AppError::Unauthorized("Missing token".to_string()))?;
+
+    let claims = state.jwt.verify_token(&token)?;
+    let granter_id = Uuid::parse_str(&claims.sub).ok();
 
     // Check if email exists
     let exists: Option<(i32,)> = sqlx::query_as("SELECT 1 FROM users WHERE email = $1")
@@ -269,6 +273,23 @@ async fn create_user(
     .fetch_one(&state.db)
     .await?;
 
+    // Add special permissions if provided
+    if let Some(permissions) = payload.special_permissions {
+        for permission in permissions {
+            sqlx::query(
+                r#"INSERT INTO user_special_permissions (id, user_id, permission, granted_by)
+                   VALUES ($1, $2, $3, $4)
+                   ON CONFLICT (user_id, permission) DO NOTHING"#
+            )
+            .bind(Uuid::new_v4())
+            .bind(user.id)
+            .bind(&permission)
+            .bind(granter_id)
+            .execute(&state.db)
+            .await?;
+        }
+    }
+
     let special_permissions = get_user_permissions(&state.db, user.id).await?;
     let base_permissions = get_base_permissions_for_role(&user.role);
 
@@ -285,7 +306,11 @@ async fn update_user(
     Path(id): Path<Uuid>,
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    verify_token(&state, &headers)?;
+    let token = extract_bearer_token(headers.get("authorization").and_then(|v| v.to_str().ok()))
+        .ok_or_else(|| AppError::Unauthorized("Missing token".to_string()))?;
+
+    let claims = state.jwt.verify_token(&token)?;
+    let granter_id = Uuid::parse_str(&claims.sub).ok();
 
     // Check if email exists for other user
     if let Some(ref email) = payload.email {
@@ -316,6 +341,48 @@ async fn update_user(
     .fetch_optional(&state.db)
     .await?
     .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    // Handle special permissions if provided
+    if let Some(new_permissions) = payload.special_permissions {
+        // Get current permissions from database
+        let current_permissions = get_user_permissions(&state.db, user.id).await?;
+
+        // Find permissions to add (in new but not in current)
+        let permissions_to_add: Vec<&String> = new_permissions
+            .iter()
+            .filter(|p| !current_permissions.contains(p))
+            .collect();
+
+        // Find permissions to revoke (in current but not in new)
+        let permissions_to_revoke: Vec<&String> = current_permissions
+            .iter()
+            .filter(|p| !new_permissions.contains(p))
+            .collect();
+
+        // Add new permissions
+        for permission in permissions_to_add {
+            sqlx::query(
+                r#"INSERT INTO user_special_permissions (id, user_id, permission, granted_by)
+                   VALUES ($1, $2, $3, $4)
+                   ON CONFLICT (user_id, permission) DO NOTHING"#
+            )
+            .bind(Uuid::new_v4())
+            .bind(user.id)
+            .bind(permission)
+            .bind(granter_id)
+            .execute(&state.db)
+            .await?;
+        }
+
+        // Revoke removed permissions
+        for permission in permissions_to_revoke {
+            sqlx::query("DELETE FROM user_special_permissions WHERE user_id = $1 AND permission = $2")
+                .bind(user.id)
+                .bind(permission)
+                .execute(&state.db)
+                .await?;
+        }
+    }
 
     let special_permissions = get_user_permissions(&state.db, user.id).await?;
     let base_permissions = get_base_permissions_for_role(&user.role);
