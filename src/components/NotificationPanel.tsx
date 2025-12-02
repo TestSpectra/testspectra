@@ -15,9 +15,11 @@ import { ScrollArea } from './ui/scroll-area';
 interface NotificationPanelProps {
   onClose?: () => void;
   onUnreadCountChange?: (count: number) => void;
+  isOpen?: boolean;
+  style?: any;
 }
 
-export function NotificationPanel({ onClose, onUnreadCountChange }: NotificationPanelProps) {
+export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true }: NotificationPanelProps) {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [total, setTotal] = useState(0);
@@ -25,6 +27,7 @@ export function NotificationPanel({ onClose, onUnreadCountChange }: Notification
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
   const pageSize = 20;
 
   /**
@@ -135,11 +138,27 @@ export function NotificationPanel({ onClose, onUnreadCountChange }: Notification
     loadNotifications(1);
   }, []);
 
+  /**
+   * Handle animation state
+   */
+  useEffect(() => {
+    if (isOpen) {
+      setIsAnimating(true);
+    }
+  }, [isOpen]);
+
   const hasMore = page * pageSize < total;
   const hasPrevious = page > 1;
 
   return (
-    <Card className="w-full max-w-md bg-slate-900 border-slate-800">
+    <div
+      className={`
+        w-full
+        transition-all duration-300 ease-in-out
+        ${isOpen && isAnimating ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-4 scale-95 pointer-events-none'}
+      `}
+    >
+      <Card className="w-full bg-slate-900 border-slate-800">
       <CardHeader className="border-b border-slate-800">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg text-slate-100 flex items-center gap-2">
@@ -264,5 +283,6 @@ export function NotificationPanel({ onClose, onUnreadCountChange }: Notification
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }

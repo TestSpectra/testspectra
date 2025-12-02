@@ -113,21 +113,20 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
         </button>
       </div>
 
-      {isOpen && (
-        <div
-          ref={panelRef}
-          className="fixed z-50 shadow-2xl w-110"
-          style={{
-            top: `${panelPosition.top}px`,
-            right: `${panelPosition.right}px`,
-          }}
-        >
-          <NotificationPanel
-            onClose={() => setIsOpen(false)}
-            onUnreadCountChange={handleUnreadCountChange}
-          />
-        </div>
-      )}
+      <div
+        ref={panelRef}
+        className={`fixed rounded-2xl shadow-2xl w-110 ${isOpen ? "visible z-50" : "invisible -z-1"}`}
+        style={{
+          top: `${panelPosition.top}px`,
+          right: `${panelPosition.right}px`,
+        }}
+      >
+        <NotificationPanel
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          onUnreadCountChange={handleUnreadCountChange}
+        />
+      </div>
     </>
   );
 }
