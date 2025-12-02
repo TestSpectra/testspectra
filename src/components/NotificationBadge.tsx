@@ -10,9 +10,11 @@ import { NotificationPanel } from './NotificationPanel';
 import { notificationService } from '../services/notification-service';
 import { websocketService, WebSocketMessage } from '../services/websocket-service';
 
-interface NotificationBadgeProps {}
+interface NotificationBadgeProps {
+  userId?: string;
+}
 
-export function NotificationBadge({}: NotificationBadgeProps) {
+export function NotificationBadge({ userId }: NotificationBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -20,6 +22,7 @@ export function NotificationBadge({}: NotificationBadgeProps) {
 
   /**
    * Fetch initial unread count
+   * Refetch when userId changes (user login/logout/switch)
    */
   useEffect(() => {
     const fetchUnreadCount = async () => {
@@ -28,11 +31,18 @@ export function NotificationBadge({}: NotificationBadgeProps) {
         setUnreadCount(response.unreadCount);
       } catch (error) {
         console.error('Failed to fetch unread count:', error);
+        // Reset count on error (e.g., user logged out)
+        setUnreadCount(0);
       }
     };
 
-    fetchUnreadCount();
-  }, []);
+    if (userId) {
+      fetchUnreadCount();
+    } else {
+      // Reset count when no user
+      setUnreadCount(0);
+    }
+  }, [userId]);
 
   /**
    * Listen to WebSocket for new notifications
@@ -142,6 +152,7 @@ export function NotificationBadge({}: NotificationBadgeProps) {
         }}
       >
         <NotificationPanel
+          key={userId} // Force re-render when user changes
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
           onUnreadCountChange={handleUnreadCountChange}

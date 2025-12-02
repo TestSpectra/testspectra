@@ -4,7 +4,11 @@ import { NotificationBadge } from './NotificationBadge';
 
 type Platform = 'macos' | 'windows' | 'linux' | 'unknown';
 
-export function TitleBar() {
+interface TitleBarProps {
+    currentUser?: any;
+}
+
+export function TitleBar({ currentUser }: TitleBarProps = {}) {
     const [platform, setPlatform] = useState<Platform>('unknown');
     const [isMaximized, setIsMaximized] = useState(false);
 
@@ -165,7 +169,7 @@ export function TitleBar() {
             {/* Right side - Notification badge and Windows/Linux controls */}
             <div className="flex items-center h-full gap-2">
                 <div className="pr-4">
-                    <NotificationBadge />
+                    <NotificationBadge userId={currentUser?.id} />
                 </div>
                 {platform !== 'macos' && platform !== 'unknown' && <WindowsControls />}
             </div>

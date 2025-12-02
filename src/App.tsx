@@ -236,7 +236,7 @@ function AppContent() {
   if (!isAuthenticated) {
     return (
       <>
-        <TitleBar />
+        <TitleBar currentUser={null} />
         <Routes>
           <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
@@ -247,7 +247,7 @@ function AppContent() {
 
   return (
     <>
-      <TitleBar />
+      <TitleBar currentUser={currentUser} />
       <Routes>
         <Route element={<Layout currentView={currentView} onViewChange={handleViewChange} onLogout={handleLogout} currentUser={currentUser} onCheckForUpdates={handleCheckForUpdates} />}>
         <Route path="/" element={<Dashboard
