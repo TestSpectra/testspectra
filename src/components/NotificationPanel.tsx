@@ -157,7 +157,7 @@ export function NotificationPanel({ onClose, onUnreadCountChange }: Notification
                 variant="ghost"
                 size="sm"
                 onClick={handleMarkAllAsRead}
-                className="text-slate-400 hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-200 hover:bg-slate-950/60 cursor-pointer"
               >
                 <CheckCheck className="w-4 h-4 mr-1" />
                 Mark all read
@@ -168,7 +168,7 @@ export function NotificationPanel({ onClose, onUnreadCountChange }: Notification
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                className="text-slate-400 hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-200 hover:bg-slate-950/60 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </Button>

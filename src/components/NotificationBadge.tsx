@@ -86,7 +86,7 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
       {isOpen && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 z-50 shadow-2xl"
+          className="absolute right-0 top-full mt-2 z-50 shadow-2xl w-110"
         >
           <NotificationPanel 
             onClose={() => setIsOpen(false)}
