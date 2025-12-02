@@ -187,14 +187,14 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
         return (
           <Badge variant="outline" className="bg-blue-500/20 text-blue-400 border-blue-500/30 border">
             <Clock className="w-3 h-3 mr-1" />
-            New Review
+            Waiting for Review
           </Badge>
         );
       case 'pending_revision':
         return (
           <Badge variant="outline" className="bg-purple-500/20 text-purple-400 border-purple-500/30 border">
             <MessageSquare className="w-3 h-3 mr-1" />
-            Revised
+            Revised - Waiting for Review
           </Badge>
         );
       case 'approved':
