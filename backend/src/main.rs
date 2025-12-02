@@ -4,6 +4,7 @@ mod error;
 mod handlers;
 mod models;
 mod maintenance;
+mod websocket;
 
 use axum::Router;
 use sqlx::postgres::PgPoolOptions;
@@ -12,8 +13,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use auth::JwtService;
 use config::Config;
-use handlers::{user::UserState, test_case::TestCaseState, test_suite::TestSuiteState, ActionDefinitionState};
+use handlers::{user::UserState, test_case::TestCaseState, test_suite::TestSuiteState, ActionDefinitionState, review::ReviewState, notification::NotificationState, WebSocketState};
 use axum::routing::get;
+use websocket::WsManager;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,11 +53,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create JWT service
     let jwt = JwtService::new(config.jwt_secret.clone());
 
+    // Create WebSocket manager
+    let ws_manager = WsManager::new();
+
     // Create states
     let user_state = UserState { db: db.clone(), jwt: jwt.clone() };
     let test_case_state = TestCaseState { db: db.clone(), jwt: jwt.clone() };
     let test_suite_state = TestSuiteState { db: db.clone(), jwt: jwt.clone() };
     let action_def_state = ActionDefinitionState { pool: db.clone() };
+    let review_state = ReviewState { db: db.clone(), jwt: jwt.clone(), ws_manager: ws_manager.clone() };
+    let notification_state = NotificationState { db: db.clone(), jwt: jwt.clone(), ws_manager: ws_manager.clone() };
+    let websocket_state = WebSocketState { ws_manager: ws_manager.clone(), jwt: jwt.clone() };
 
     // CORS layer
     let cors = CorsLayer::new()
@@ -75,9 +83,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/api/version", get(handlers::get_version))
+        .route("/api/ws", get(handlers::ws_handler))
+        .with_state(websocket_state)
         .nest("/api", handlers::user_routes(user_state))
         .nest("/api", handlers::test_case_routes(test_case_state))
         .nest("/api", handlers::test_suite_routes(test_suite_state))
+        .nest("/api", handlers::review_routes(review_state))
+        .nest("/api", handlers::notification_routes(notification_state))
         .nest("/api", definitions_routes)
         .layer(cors);
 
