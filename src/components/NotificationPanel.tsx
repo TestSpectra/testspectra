@@ -73,7 +73,12 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
 
       // Navigate to related test case if available
       if (notification.relatedEntityType === 'test_case' && notification.relatedEntityId) {
-        navigate(`/test-cases/${notification.relatedEntityId}`);
+        // For test_case_created notifications, go directly to review page
+        if (notification.type === 'test_case_created') {
+          navigate(`/review-queue/review/${notification.relatedEntityId}`);
+        } else {
+          navigate(`/test-cases/${notification.relatedEntityId}`);
+        }
         onClose?.();
       }
     } catch (err) {

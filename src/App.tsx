@@ -197,8 +197,7 @@ function AppContent() {
   };
 
   const handleReviewTestCase = (testCaseId: string) => {
-    setSelectedTestCaseId(testCaseId);
-    navigate('/review-queue/review');
+    navigate(`/review-queue/review/${testCaseId}`);
   };
 
   const handleDeleteFromDetail = (testCaseId: string) => {
@@ -260,6 +259,10 @@ function AppContent() {
           onReviewTestCase={handleReviewTestCase}
         />} />
 
+        <Route path="/review-queue/review/:testCaseId" element={<TestCaseReview
+          onBack={() => navigate('/review-queue')}
+        />} />
+        
         <Route path="/review-queue/review" element={selectedTestCaseId ? <TestCaseReview
           testCaseId={selectedTestCaseId}
           onBack={() => navigate('/review-queue')}

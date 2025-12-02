@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { testCaseService } from '../services/test-case-service';
@@ -37,11 +38,13 @@ interface TestCase {
 }
 
 interface TestCaseReviewProps {
-  testCaseId: string;
+  testCaseId?: string;
   onBack: () => void;
 }
 
-export function TestCaseReview({ testCaseId, onBack }: TestCaseReviewProps) {
+export function TestCaseReview({ testCaseId: propTestCaseId, onBack }: TestCaseReviewProps) {
+  const { testCaseId: urlTestCaseId } = useParams<{ testCaseId: string }>();
+  const testCaseId = propTestCaseId || urlTestCaseId;
   const [testCase, setTestCase] = useState<TestCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +54,8 @@ export function TestCaseReview({ testCaseId, onBack }: TestCaseReviewProps) {
 
   useEffect(() => {
     const fetchTestCase = async () => {
+      if (!testCaseId) return;
+      
       try {
         setIsLoading(true);
         const data = await testCaseService.getTestCase(testCaseId);
@@ -67,7 +72,7 @@ export function TestCaseReview({ testCaseId, onBack }: TestCaseReviewProps) {
   }, [testCaseId]);
 
   const handleSubmitReview = async () => {
-    if (!reviewAction) return;
+    if (!reviewAction || !testCaseId) return;
     if (reviewAction === 'reject' && !comment.trim()) {
       alert('Comment is required when requesting changes');
       return;
