@@ -137,19 +137,6 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
           </button>
           <div className="border-l border-slate-700 h-8"></div>
           <TestCaseHeader testCase={testCase} />
-          
-          {/* Review Type Badge */}
-          {testCase.reviewStatus === 'pending_revision' || isReReview ? (
-            <div className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
-              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-purple-400">Re-Review</span>
-            </div>
-          ) : testCase.reviewStatus === 'pending' ? (
-            <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-lg border border-blue-500/30">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-blue-400">New Review</span>
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -163,7 +150,22 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
         <div className="space-y-6">
           {/* Review Action Card */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <h3 className="text-lg mb-4">Submit Review</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg">Submit Review</h3>
+              
+              {/* Review Type Badge */}
+              {testCase.reviewStatus === 'pending_revision' || isReReview ? (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-500/20 rounded-full border border-purple-500/30">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-medium text-purple-400">Re-Review</span>
+                </div>
+              ) : testCase.reviewStatus === 'pending' ? (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-500/20 rounded-full border border-blue-500/30">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-medium text-blue-400">New Review</span>
+                </div>
+              ) : null}
+            </div>
             
             {!reviewAction ? (
               <div className="space-y-3">
