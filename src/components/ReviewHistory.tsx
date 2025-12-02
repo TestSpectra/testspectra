@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, CheckCircle2, XCircle, User, MessageSquare } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
 import { reviewService, type Review } from '../services/review-service';
 
 interface ReviewHistoryProps {
@@ -30,19 +30,13 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
     fetchReviews();
   }, [testCaseId, refreshTrigger]);
 
-  const getActionIcon = (action: string) => {
-    if (action === 'approved') {
-      return <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />;
-    }
-    return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+  // Get current status based on latest review
+  const getCurrentStatus = () => {
+    if (reviews.length === 0) return 'pending';
+    return reviews[0].action; // Latest review is first
   };
 
-  const getActionLabel = (action: string) => {
-    if (action === 'approved') {
-      return 'Approved';
-    }
-    return 'Requested Edit';
-  };
+  const currentStatus = getCurrentStatus();
 
   const getActionColor = (action: string) => {
     if (action === 'approved') {
@@ -92,10 +86,32 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
 
   return (
     <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-      <h2 className="mb-4 flex items-center gap-2">
-        <Clock className="w-5 h-5 text-purple-400" />
-        Review History
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="flex items-center gap-2">
+          <Clock className="w-5 h-5 text-purple-400" />
+          Review History
+        </h2>
+        
+        {/* Status Badge */}
+        {currentStatus === 'approved' && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 rounded-full border border-green-500/30">
+            <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+            <span className="text-xs font-medium text-green-400">Approved</span>
+          </div>
+        )}
+        {currentStatus === 'needs_revision' && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/20 rounded-full border border-orange-500/30">
+            <XCircle className="w-3.5 h-3.5 text-orange-400" />
+            <span className="text-xs font-medium text-orange-400">Needs Revision</span>
+          </div>
+        )}
+        {currentStatus === 'pending' && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-500/20 rounded-full border border-slate-500/30">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-xs font-medium text-slate-400">Pending</span>
+          </div>
+        )}
+      </div>
 
       {reviews.length === 0 ? (
         <div className="text-center py-8">
