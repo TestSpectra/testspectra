@@ -27,6 +27,7 @@ pub fn review_routes(state: ReviewState) -> Router {
         .route("/test-cases/:id/reviews", post(create_review))
         .route("/test-cases/:id/reviews", get(get_review_history))
         .route("/test-cases/:id/last-review", get(get_last_review))
+        .route("/reviews/stats", get(get_review_stats))
         .with_state(state)
 }
 
@@ -176,6 +177,12 @@ async fn create_review(
         tracing::error!("Failed to create notification: {:?}", e);
     }
 
+    // Broadcast review stats update via WebSocket
+    let stats_result = broadcast_review_stats_update(&state).await;
+    if let Err(e) = stats_result {
+        tracing::error!("Failed to broadcast review stats: {:?}", e);
+    }
+
     // Return response
     Ok(Json(ReviewResponse {
         id: review.id.to_string(),
@@ -264,6 +271,38 @@ async fn get_last_review(
     Ok(Json(response))
 }
 
+async fn get_review_stats(
+    State(state): State<ReviewState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    verify_token(&state, &headers)?;
+
+    // Get counts for each review status
+    let pending_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'pending'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    let approved_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'approved'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    let needs_revision_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'needs_revision'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    Ok(Json(serde_json::json!({
+        "pending": pending_count.0,
+        "approved": approved_count.0,
+        "needs_revision": needs_revision_count.0
+    })))
+}
+
 fn verify_token(state: &ReviewState, headers: &HeaderMap) -> Result<String, AppError> {
     let token = extract_bearer_token(headers.get("authorization").and_then(|v| v.to_str().ok()))
         .ok_or_else(|| AppError::Unauthorized("Missing token".to_string()))?;
@@ -318,4 +357,40 @@ async fn get_user_special_permissions(db: &PgPool, user_id: Uuid) -> Result<Vec<
     .await?;
 
     Ok(permissions.into_iter().map(|(p,)| p).collect())
+}
+
+// Helper function to broadcast review stats update
+async fn broadcast_review_stats_update(state: &ReviewState) -> Result<(), AppError> {
+    // Get current stats
+    let pending_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'pending'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    let approved_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'approved'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    let needs_revision_count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM test_cases WHERE review_status = 'needs_revision'"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    // Broadcast to all connected clients
+    let message = serde_json::json!({
+        "type": "review_stats_update",
+        "data": {
+            "pending": pending_count.0,
+            "approved": approved_count.0,
+            "needs_revision": needs_revision_count.0
+        }
+    });
+
+    state.ws_manager.broadcast(message.to_string()).await;
+
+    Ok(())
 }

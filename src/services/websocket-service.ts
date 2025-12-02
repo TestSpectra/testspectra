@@ -7,8 +7,9 @@ import { getApiUrl } from '../lib/config';
 import { logDebug } from '../lib/debug';
 
 export interface WebSocketMessage {
-  type: 'notification' | 'ping' | 'pong';
+  type: 'notification' | 'ping' | 'pong' | 'review_stats_update';
   payload?: any;
+  data?: any; // For review_stats_update
 }
 
 type MessageCallback = (message: WebSocketMessage) => void;

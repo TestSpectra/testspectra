@@ -3,9 +3,10 @@ import { Eye, CheckCircle, XCircle, Clock, Search, User, Calendar, MessageSquare
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { testCaseService, TestCaseSummary, ReviewStatus } from '../services/test-case-service';
-import { reviewService, Review } from '../services/review-service';
+import { reviewService, Review, ReviewStats } from '../services/review-service';
 import { authService } from '../services/auth-service';
 import { getTimeAgo } from '../lib/utils';
+import { useWebSocket } from '../contexts/WebSocketContext';
 
 interface TestCaseReviewQueueProps {
   onViewDetail: (testCaseId: string) => void;
@@ -23,9 +24,16 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterSuite, setFilterSuite] = useState('all');
 
+  // Stats
+  const [stats, setStats] = useState<ReviewStats>({ pending: 0, approved: 0, needs_revision: 0 });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
   // Last review cache
   const [lastReviews, setLastReviews] = useState<Record<string, Review | null>>({});
   const [loadingReviews, setLoadingReviews] = useState<Record<string, boolean>>({});
+
+  // WebSocket for realtime updates
+  const { onMessage } = useWebSocket();
 
   // Current user
   const canReview = authService.hasPermission('review_approve_test_cases');
@@ -70,6 +78,34 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
   useEffect(() => {
     fetchTestCases();
   }, [fetchTestCases]);
+
+  // Fetch stats
+  const fetchStats = useCallback(async () => {
+    try {
+      setIsLoadingStats(true);
+      const data = await reviewService.getReviewStats();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to fetch review stats:', err);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Listen for WebSocket updates
+  useEffect(() => {
+    const unsubscribe = onMessage((message) => {
+      if (message.type === 'review_stats_update' && message.data) {
+        setStats(message.data as ReviewStats);
+      }
+    });
+
+    return unsubscribe;
+  }, [onMessage]);
 
   // Lazy load last review for a test case
   const loadLastReview = useCallback(async (testCaseId: string) => {
@@ -117,10 +153,10 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
   // Get unique suites for filter dropdown
   const uniqueSuites = Array.from(new Set(testCases.map(tc => tc.suite))).sort();
 
-  // Group by status
-  const pendingItems = filteredQueue.filter(item => item.reviewStatus === 'pending');
-  const approvedItems = filteredQueue.filter(item => item.reviewStatus === 'approved');
-  const rejectedItems = filteredQueue.filter(item => item.reviewStatus === 'needs_revision');
+  // Use stats from API instead of filtering
+  const pendingCount = stats.pending;
+  const approvedCount = stats.approved;
+  const rejectedCount = stats.needs_revision;
 
   const getPriorityColor = (priority: string) => {
     const colors: any = {
@@ -185,7 +221,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
             <h3 className="text-sm text-slate-400">Pending Review</h3>
             <Clock className="w-5 h-5 text-yellow-400" />
           </div>
-          <p className="text-3xl text-yellow-400">{pendingItems.length}</p>
+          <p className="text-3xl text-yellow-400">{isLoadingStats ? '-' : pendingCount}</p>
           <p className="text-xs text-slate-500 mt-1">Awaiting your review</p>
         </div>
 
@@ -201,7 +237,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
             <h3 className="text-sm text-slate-400">Approved</h3>
             <CheckCircle className="w-5 h-5 text-green-400" />
           </div>
-          <p className="text-3xl text-green-400">{approvedItems.length}</p>
+          <p className="text-3xl text-green-400">{isLoadingStats ? '-' : approvedCount}</p>
           <p className="text-xs text-slate-500 mt-1">Recently approved</p>
         </div>
 
@@ -217,7 +253,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
             <h3 className="text-sm text-slate-400">Needs Revision</h3>
             <XCircle className="w-5 h-5 text-red-400" />
           </div>
-          <p className="text-3xl text-red-400">{rejectedItems.length}</p>
+          <p className="text-3xl text-red-400">{isLoadingStats ? '-' : rejectedCount}</p>
           <p className="text-xs text-slate-500 mt-1">Need revision</p>
         </div>
       </div>

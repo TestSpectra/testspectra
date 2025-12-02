@@ -59,6 +59,52 @@ impl WsManager {
     pub fn connection_count(&self) -> usize {
         self.connections.len()
     }
+
+    /// Broadcast a message to all connected users
+    pub async fn broadcast(&self, message: String) {
+        let ws_message = match serde_json::from_str::<serde_json::Value>(&message) {
+            Ok(json_value) => {
+                // Extract type and data from the JSON
+                let msg_type = json_value.get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+                
+                let payload = json_value.get("data").cloned();
+
+                WsMessage {
+                    msg_type,
+                    payload,
+                }
+            }
+            Err(_) => {
+                // If parsing fails, send as raw message
+                WsMessage {
+                    msg_type: "raw".to_string(),
+                    payload: Some(serde_json::json!({ "message": message })),
+                }
+            }
+        };
+
+        let mut failed_connections = Vec::new();
+
+        for entry in self.connections.iter() {
+            let user_id = *entry.key();
+            let sender = entry.value();
+
+            if let Err(e) = sender.send(ws_message.clone()) {
+                tracing::error!("Failed to broadcast to user {}: {:?}", user_id, e);
+                failed_connections.push(user_id);
+            }
+        }
+
+        // Clean up failed connections
+        for user_id in failed_connections {
+            self.connections.remove(&user_id);
+        }
+
+        tracing::debug!("Broadcast message to {} users", self.connections.len());
+    }
 }
 
 impl Default for WsManager {

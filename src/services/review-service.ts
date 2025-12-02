@@ -108,6 +108,32 @@ class ReviewService {
 
     return response.json();
   }
+
+  /**
+   * Get review statistics
+   */
+  async getReviewStats(): Promise<ReviewStats> {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/reviews/stats`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Failed to fetch review stats" }));
+      throw new Error(error.error || "Failed to fetch review stats");
+    }
+
+    return response.json();
+  }
+}
+
+export interface ReviewStats {
+  pending: number;
+  approved: number;
+  needs_revision: number;
 }
 
 export const reviewService = ReviewService.getInstance();
