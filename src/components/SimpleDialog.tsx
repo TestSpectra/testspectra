@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 
 interface SimpleDialogProps {
   isOpen: boolean;
-  title: string;
+  title: string | ReactNode;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;

@@ -760,12 +760,7 @@ export function UserManagement() {
       {/* Success Dialog with Password */}
       <SimpleDialog
         isOpen={!!successData}
-        title={
-          <div className="flex items-center gap-2 text-green-400">
-            <CheckCircle2 className="w-5 h-5" />
-            User Created Successfully
-          </div>
-        }
+        title="User Created Successfully"
         onClose={() => setSuccessData(null)}
         footer={
           <Button
@@ -777,6 +772,10 @@ export function UserManagement() {
         }
       >
         <div>
+          <div className="flex items-center gap-2 text-green-400 mb-4">
+            <CheckCircle2 className="w-5 h-5" />
+            <span className="font-medium">Success!</span>
+          </div>
           <p className="text-slate-400 mb-4">
             The user has been created. Please share these credentials securely.
           </p>
@@ -821,12 +820,7 @@ export function UserManagement() {
       {/* Error Dialog */}
       <SimpleDialog
         isOpen={!!errorModal}
-        title={
-          <div className="flex items-center gap-2 text-red-400">
-            <AlertCircle className="w-5 h-5" />
-            Error
-          </div>
-        }
+        title="Error"
         onClose={() => setErrorModal(null)}
         footer={
           <Button
@@ -838,6 +832,10 @@ export function UserManagement() {
         }
       >
         <div>
+          <div className="flex items-center gap-2 text-red-400 mb-4">
+            <AlertCircle className="w-5 h-5" />
+            <span className="font-medium">Error</span>
+          </div>
           <p className="text-slate-400 mb-4">
             An error occurred while processing your request.
           </p>

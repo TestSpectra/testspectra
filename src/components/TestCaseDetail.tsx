@@ -61,9 +61,8 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewRefreshTrigger, setReviewRefreshTrigger] = useState(0);
-  
-  const currentUser = authService.getCurrentUser();
-  const isQALead = currentUser?.role === 'QA Lead';
+
+  const canReviewTestCases = authService.hasPermission('review_approve_test_cases');
 
   useEffect(() => {
     const fetchTestCase = async () => {
@@ -90,7 +89,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
     } catch (err) {
       console.error('Failed to refresh test case:', err);
     }
-    
+
     // Trigger review history refresh
     setReviewRefreshTrigger(prev => prev + 1);
   };
@@ -365,10 +364,10 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content - 2 columns */}
         <div className="col-span-2 space-y-6">
-          {/* Review Section - Only for QA Lead */}
-          {isQALead && (
-            <ReviewSection 
-              testCaseId={testCase.id} 
+          {/* Review Section - Only for users with review permission */}
+          {canReviewTestCases && (
+            <ReviewSection
+              testCaseId={testCase.id}
               onReviewSubmitted={handleReviewSubmitted}
             />
           )}
@@ -380,7 +379,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
                 <AlertCircle className="w-5 h-5 text-orange-400" />
                 Pre-Condition
               </h2>
-              <div 
+              <div
                 className="text-slate-300 leading-relaxed prose prose-sm prose-invert max-w-none"
                 dangerouslySetInnerHTML={{ __html: testCase.preCondition }}
               />
@@ -418,7 +417,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
                         <span className="text-lg">{getActionIcon(step.actionType)}</span>
                         <span className="text-sm text-teal-400 font-medium">{getActionLabel(step.actionType)}</span>
                       </div>
-                      
+
                       {/* Action Parameters */}
                       {step.actionParams && Object.keys(step.actionParams).length > 0 && (
                         <div className="space-y-1 text-xs mb-2">
@@ -456,7 +455,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
 
                       {/* Custom Expected Result */}
                       {step.customExpectedResult && (
-                        <div 
+                        <div
                           className="mt-2 text-xs text-slate-400 prose prose-sm prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: step.customExpectedResult }}
                         />
@@ -475,7 +474,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
                 <CheckCircle2 className="w-5 h-5 text-green-400" />
                 Post-Condition
               </h2>
-              <div 
+              <div
                 className="text-slate-300 leading-relaxed prose prose-sm prose-invert max-w-none p-4 bg-green-950/20 border border-green-800/30 rounded-lg"
                 dangerouslySetInnerHTML={{ __html: testCase.postCondition }}
               />
@@ -555,8 +554,8 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           </div>
 
           {/* Review History */}
-          <ReviewHistory 
-            testCaseId={testCase.id} 
+          <ReviewHistory
+            testCaseId={testCase.id}
             refreshTrigger={reviewRefreshTrigger}
           />
         </div>

@@ -75,6 +75,7 @@ export const ROLE_CONFIG = {
       'Full access to all test cases',
       'Execute manual and automated tests',
       'Manage test configurations',
+      'Review and approve test cases',
       'Export reports',
     ],
   },
