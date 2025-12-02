@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AccountPage } from './components/AccountPage';
 import { Configuration } from './components/Configuration';
 import { Dashboard } from './components/Dashboard';
@@ -218,6 +218,17 @@ function AppContent() {
     navigate(-1); // Go back
   };
 
+  // Wrapper component to extract testCaseId from URL params
+  const TestCaseDetailWrapper = (props: any) => {
+    const { testCaseId } = useParams<{ testCaseId: string }>();
+    
+    if (!testCaseId) {
+      return <Navigate to="/test-cases" />;
+    }
+
+    return <TestCaseDetail testCaseId={testCaseId} {...props} />;
+  };
+
   if (!isAuthenticated) {
     return (
       <>
@@ -287,6 +298,15 @@ function AppContent() {
           onRunTest={handleViewReport}
           onRecordManualResult={handleRecordManualResult}
         /> : <Navigate to="/test-cases" />} />
+
+        {/* Route with param for direct access (e.g., from notifications) */}
+        <Route path="/test-cases/:testCaseId" element={<TestCaseDetailWrapper
+          onBack={() => navigate(-1)}
+          onEdit={handleEditTestCase}
+          onDelete={handleDeleteFromDetail}
+          onRunTest={handleViewReport}
+          onRecordManualResult={handleRecordManualResult}
+        />} />
 
         <Route path="/test-cases/manual-result" element={selectedTestCaseId ? <ManualTestResultForm
           testCaseId={selectedTestCaseId}
