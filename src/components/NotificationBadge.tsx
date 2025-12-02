@@ -102,13 +102,17 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
           title="Notifications"
         >
           <Bell className="w-4 h-4" />
-          {localUnreadCount > 0 && (
+          {/* {localUnreadCount > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center text-xs"
             >
               {localUnreadCount > 99 ? '99+' : localUnreadCount}
             </Badge>
+          )} */}
+
+          {localUnreadCount > 0 && (
+            <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           )}
         </button>
       </div>
