@@ -36,23 +36,38 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
   };
 
   /**
-   * Close panel when clicking outside
+   * Close panel when clicking outside or pressing Escape
    */
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
       if (
-        isOpen &&
         panelRef.current &&
         buttonRef.current &&
-        !panelRef.current.contains(event.target as Node) &&
-        !buttonRef.current.contains(event.target as Node)
+        !panelRef.current.contains(target) &&
+        !buttonRef.current.contains(target)
       ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    // Use capture phase to ensure we catch the event before other handlers
+    document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('keydown', handleEscapeKey);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
   }, [isOpen]);
 
   /**
