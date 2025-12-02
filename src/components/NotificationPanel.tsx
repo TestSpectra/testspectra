@@ -126,6 +126,8 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
         return <Check className="w-4 h-4 text-green-500" />;
       case 'review_needs_revision':
         return <Clock className="w-4 h-4 text-orange-500" />;
+      case 'test_case_created':
+        return <Bell className="w-4 h-4 text-blue-500" />;
       default:
         return <Bell className="w-4 h-4 text-blue-500" />;
     }

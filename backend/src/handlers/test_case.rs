@@ -10,11 +10,13 @@ use uuid::Uuid;
 use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
 use crate::models::test_case::*;
+use crate::websocket::WsManager;
 
 #[derive(Clone)]
 pub struct TestCaseState {
     pub db: PgPool,
     pub jwt: JwtService,
+    pub ws_manager: WsManager,
 }
 
 pub fn test_case_routes(state: TestCaseState) -> Router {
@@ -303,6 +305,20 @@ async fn create_test_case(
     .bind(user_uuid)
     .fetch_optional(&state.db)
     .await?;
+
+    // Send notification to QA Leads
+    if let Some((name,)) = &creator_name {
+        let notification_result = crate::handlers::notification::create_test_case_created_notification(
+            &state.db,
+            Some(&state.ws_manager),
+            name,
+            &case_id,
+        ).await;
+
+        if let Err(e) = notification_result {
+            tracing::error!("Failed to create notifications for QA Leads: {:?}", e);
+        }
+    }
 
     Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
         test_case,

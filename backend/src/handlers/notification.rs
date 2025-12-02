@@ -263,3 +263,38 @@ pub async fn create_review_request_edit_notification(
 
     create_notification(db, ws_manager, request).await
 }
+
+pub async fn create_test_case_created_notification(
+    db: &PgPool,
+    ws_manager: Option<&WsManager>,
+    creator_name: &str,
+    case_id: &str,
+) -> Result<Vec<Notification>, AppError> {
+    // Get all QA Leads
+    let qa_leads: Vec<(Uuid,)> = sqlx::query_as(
+        "SELECT id FROM users WHERE role = 'qa_lead' AND status = 'active'"
+    )
+    .fetch_all(db)
+    .await?;
+
+    let mut notifications = Vec::new();
+
+    // Create notification for each QA Lead
+    for (qa_lead_id,) in qa_leads {
+        let request = CreateNotificationRequest {
+            user_id: qa_lead_id,
+            notification_type: "test_case_created".to_string(),
+            title: "New Test Case Created".to_string(),
+            message: format!("Test case {} has been created by {}", case_id, creator_name),
+            related_entity_type: Some("test_case".to_string()),
+            related_entity_id: Some(case_id.to_string()),
+        };
+
+        match create_notification(db, ws_manager, request).await {
+            Ok(notification) => notifications.push(notification),
+            Err(e) => tracing::error!("Failed to create notification for QA Lead {}: {:?}", qa_lead_id, e),
+        }
+    }
+
+    Ok(notifications)
+}

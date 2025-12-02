@@ -7,7 +7,7 @@ import { authService } from "./auth-service";
 import { getApiUrl } from "../lib/config";
 
 // Notification types
-export type NotificationType = 'review_approved' | 'review_needs_revision';
+export type NotificationType = 'review_approved' | 'review_needs_revision' | 'test_case_created';
 
 export interface Notification {
   id: string;
