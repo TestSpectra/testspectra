@@ -3,6 +3,9 @@ import { ArrowLeft, Edit, Play, Trash2, Clock, CheckCircle2, XCircle, Zap, User,
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { testCaseService } from '../services/test-case-service';
+import { authService } from '../services/auth-service';
+import { ReviewSection } from './ReviewSection';
+import { ReviewHistory } from './ReviewHistory';
 
 interface TestStep {
   id?: string;
@@ -34,8 +37,8 @@ interface TestCase {
   pageLoadAvg?: string;
   lastRun?: string;
   description?: string;
-  preCondition?: string;
-  postCondition?: string;
+  preCondition: string | null;
+  postCondition: string | null;
   steps?: TestStep[];
   expectedOutcome?: string;
   tags?: string[];
@@ -57,6 +60,10 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   const [testCase, setTestCase] = useState<TestCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reviewRefreshTrigger, setReviewRefreshTrigger] = useState(0);
+  
+  const currentUser = authService.getCurrentUser();
+  const isQALead = currentUser?.role === 'QA Lead';
 
   useEffect(() => {
     const fetchTestCase = async () => {
@@ -74,6 +81,19 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
 
     fetchTestCase();
   }, [testCaseId]);
+
+  const handleReviewSubmitted = async () => {
+    // Refresh test case data to get updated review status
+    try {
+      const data = await testCaseService.getTestCase(testCaseId);
+      setTestCase(data);
+    } catch (err) {
+      console.error('Failed to refresh test case:', err);
+    }
+    
+    // Trigger review history refresh
+    setReviewRefreshTrigger(prev => prev + 1);
+  };
 
   if (isLoading) {
     return (
@@ -345,6 +365,14 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content - 2 columns */}
         <div className="col-span-2 space-y-6">
+          {/* Review Section - Only for QA Lead */}
+          {isQALead && (
+            <ReviewSection 
+              testCaseId={testCase.id} 
+              onReviewSubmitted={handleReviewSubmitted}
+            />
+          )}
+
           {/* Pre-condition */}
           {testCase.preCondition && (
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
@@ -525,6 +553,12 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
               </table>
             </div>
           </div>
+
+          {/* Review History */}
+          <ReviewHistory 
+            testCaseId={testCase.id} 
+            refreshTrigger={reviewRefreshTrigger}
+          />
         </div>
 
         {/* Sidebar - 1 column */}
