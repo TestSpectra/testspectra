@@ -5,7 +5,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
-import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { NotificationPanel } from './NotificationPanel';
 
@@ -44,8 +43,11 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
 
-      // Check if click is outside the entire container (button + panel)
-      if (containerRef.current && !containerRef.current.contains(target)) {
+      // Check if click is outside both the button and the panel
+      const isOutsideButton = containerRef.current && !containerRef.current.contains(target);
+      const isOutsidePanel = panelRef.current && !panelRef.current.contains(target);
+
+      if (isOutsideButton && isOutsidePanel) {
         setIsOpen(false);
       }
     };
@@ -76,28 +78,49 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
     setIsOpen(!isOpen);
   };
 
+  /**
+   * Calculate panel position based on button position
+   */
+  const [panelPosition, setPanelPosition] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setPanelPosition({
+        top: rect.bottom + 8, // 8px gap below button
+        right: window.innerWidth - rect.right, // Align right edge with button
+      });
+    }
+  }, [isOpen]);
+
   return (
-    <div ref={containerRef} className="relative">
-      <button
-        onClick={handleToggle}
-        className="relative p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
-        title="Notifications"
-      >
-        <Bell className="w-4 h-4" />
-        {localUnreadCount > 0 && (
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center text-xs"
-          >
-            {localUnreadCount > 99 ? '99+' : localUnreadCount}
-          </Badge>
-        )}
-      </button>
+    <>
+      <div ref={containerRef} className="relative">
+        <button
+          onClick={handleToggle}
+          className="relative p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+          title="Notifications"
+        >
+          <Bell className="w-4 h-4" />
+          {localUnreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center text-xs"
+            >
+              {localUnreadCount > 99 ? '99+' : localUnreadCount}
+            </Badge>
+          )}
+        </button>
+      </div>
 
       {isOpen && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 z-50 shadow-2xl w-110"
+          className="fixed z-50 shadow-2xl w-110"
+          style={{
+            top: `${panelPosition.top}px`,
+            right: `${panelPosition.right}px`,
+          }}
         >
           <NotificationPanel
             onClose={() => setIsOpen(false)}
@@ -105,6 +128,6 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
           />
         </div>
       )}
-    </div>
+    </>
   );
 }
