@@ -6,6 +6,7 @@ import { reviewService } from '../services/review-service';
 import { TestCaseHeader } from './TestCaseHeader';
 import { TestCaseDisplay } from './TestCaseDisplay';
 import { TestCaseMetadata } from './TestCaseMetadata';
+import { ReviewHistory } from './ReviewHistory';
 
 interface TestStep {
   id?: string;
@@ -135,14 +136,19 @@ export function TestCaseReview({ testCaseId, onBack }: TestCaseReviewProps) {
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main Content - 2 columns */}
-        <div className="col-span-2">
+        <div className="col-span-2 space-y-6">
           <TestCaseDisplay testCase={testCase} />
+          
+          {/* Show review history if this is a re-review */}
+          {testCase.reviewStatus && testCase.reviewStatus !== 'pending' && (
+            <ReviewHistory testCaseId={testCase.id} />
+          )}
         </div>
 
         {/* Sidebar - Review Actions */}
         <div className="space-y-6">
           {/* Review Action Card */}
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 sticky top-8">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <h3 className="text-lg mb-4">Submit Review</h3>
             
             {!reviewAction ? (
