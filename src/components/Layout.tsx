@@ -42,12 +42,12 @@ export function Layout({ currentView, onViewChange, onLogout, currentUser, onChe
     const unsubscribe = onMessage((message) => {
       if (message.type === 'notification' && message.payload) {
         logDebug(`Received notification via WebSocket: ${JSON.stringify(message.payload)}`);
-        
+
         const notification = message.payload as Notification;
-        
+
         // Increment unread count
         setUnreadCount(prev => prev + 1);
-        
+
         // Show toast notification
         toast(notification.title, {
           description: notification.message,
@@ -70,27 +70,17 @@ export function Layout({ currentView, onViewChange, onLogout, currentUser, onChe
 
   return (
     <div className="flex flex-1 overflow-hidden bg-slate-950 text-slate-100">
-      <Sidebar 
-        currentView={currentView} 
-        onViewChange={onViewChange} 
-        onLogout={onLogout} 
+      <Sidebar
+        currentView={currentView}
+        onViewChange={onViewChange}
+        onLogout={onLogout}
         currentUser={currentUser}
         onCheckForUpdates={onCheckForUpdates}
       />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header with notification badge */}
-        <header className="h-16 border-b border-slate-800 flex items-center justify-end px-6 bg-slate-900/50 shrink-0">
-          <NotificationBadge 
-            unreadCount={unreadCount}
-            onUnreadCountChange={setUnreadCount}
-          />
-        </header>
-        
-        {/* Main content */}
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
-      </div>
+      {/* Main content */}
+      <main className="flex-1 overflow-auto">
+        <Outlet />
+      </main>
     </div>
   );
 }

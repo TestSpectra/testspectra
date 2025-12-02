@@ -166,7 +166,7 @@ export function Sidebar({
           setAccountMenuOpen(false);
         }}
         className={`
-          ${isCollapsed ? "fixed left-0 top-0 h-screen z-50" : "relative"}
+          ${isCollapsed ? "fixed left-0 top-10 h-screen z-50" : "relative"}
           ${isExpanded ? "w-64" : "w-16"}
           bg-slate-900 border-r border-slate-800 flex flex-col h-screen
           transition-[width] duration-200 ease-out
@@ -174,7 +174,7 @@ export function Sidebar({
         `}
       >
         {/* Logo & Header - Sticky */}
-        <div className="z-10 mt-8 bg-slate-900 shrink-0">
+        <div className="bg-slate-900 shrink-0">
           <div className={`border-b border-slate-800 h-[88px] flex items-center transition-all duration-300 ${isExpanded ? 'px-4 justify-start' : 'px-0 justify-center'}`}>
             <div className="flex items-center relative">
               <TestSpectraLogo

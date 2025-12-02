@@ -43,7 +43,7 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      
+
       // Check if click is outside the entire container (button + panel)
       if (containerRef.current && !containerRef.current.contains(target)) {
         setIsOpen(false);
@@ -61,7 +61,7 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleEscapeKey);
     }, 0);
-    
+
     return () => {
       clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -78,14 +78,12 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
 
   return (
     <div ref={containerRef} className="relative">
-      <Button
-        variant="ghost"
-        size="icon"
+      <button
         onClick={handleToggle}
-        className="relative text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-        aria-label="Notifications"
+        className="relative p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+        title="Notifications"
       >
-        <Bell className="w-5 h-5" />
+        <Bell className="w-4 h-4" />
         {localUnreadCount > 0 && (
           <Badge
             variant="destructive"
@@ -94,14 +92,14 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
             {localUnreadCount > 99 ? '99+' : localUnreadCount}
           </Badge>
         )}
-      </Button>
+      </button>
 
       {isOpen && (
         <div
           ref={panelRef}
           className="absolute right-0 top-full mt-2 z-50 shadow-2xl w-110"
         >
-          <NotificationPanel 
+          <NotificationPanel
             onClose={() => setIsOpen(false)}
             onUnreadCountChange={handleUnreadCountChange}
           />

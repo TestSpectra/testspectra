@@ -13,6 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "TestSpectra - QA Automation Platform",
         "width": 1600,
         "height": 960,
@@ -23,13 +24,8 @@
         "center": true,
         "devtools": true,
         "dragDropEnabled": false,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "decorations": true,
-        "trafficLightPosition": {
-          "x": 15,
-          "y": 15
-        }
+        "decorations": false,
+        "transparent": true
       }
     ],
     "security": {
