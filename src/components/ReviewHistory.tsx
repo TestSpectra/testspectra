@@ -34,7 +34,7 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
     if (action === 'approved') {
       return <CheckCircle2 className="w-5 h-5 text-green-400" />;
     }
-    return <XCircle className="w-5 h-5 text-orange-400" />;
+    return <XCircle className="w-5 h-5 text-red-400" />;
   };
 
   const getActionLabel = (action: string) => {
@@ -48,7 +48,7 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
     if (action === 'approved') {
       return 'bg-green-500/20 border-green-500/30 text-green-400';
     }
-    return 'bg-orange-500/20 border-orange-500/30 text-orange-400';
+    return 'bg-red-500/20 border-red-500/30 text-red-400';
   };
 
   const formatTimestamp = (timestamp: string) => {
