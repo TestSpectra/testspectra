@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, CheckCheck, Clock, X } from 'lucide-react';
+import { Bell, Check, CheckCheck, Clock, X, RefreshCw } from 'lucide-react';
 import { notificationService, Notification } from '../services/notification-service';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -73,8 +73,8 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
 
       // Navigate to related test case if available
       if (notification.relatedEntityType === 'test_case' && notification.relatedEntityId) {
-        // For test_case_created notifications, go directly to review page
-        if (notification.type === 'test_case_created') {
+        // For test_case_created and test_case_revised notifications, go to review page
+        if (notification.type === 'test_case_created' || notification.type === 'test_case_revised') {
           navigate(`/review-queue/review/${notification.relatedEntityId}`);
         } else {
           // For all other notifications (including review_needs_revision), go to test case detail
@@ -134,6 +134,8 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
         return <Clock className="w-4 h-4 text-orange-500" />;
       case 'test_case_created':
         return <Bell className="w-4 h-4 text-blue-500" />;
+      case 'test_case_revised':
+        return <RefreshCw className="w-4 h-4 text-purple-500" />;
       default:
         return <Bell className="w-4 h-4 text-blue-500" />;
     }
