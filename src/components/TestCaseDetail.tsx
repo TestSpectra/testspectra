@@ -1,11 +1,13 @@
-import { ArrowLeft, CheckCircle2, ClipboardCheck, Clock, Edit, Play, Trash2, TrendingUp, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardCheck, Clock, Edit, Play, Trash2, TrendingUp, XCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { testCaseService } from '../services/test-case-service';
+import { reviewService } from '../services/review-service';
 import { ReviewHistory } from './ReviewHistory';
 import { Button } from './ui/button';
 import { TestCaseHeader } from './TestCaseHeader';
 import { TestCaseDisplay } from './TestCaseDisplay';
 import { TestCaseMetadata } from './TestCaseMetadata';
+import { toast } from 'sonner';
 
 interface TestStep {
   id?: string;
@@ -61,6 +63,8 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewRefreshTrigger, setReviewRefreshTrigger] = useState(0);
+  const [reviewStatus, setReviewStatus] = useState<'pending' | 'approved' | 'needs_revision'>('pending');
+  const [isMarkingRevised, setIsMarkingRevised] = useState(false);
 
   useEffect(() => {
     const fetchTestCase = async () => {
@@ -68,6 +72,14 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
         setIsLoading(true);
         const data = await testCaseService.getTestCase(testCaseId);
         setTestCase(data);
+        
+        // Fetch review status
+        const lastReview = await reviewService.getLastReview(testCaseId);
+        if (lastReview) {
+          setReviewStatus(lastReview.action);
+        } else {
+          setReviewStatus('pending');
+        }
       } catch (err) {
         console.error('Failed to load test case:', err);
         setError('Failed to load test case');
@@ -77,7 +89,29 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
     };
 
     fetchTestCase();
-  }, [testCaseId]);
+  }, [testCaseId, reviewRefreshTrigger]);
+
+  const handleMarkAsRevised = async () => {
+    try {
+      setIsMarkingRevised(true);
+      await reviewService.markAsRevised(testCaseId);
+      
+      toast.success('Test case marked as revised', {
+        description: 'Reviewers have been notified to review again.',
+      });
+      
+      // Refresh review status
+      setReviewStatus('pending');
+      setReviewRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      console.error('Failed to mark as revised:', err);
+      toast.error('Failed to mark as revised', {
+        description: err instanceof Error ? err.message : 'An error occurred',
+      });
+    } finally {
+      setIsMarkingRevised(false);
+    }
+  };
 
 
 
@@ -171,6 +205,18 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
+          {/* Show Mark as Revised button if status is needs_revision */}
+          {reviewStatus === 'needs_revision' && (
+            <Button
+              onClick={handleMarkAsRevised}
+              disabled={isMarkingRevised}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isMarkingRevised ? 'animate-spin' : ''}`} />
+              {isMarkingRevised ? 'Marking...' : 'Mark as Revised'}
+            </Button>
+          )}
+          
           {testCase.automation === 'Automated' ? (
             <Button
               onClick={() => onRunTest({
@@ -283,6 +329,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           <ReviewHistory
             testCaseId={testCase.id}
             refreshTrigger={reviewRefreshTrigger}
+            onStatusChange={setReviewStatus}
           />
 
           {/* Last Execution Status */}

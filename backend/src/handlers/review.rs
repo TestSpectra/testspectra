@@ -27,6 +27,7 @@ pub fn review_routes(state: ReviewState) -> Router {
         .route("/test-cases/:id/reviews", post(create_review))
         .route("/test-cases/:id/reviews", get(get_review_history))
         .route("/test-cases/:id/last-review", get(get_last_review))
+        .route("/test-cases/:id/mark-revised", post(mark_as_revised))
         .route("/reviews/stats", get(get_review_stats))
         .with_state(state)
 }
@@ -269,6 +270,91 @@ async fn get_last_review(
     let response = last_review.map(|r| ReviewResponse::from_review_with_reviewer(r, case_id));
 
     Ok(Json(response))
+}
+
+async fn mark_as_revised(
+    State(state): State<ReviewState>,
+    headers: HeaderMap,
+    Path(case_id): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let user_id = verify_token(&state, &headers)?;
+    let user_uuid = Uuid::parse_str(&user_id)
+        .map_err(|_| AppError::Internal("Invalid user ID".to_string()))?;
+
+    // Get test case
+    let test_case: TestCase = sqlx::query_as(
+        "SELECT * FROM test_cases WHERE case_id = $1"
+    )
+    .bind(&case_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
+
+    // Check if user is the creator
+    if test_case.created_by != user_uuid {
+        return Err(AppError::Forbidden(
+            "Only the test case creator can mark it as revised".to_string()
+        ));
+    }
+
+    // Check if test case needs revision
+    if test_case.review_status != "needs_revision" {
+        return Err(AppError::BadRequest(
+            "Test case is not in 'needs_revision' status".to_string()
+        ));
+    }
+
+    // Update test case status to pending
+    sqlx::query(
+        "UPDATE test_cases SET review_status = 'pending', updated_at = NOW() WHERE id = $1"
+    )
+    .bind(test_case.id)
+    .execute(&state.db)
+    .await?;
+
+    // Get user info
+    let user: User = sqlx::query_as(
+        "SELECT * FROM users WHERE id = $1"
+    )
+    .bind(user_uuid)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    // Get all users with review permission
+    let reviewers: Vec<User> = sqlx::query_as(
+        r#"SELECT DISTINCT u.* FROM users u
+           LEFT JOIN user_special_permissions usp ON u.id = usp.user_id
+           WHERE u.role IN ('admin', 'ROLE_ADMIN', 'qa_lead', 'ROLE_QA_LEAD')
+              OR usp.permission = 'review_approve_test_cases'"#
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    // Create notifications for all reviewers
+    for reviewer in reviewers {
+        let notification_result = crate::handlers::notification::create_test_case_revised_notification(
+            &state.db,
+            Some(&state.ws_manager),
+            reviewer.id,
+            &user.name,
+            &case_id,
+        ).await;
+
+        if let Err(e) = notification_result {
+            tracing::error!("Failed to create notification for reviewer {}: {:?}", reviewer.id, e);
+        }
+    }
+
+    // Broadcast review stats update via WebSocket
+    let stats_result = broadcast_review_stats_update(&state).await;
+    if let Err(e) = stats_result {
+        tracing::error!("Failed to broadcast review stats: {:?}", e);
+    }
+
+    Ok(Json(serde_json::json!({
+        "message": "Test case marked as revised successfully"
+    })))
 }
 
 async fn get_review_stats(

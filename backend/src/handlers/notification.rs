@@ -298,3 +298,22 @@ pub async fn create_test_case_created_notification(
 
     Ok(notifications)
 }
+
+pub async fn create_test_case_revised_notification(
+    db: &PgPool,
+    ws_manager: Option<&WsManager>,
+    reviewer_id: Uuid,
+    creator_name: &str,
+    case_id: &str,
+) -> Result<Notification, AppError> {
+    let request = CreateNotificationRequest {
+        user_id: reviewer_id,
+        notification_type: "test_case_revised".to_string(),
+        title: "Test Case Revised".to_string(),
+        message: format!("Test case {} has been revised by {} and is ready for re-review", case_id, creator_name),
+        related_entity_type: Some("test_case".to_string()),
+        related_entity_id: Some(case_id.to_string()),
+    };
+
+    create_notification(db, ws_manager, request).await
+}

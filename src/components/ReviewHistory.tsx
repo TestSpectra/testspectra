@@ -5,9 +5,10 @@ import { reviewService, type Review } from '../services/review-service';
 interface ReviewHistoryProps {
   testCaseId: string;
   refreshTrigger?: number;
+  onStatusChange?: (status: 'pending' | 'approved' | 'needs_revision') => void;
 }
 
-export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps) {
+export function ReviewHistory({ testCaseId, refreshTrigger, onStatusChange }: ReviewHistoryProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,11 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
   };
 
   const currentStatus = getCurrentStatus();
+
+  // Notify parent of status changes
+  useEffect(() => {
+    onStatusChange?.(currentStatus);
+  }, [currentStatus, onStatusChange]);
 
   const getActionColor = (action: string) => {
     if (action === 'approved') {

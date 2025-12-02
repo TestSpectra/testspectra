@@ -128,6 +128,25 @@ class ReviewService {
 
     return response.json();
   }
+
+  /**
+   * Mark test case as revised (ready for re-review)
+   * This will reset the review status to pending and notify reviewers
+   */
+  async markAsRevised(testCaseId: string): Promise<void> {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}/mark-revised`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Failed to mark as revised" }));
+      throw new Error(error.error || "Failed to mark as revised");
+    }
+  }
 }
 
 export interface ReviewStats {
