@@ -156,7 +156,7 @@ export function TitleBar() {
 
             {/* Center - App info (draggable area) */}
             <div
-                className="flex items-center gap-2 flex-1 justify-center cursor-default select-none px-4"
+                className="flex items-center gap-2 flex-1 justify-center cursor-default select-none px-4 transition-all duration-200"
                 data-tauri-drag-region
             >
                 <span className="text-xs font-semibold text-slate-300">TestSpectra</span>
