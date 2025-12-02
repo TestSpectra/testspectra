@@ -18,9 +18,12 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Filters
+  // Filters - persist filterStatus in localStorage
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('pending');
+  const [filterStatus, setFilterStatus] = useState(() => {
+    const saved = localStorage.getItem('reviewQueueFilterStatus');
+    return saved || 'pending';
+  });
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterSuite, setFilterSuite] = useState('all');
 
@@ -41,6 +44,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
   // Handle stats card click
   const handleStatsCardClick = (status: string) => {
     setFilterStatus(status);
+    localStorage.setItem('reviewQueueFilterStatus', status);
   };
 
   // Fetch test cases
