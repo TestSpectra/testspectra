@@ -44,12 +44,11 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       
-      if (
-        panelRef.current &&
-        buttonRef.current &&
-        !panelRef.current.contains(target) &&
-        !buttonRef.current.contains(target)
-      ) {
+      // Check if click is outside both panel and button
+      const isOutsidePanel = panelRef.current && !panelRef.current.contains(target);
+      const isOutsideButton = buttonRef.current && !buttonRef.current.contains(target);
+      
+      if (isOutsidePanel && isOutsideButton) {
         setIsOpen(false);
       }
     };
@@ -60,12 +59,15 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
       }
     };
 
-    // Use capture phase to ensure we catch the event before other handlers
-    document.addEventListener('mousedown', handleClickOutside, true);
-    document.addEventListener('keydown', handleEscapeKey);
+    // Add a small delay to prevent immediate closing when opening
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+    }, 0);
     
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside, true);
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [isOpen]);
