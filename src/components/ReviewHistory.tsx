@@ -32,9 +32,9 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
 
   const getActionIcon = (action: string) => {
     if (action === 'approved') {
-      return <CheckCircle2 className="w-5 h-5 text-green-400" />;
+      return <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />;
     }
-    return <XCircle className="w-5 h-5 text-red-400" />;
+    return <XCircle className="w-3.5 h-3.5 text-red-400" />;
   };
 
   const getActionLabel = (action: string) => {
@@ -46,9 +46,9 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
 
   const getActionColor = (action: string) => {
     if (action === 'approved') {
-      return 'bg-green-500/20 border-green-500/30 text-green-400';
+      return 'bg-green-950/30 border-green-800/30';
     }
-    return 'bg-red-500/20 border-red-500/30 text-red-400';
+    return 'bg-red-950/30 border-red-800/30';
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -110,39 +110,20 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
           {reviews.map((review) => (
             <div
               key={review.id}
-              className={`p-4 rounded-lg border ${getActionColor(review.action)}`}
+              className={`p-3 rounded-lg border ${getActionColor(review.action)}`}
             >
-              {/* Review header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  {getActionIcon(review.action)}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">
-                        {getActionLabel(review.action)}
-                      </span>
-                      <span className="text-xs text-slate-500">by</span>
-                      <div className="flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        <span className="text-sm">{review.reviewerName}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-1 text-xs opacity-75">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatTimestamp(review.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare
+                  className={`w-3.5 h-3.5 ${
+                    review.action === 'approved' ? 'text-green-400' : 'text-red-400'
+                  }`}
+                />
+                <span className="text-xs text-slate-400">
+                  Review by {review.reviewerName} • {formatTimestamp(review.createdAt)}
+                </span>
               </div>
-
-              {/* Review comment */}
               {review.comment && (
-                <div className="mt-3 pt-3 border-t border-current/20">
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="w-4 h-4 shrink-0 mt-0.5 opacity-75" />
-                    <p className="text-sm leading-relaxed">{review.comment}</p>
-                  </div>
-                </div>
+                <p className="text-sm text-slate-300">{review.comment}</p>
               )}
             </div>
           ))}
