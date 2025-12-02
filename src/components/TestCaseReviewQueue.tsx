@@ -440,7 +440,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
                       <Button
                         onClick={() => onViewDetail(item.id)}
                         variant="outline"
-                        className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:border-slate-500"
+                        className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View Details

@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Edit, Play, Trash2, Clock, CheckCircle2, XCircle, Zap, User, Calendar, AlertCircle, ClipboardCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calendar, CheckCircle2, ClipboardCheck, Clock, Edit, Play, Trash2, TrendingUp, User, XCircle, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { testCaseService } from '../services/test-case-service';
+import { ReviewHistory } from './ReviewHistory';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { testCaseService } from '../services/test-case-service';
-import { authService } from '../services/auth-service';
-import { ReviewHistory } from './ReviewHistory';
 
 interface TestStep {
   id?: string;
@@ -13,6 +12,16 @@ interface TestStep {
   actionParams: any;
   assertions: any[];
   customExpectedResult?: string | null;
+}
+
+interface ExecutionHistory {
+  id: string;
+  timestamp: string;
+  status: 'passed' | 'failed' | 'pending';
+  duration: string;
+  executor: string;
+  environment: string;
+  pageLoadTime?: string;
 }
 
 interface TestCase {
@@ -199,6 +208,53 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   };
 
   const steps: TestStep[] = testCase.steps || [];
+
+  const executionHistory: ExecutionHistory[] = [
+    {
+      id: 'RUN-001',
+      timestamp: '2024-01-15 14:30:25',
+      status: 'passed',
+      duration: '45.2s',
+      executor: 'John Doe',
+      environment: 'Chrome 120 - Windows',
+      pageLoadTime: '1.2s'
+    },
+    {
+      id: 'RUN-002',
+      timestamp: '2024-01-14 10:15:42',
+      status: 'passed',
+      duration: '43.8s',
+      executor: 'Jane Smith',
+      environment: 'Firefox 121 - macOS',
+      pageLoadTime: '1.1s'
+    },
+    {
+      id: 'RUN-003',
+      timestamp: '2024-01-13 16:45:10',
+      status: 'failed',
+      duration: '38.5s',
+      executor: 'Automated',
+      environment: 'Chrome 119 - Linux',
+      pageLoadTime: '2.3s'
+    },
+    {
+      id: 'RUN-004',
+      timestamp: '2024-01-12 09:20:15',
+      status: 'passed',
+      duration: '46.1s',
+      executor: 'John Doe',
+      environment: 'Edge 120 - Windows',
+      pageLoadTime: '1.0s'
+    },
+  ];
+
+  const performanceMetrics = {
+    avgDuration: '43.4s',
+    avgPageLoad: '1.2s',
+    successRate: '75%',
+    totalRuns: 12,
+    lastWeekRuns: 4,
+  };
 
   return (
     <div className="p-8 bg-slate-950 min-h-screen">
@@ -417,6 +473,63 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
             </div>
           )}
 
+          {/* Execution History */}
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <h2 className="mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-purple-400" />
+              Execution History
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    <th className="text-left px-4 py-3 text-xs text-slate-400">Run ID</th>
+                    <th className="text-left px-4 py-3 text-xs text-slate-400">Timestamp</th>
+                    <th className="text-center px-4 py-3 text-xs text-slate-400">Status</th>
+                    <th className="text-center px-4 py-3 text-xs text-slate-400">Duration</th>
+                    <th className="text-center px-4 py-3 text-xs text-slate-400">Page Load</th>
+                    <th className="text-left px-4 py-3 text-xs text-slate-400">Executor</th>
+                    <th className="text-left px-4 py-3 text-xs text-slate-400">Environment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {executionHistory.map((run) => (
+                    <tr key={run.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-blue-400">{run.id}</td>
+                      <td className="px-4 py-3 text-sm text-slate-300">{run.timestamp}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center">
+                          {run.status === 'passed' && (
+                            <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded text-green-400">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span className="text-xs">Passed</span>
+                            </div>
+                          )}
+                          {run.status === 'failed' && (
+                            <div className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/20 rounded text-red-400">
+                              <XCircle className="w-3 h-3" />
+                              <span className="text-xs">Failed</span>
+                            </div>
+                          )}
+                          {run.status === 'pending' && (
+                            <div className="inline-flex items-center gap-1 px-2 py-1 bg-slate-500/20 rounded text-slate-400">
+                              <Clock className="w-3 h-3" />
+                              <span className="text-xs">Pending</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center text-slate-300">{run.duration}</td>
+                      <td className="px-4 py-3 text-sm text-center text-slate-300">{run.pageLoadTime || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-300">{run.executor}</td>
+                      <td className="px-4 py-3 text-sm text-slate-400">{run.environment}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Review History */}
           <ReviewHistory
             testCaseId={testCase.id}
@@ -463,6 +576,53 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
                 <div className="flex justify-between items-center text-sm mb-2">
                   <span className="text-slate-400">Page Load Time</span>
                   <span className="text-slate-200">{testCase.pageLoadAvg}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Performance Metrics */}
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+            <h3 className="text-sm text-slate-400 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Performance Metrics
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-400">Avg Duration</span>
+                  <span className="text-sm text-blue-400">{performanceMetrics.avgDuration}</span>
+                </div>
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: '85%' }}></div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-400">Avg Page Load</span>
+                  <span className="text-sm text-teal-400">{performanceMetrics.avgPageLoad}</span>
+                </div>
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-teal-500 rounded-full" style={{ width: '70%' }}></div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-400">Success Rate</span>
+                  <span className="text-sm text-green-400">{performanceMetrics.successRate}</span>
+                </div>
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: '75%' }}></div>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-800 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Total Runs</span>
+                  <span className="text-slate-200">{performanceMetrics.totalRuns}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Last Week</span>
+                  <span className="text-slate-200">{performanceMetrics.lastWeekRuns} runs</span>
                 </div>
               </div>
             </div>
