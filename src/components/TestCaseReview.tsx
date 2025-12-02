@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Edit, Play, Trash2, Clock, CheckCircle2, XCircle, Zap, User, Calendar, AlertCircle, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, AlertCircle, User, Calendar, Zap, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { testCaseService } from '../services/test-case-service';
+import { reviewService } from '../services/review-service';
 import { authService } from '../services/auth-service';
-import { ReviewHistory } from './ReviewHistory';
 
 interface TestStep {
   id?: string;
@@ -22,9 +22,6 @@ interface TestCase {
   priority: string;
   caseType: string;
   automation: string;
-  lastStatus: 'passed' | 'failed' | 'pending';
-  pageLoadAvg?: string;
-  lastRun?: string;
   description?: string;
   preCondition: string | null;
   postCondition: string | null;
@@ -34,22 +31,23 @@ interface TestCase {
   createdByName?: string;
   createdAt?: string;
   updatedAt?: string;
+  reviewStatus?: string;
 }
 
-interface TestCaseDetailProps {
+interface TestCaseReviewProps {
   testCaseId: string;
   onBack: () => void;
-  onEdit: (testCaseId: string) => void;
-  onDelete: (id: string) => void;
-  onRunTest: (report: any) => void;
-  onRecordManualResult?: (testCaseId: string) => void;
 }
 
-export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest, onRecordManualResult }: TestCaseDetailProps) {
+export function TestCaseReview({ testCaseId, onBack }: TestCaseReviewProps) {
   const [testCase, setTestCase] = useState<TestCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [reviewRefreshTrigger, setReviewRefreshTrigger] = useState(0);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
+  const [comment, setComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const currentUser = authService.getCurrentUser();
 
   useEffect(() => {
     const fetchTestCase = async () => {
@@ -68,13 +66,35 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
     fetchTestCase();
   }, [testCaseId]);
 
+  const handleSubmitReview = async () => {
+    if (!reviewAction) return;
+    if (reviewAction === 'reject' && !comment.trim()) {
+      alert('Comment is required when requesting changes');
+      return;
+    }
 
+    setIsSubmitting(true);
+    try {
+      await reviewService.createReview(testCaseId, {
+        action: reviewAction === 'approve' ? 'approved' : 'needs_revision',
+        comment: comment.trim() || undefined,
+      });
+
+      // Success - go back to queue
+      onBack();
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      alert('Failed to submit review. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <Loader2 className="w-12 h-12 text-teal-400 mx-auto mb-4 animate-spin" />
           <p className="text-slate-400">Loading test case...</p>
         </div>
       </div>
@@ -132,7 +152,6 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
       'dragDrop': '↔️',
       'back': '◀️',
       'refresh': '🔄',
-      // Assertions
       'assert': '👁️',
       'elementDisplayed': '👁️',
       'elementNotDisplayed': '🚫',
@@ -174,7 +193,6 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
       'dragDrop': 'Drag and Drop',
       'back': 'Go Back',
       'refresh': 'Refresh Page',
-      // Assertions
       'assert': 'Assert',
       'elementDisplayed': 'Element is Visible',
       'elementNotDisplayed': 'Element is Hidden',
@@ -202,7 +220,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
 
   return (
     <div className="p-8 bg-slate-950 min-h-screen">
-      {/* Header with Back Button */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button
@@ -210,7 +228,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
+            <span>Back to Queue</span>
           </button>
           <div className="border-l border-slate-700 h-8"></div>
           <div>
@@ -243,50 +261,6 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3">
-          {testCase.automation === 'Automated' ? (
-            <Button
-              onClick={() => onRunTest({
-                id: 'RUN-' + testCase.id.split('-')[1],
-                suite: testCase.suite,
-                testCase: testCase.title,
-                status: testCase.lastStatus,
-                duration: '45s',
-                timestamp: testCase.lastRun
-              })}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Run Test
-            </Button>
-          ) : (
-            <Button
-              onClick={() => onRecordManualResult?.(testCase.id)}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              <ClipboardCheck className="w-4 h-4 mr-2" />
-              Record Test Result
-            </Button>
-          )}
-          <Button
-            onClick={() => onEdit(testCase.id)}
-            variant="outline"
-            className="border-blue-600/50 text-blue-400 hover:bg-blue-600/20 hover:text-white"
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
-          <Button
-            onClick={() => onDelete(testCase.id)}
-            variant="outline"
-            className="border-red-600/50 text-red-400 hover:bg-red-600/20 hover:text-white"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete
-          </Button>
         </div>
       </div>
 
@@ -392,7 +366,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           {testCase.postCondition && (
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <h2 className="mb-4 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-400" />
+                <CheckCircle className="w-5 h-5 text-green-400" />
                 Post-Condition
               </h2>
               <div
@@ -406,7 +380,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           {testCase.expectedOutcome && (
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <h2 className="mb-4 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-400" />
+                <CheckCircle className="w-5 h-5 text-green-400" />
                 Expected Outcome
               </h2>
               <div className="p-4 bg-green-950/20 border border-green-800/30 rounded-lg">
@@ -416,56 +390,133 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
               </div>
             </div>
           )}
-
-          {/* Review History */}
-          <ReviewHistory
-            testCaseId={testCase.id}
-            refreshTrigger={reviewRefreshTrigger}
-          />
         </div>
 
-        {/* Sidebar - 1 column */}
+        {/* Sidebar - Review Actions */}
         <div className="space-y-6">
-          {/* Last Execution Status */}
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <h3 className="text-sm text-slate-400 mb-4">Last Execution</h3>
-            <div className="space-y-4">
-              <div>
-                {testCase.lastStatus === 'passed' && (
-                  <div className="flex items-center gap-2 px-4 py-3 bg-green-500/20 rounded-lg border border-green-500/30">
-                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+          {/* Review Action Card */}
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 sticky top-8">
+            <h3 className="text-lg mb-4">Submit Review</h3>
+            
+            {!reviewAction ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-400 mb-4">Choose your review action:</p>
+                
+                <button
+                  onClick={() => setReviewAction('approve')}
+                  className="w-full bg-green-950/30 hover:bg-green-950/50 border-2 border-green-800/50 hover:border-green-700 rounded-xl p-4 text-left transition-all group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-green-500/30 transition-colors">
+                      <CheckCircle className="w-6 h-6 text-green-400" />
+                    </div>
                     <div>
-                      <p className="text-sm text-green-400">Passed</p>
-                      <p className="text-xs text-green-400/60">{testCase.lastRun}</p>
+                      <h4 className="text-green-400 mb-1">Approve Test Case</h4>
+                      <p className="text-sm text-slate-400">Test case is well-written and ready for execution</p>
                     </div>
                   </div>
-                )}
-                {testCase.lastStatus === 'failed' && (
-                  <div className="flex items-center gap-2 px-4 py-3 bg-red-500/20 rounded-lg border border-red-500/30">
-                    <XCircle className="w-5 h-5 text-red-400" />
+                </button>
+
+                <button
+                  onClick={() => setReviewAction('reject')}
+                  className="w-full bg-red-950/30 hover:bg-red-950/50 border-2 border-red-800/50 hover:border-red-700 rounded-xl p-4 text-left transition-all group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-red-500/30 transition-colors">
+                      <XCircle className="w-6 h-6 text-red-400" />
+                    </div>
                     <div>
-                      <p className="text-sm text-red-400">Failed</p>
-                      <p className="text-xs text-red-400/60">{testCase.lastRun}</p>
+                      <h4 className="text-red-400 mb-1">Request Changes</h4>
+                      <p className="text-sm text-slate-400">Test case needs revision before it can be approved</p>
                     </div>
                   </div>
-                )}
-                {testCase.lastStatus === 'pending' && (
-                  <div className="flex items-center gap-2 px-4 py-3 bg-slate-500/20 rounded-lg border border-slate-500/30">
-                    <Clock className="w-5 h-5 text-slate-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Pending</p>
-                      <p className="text-xs text-slate-400/60">Belum dijalankan</p>
-                    </div>
-                  </div>
-                )}
+                </button>
               </div>
-              <div className="pt-3 border-t border-slate-800">
-                <div className="flex justify-between items-center text-sm mb-2">
-                  <span className="text-slate-400">Page Load Time</span>
-                  <span className="text-slate-200">{testCase.pageLoadAvg}</span>
+            ) : (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-lg border-2 ${
+                  reviewAction === 'approve' 
+                    ? 'bg-green-950/30 border-green-800/50' 
+                    : 'bg-red-950/30 border-red-800/50'
+                }`}>
+                  <div className="flex items-center gap-3 mb-2">
+                    {reviewAction === 'approve' ? (
+                      <>
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <span className="text-green-400 font-medium">Approving Test Case</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-5 h-5 text-red-400" />
+                        <span className="text-red-400 font-medium">Requesting Changes</span>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setReviewAction(null);
+                      setComment('');
+                    }}
+                    className="text-xs text-slate-400 hover:text-slate-300 underline"
+                  >
+                    Change action
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">
+                    Comment {reviewAction === 'reject' && <span className="text-red-400">*</span>}
+                  </label>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder={
+                      reviewAction === 'approve'
+                        ? 'Add optional feedback...'
+                        : 'Explain what needs to be changed...'
+                    }
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent min-h-[120px] resize-none"
+                    required={reviewAction === 'reject'}
+                  />
+                  {reviewAction === 'reject' && (
+                    <p className="text-xs text-slate-500 mt-1">Comment is required when requesting changes</p>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSubmitReview}
+                    disabled={isSubmitting || (reviewAction === 'reject' && !comment.trim())}
+                    className={`flex-1 ${
+                      reviewAction === 'approve'
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : 'bg-red-600 hover:bg-red-700'
+                    } text-white`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        {reviewAction === 'approve' ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Submit Approval
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Submit Changes
+                          </>
+                        )}
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Metadata */}

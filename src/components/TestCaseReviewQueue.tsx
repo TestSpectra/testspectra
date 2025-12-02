@@ -311,7 +311,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
                   <div className="flex items-start justify-between gap-6">
                     {/* Left: Test Case Info */}
                     <div className="flex-1">
-                      <div className="flex items-start gap-4 mb-4">
+                      <div className="flex items-start gap-4">
                         {/* Status Indicator */}
                         <div
                           className={`w-1 h-20 rounded-full ${

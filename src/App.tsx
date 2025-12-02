@@ -11,6 +11,7 @@ import { TestCaseDetail } from './components/TestCaseDetail';
 import { TestCaseForm } from './components/TestCaseForm';
 import { TestCasesList } from './components/TestCasesList';
 import { TestCaseReviewQueue } from './components/TestCaseReviewQueue';
+import { TestCaseReview } from './components/TestCaseReview';
 import { TestReport } from './components/TestReport';
 import { TestSuites } from './components/TestSuites';
 import { TitleBar } from './components/TitleBar';
@@ -195,6 +196,11 @@ function AppContent() {
     navigate('/test-cases/detail');
   };
 
+  const handleReviewTestCase = (testCaseId: string) => {
+    setSelectedTestCaseId(testCaseId);
+    navigate('/review-queue/review');
+  };
+
   const handleDeleteFromDetail = (testCaseId: string) => {
     navigate('/test-cases');
   };
@@ -251,8 +257,13 @@ function AppContent() {
 
         <Route path="/review-queue" element={<TestCaseReviewQueue
           onViewDetail={handleViewDetail}
-          onReviewTestCase={handleViewDetail}
+          onReviewTestCase={handleReviewTestCase}
         />} />
+
+        <Route path="/review-queue/review" element={selectedTestCaseId ? <TestCaseReview
+          testCaseId={selectedTestCaseId}
+          onBack={() => navigate('/review-queue')}
+        /> : <Navigate to="/review-queue" />} />
 
         <Route path="/test-cases/new" element={<TestCaseForm
           onSave={handleSaveTestCase}
