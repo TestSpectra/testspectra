@@ -1,45 +1,42 @@
-import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Plus,
-  RefreshCw,
-  Search,
-  Filter,
-  Play,
-  Edit,
   CheckCircle2,
-  XCircle,
-  Clock,
-  Zap,
-  User,
-  History,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Sparkles,
-  Save,
-  X,
-  FileEdit,
-  Trash2,
-  Eye,
   ClipboardCheck,
-  Loader2,
-  FolderPlus,
+  Clock,
   Copy,
+  Edit,
+  Eye,
+  FileEdit,
   GripVertical,
+  History,
+  Loader2,
+  Play,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Sparkles,
+  Trash2,
+  User,
+  X,
+  XCircle,
+  Zap
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { authService } from "../services/auth-service";
 import { getApiUrl } from "../lib/config";
 import { getTimeAgo } from "../lib/utils";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { ConfirmDialog } from "./SimpleDialog";
+import { authService } from "../services/auth-service";
 import {
   testCaseService,
-  TestCaseSummary,
-  ReviewStatus,
+  TestCaseSummary
 } from "../services/test-case-service";
+import { ConfirmDialog } from "./SimpleDialog";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 interface TestCasesListProps {
   onCreateTestCase: () => void;
@@ -373,27 +370,6 @@ export function TestCasesList({
       Edge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
     };
     return colors[caseType] || colors["Positive"];
-  };
-
-  const getReviewStatusBadge = (status?: ReviewStatus) => {
-    if (!status) status = "pending";
-    
-    const config = {
-      pending: {
-        color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-        text: "Pending Review",
-      },
-      approved: {
-        color: "bg-green-500/20 text-green-400 border-green-500/30",
-        text: "Approved",
-      },
-      needs_revision: {
-        color: "bg-red-500/20 text-red-400 border-red-500/30",
-        text: "Needs Revision",
-      },
-    };
-    
-    return config[status] || config.pending;
   };
 
   const handlePageChange = (pageNumber: number) => {

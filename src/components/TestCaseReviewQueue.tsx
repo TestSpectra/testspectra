@@ -99,8 +99,12 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
   // Listen for WebSocket updates
   useEffect(() => {
     const unsubscribe = onMessage((message) => {
-      if (message.type === 'review_stats_update' && message.data) {
-        setStats(message.data as ReviewStats);
+      if (message.type === 'review_stats_update') {
+        // Backend sends data in 'payload' field, not 'data'
+        const stats = message.payload || message.data;
+        if (stats) {
+          setStats(stats as ReviewStats);
+        }
       }
     });
 

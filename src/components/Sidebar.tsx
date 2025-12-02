@@ -17,6 +17,7 @@ import {
   XCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useWebSocket } from "../contexts/WebSocketContext";
 import { TestSpectraLogo } from "./TestSpectraLogo";
 
 type View =
@@ -51,6 +52,7 @@ export function Sidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAccountMenuOpen, setAccountMenuOpen] = useState(false);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
+  const { onMessage } = useWebSocket();
 
   // Check screen width and auto-collapse
   useEffect(() => {
@@ -63,7 +65,7 @@ export function Sidebar({
     return () => window.removeEventListener("resize", checkWidth);
   }, []);
 
-  // Fetch pending review count
+  // Fetch pending review count using stats endpoint
   useEffect(() => {
     const fetchPendingCount = async () => {
       // Only fetch if user has review permission
@@ -73,24 +75,37 @@ export function Sidebar({
       if (!hasPermission) return;
 
       try {
-        const { testCaseService } = await import('../services/test-case-service');
-        const response = await testCaseService.listTestCases({
-          reviewStatusFilter: 'pending',
-          page: 1,
-          pageSize: 1, // We only need the count
-        });
-        setPendingReviewCount(response.total);
+        const { reviewService } = await import('../services/review-service');
+        const stats = await reviewService.getReviewStats();
+        setPendingReviewCount(stats.pending);
       } catch (err) {
         console.error('Failed to fetch pending review count:', err);
       }
     };
 
     fetchPendingCount();
-
-    // Refresh count every 30 seconds
-    const interval = setInterval(fetchPendingCount, 30000);
-    return () => clearInterval(interval);
   }, [currentUser]);
+
+  // Subscribe to realtime review stats updates via WebSocket
+  useEffect(() => {
+    // Only subscribe if user has review permission
+    if (!currentUser) return;
+    const hasPermission = currentUser.basePermissions?.includes('review_approve_test_cases') ||
+      currentUser.specialPermissions?.includes('review_approve_test_cases');
+    if (!hasPermission) return;
+
+    const unsubscribe = onMessage((message) => {
+      if (message.type === 'review_stats_update') {
+        // Backend WsManager transforms 'data' field to 'payload'
+        const stats = message.payload || message.data;
+        if (stats) {
+          setPendingReviewCount(stats.pending || 0);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [currentUser, onMessage]);
 
   const allMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
