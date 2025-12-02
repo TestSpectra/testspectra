@@ -38,6 +38,7 @@ import { ConfirmDialog } from "./SimpleDialog";
 import {
   testCaseService,
   TestCaseSummary,
+  ReviewStatus,
 } from "../services/test-case-service";
 
 interface TestCasesListProps {
@@ -85,6 +86,7 @@ export function TestCasesList({
   const [filterAutomation, setFilterAutomation] = useState(persistedState?.filterAutomation || "all");
   const [filterPriority, setFilterPriority] = useState(persistedState?.filterPriority || "all");
   const [filterSuite, setFilterSuite] = useState(searchParams.get("suite") || persistedState?.filterSuite || "all");
+  const [filterReviewStatus, setFilterReviewStatus] = useState(persistedState?.filterReviewStatus || "all");
 
   // Sync URL params with state
   useEffect(() => {
@@ -104,6 +106,7 @@ export function TestCasesList({
       filterAutomation,
       filterPriority,
       filterSuite,
+      filterReviewStatus,
       currentPage,
       itemsPerPage,
     };
@@ -112,7 +115,7 @@ export function TestCasesList({
     } catch (err) {
       console.error("Failed to persist state:", err);
     }
-  }, [searchQuery, filterAutomation, filterPriority, filterSuite, currentPage, itemsPerPage]);
+  }, [searchQuery, filterAutomation, filterPriority, filterSuite, filterReviewStatus, currentPage, itemsPerPage]);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [quickCreateData, setQuickCreateData] = useState({
     title: "",
@@ -169,6 +172,8 @@ export function TestCasesList({
         priorityFilter: filterPriority !== "all" ? filterPriority : undefined,
         automationFilter:
           filterAutomation !== "all" ? filterAutomation : undefined,
+        reviewStatusFilter:
+          filterReviewStatus !== "all" ? filterReviewStatus : undefined,
         page: currentPage,
         pageSize: itemsPerPage,
       });
@@ -188,6 +193,7 @@ export function TestCasesList({
     filterSuite,
     filterPriority,
     filterAutomation,
+    filterReviewStatus,
     currentPage,
     itemsPerPage,
   ]);
@@ -328,7 +334,7 @@ export function TestCasesList({
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterSuite, filterPriority, filterAutomation]);
+  }, [searchQuery, filterSuite, filterPriority, filterAutomation, filterReviewStatus]);
 
   // Use API response directly - no client-side filtering needed for data
   const currentItems = testCasesList;
@@ -367,6 +373,27 @@ export function TestCasesList({
       Edge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
     };
     return colors[caseType] || colors["Positive"];
+  };
+
+  const getReviewStatusBadge = (status?: ReviewStatus) => {
+    if (!status) status = "pending";
+    
+    const config = {
+      pending: {
+        color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+        text: "Pending Review",
+      },
+      approved: {
+        color: "bg-green-500/20 text-green-400 border-green-500/30",
+        text: "Approved",
+      },
+      needs_revision: {
+        color: "bg-red-500/20 text-red-400 border-red-500/30",
+        text: "Needs Revision",
+      },
+    };
+    
+    return config[status] || config.pending;
   };
 
   const handlePageChange = (pageNumber: number) => {
@@ -740,7 +767,7 @@ export function TestCasesList({
 
       {/* Filters & Search */}
       <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-6 gap-4">
           {/* Search */}
           <div className="col-span-2">
             <div className="relative">
@@ -796,6 +823,20 @@ export function TestCasesList({
               <option value="high">High</option>
               <option value="medium">Medium</option>
               <option value="low">Low</option>
+            </select>
+          </div>
+
+          {/* Review Status Filter */}
+          <div>
+            <select
+              value={filterReviewStatus}
+              onChange={(e) => setFilterReviewStatus(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 input-field-focus"
+            >
+              <option value="all">All Review Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="needs_revision">Needs Revision</option>
             </select>
           </div>
         </div>
@@ -902,6 +943,9 @@ export function TestCasesList({
                     </th>
                     <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
                       Status Otomasi
+                    </th>
+                    <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
+                      Review Status
                     </th>
                     <th className="text-center px-6 py-4 text-sm text-slate-400">
                       Last Execution
@@ -1056,6 +1100,9 @@ export function TestCasesList({
                           <option value="Automated">Automated</option>
                           <option value="Manual">Manual</option>
                         </select>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-xs text-slate-500">-</span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-xs text-slate-500">-</span>
@@ -1366,6 +1413,16 @@ export function TestCasesList({
                                 </>
                               )}
                             </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {editingId !== tc.id && (
+                            <Badge
+                              variant="outline"
+                              className={`${getReviewStatusBadge(tc.reviewStatus).color} border`}
+                            >
+                              {getReviewStatusBadge(tc.reviewStatus).text}
+                            </Badge>
                           )}
                         </td>
                         <td className="px-6 py-4 text-center">
