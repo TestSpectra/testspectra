@@ -7,7 +7,6 @@ type Platform = 'macos' | 'windows' | 'linux' | 'unknown';
 export function TitleBar() {
     const [platform, setPlatform] = useState<Platform>('unknown');
     const [isMaximized, setIsMaximized] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         const checkPlatform = async () => {
@@ -166,10 +165,7 @@ export function TitleBar() {
             {/* Right side - Notification badge and Windows/Linux controls */}
             <div className="flex items-center h-full gap-2">
                 <div className="pr-4">
-                    <NotificationBadge
-                        unreadCount={unreadCount}
-                        onUnreadCountChange={setUnreadCount}
-                    />
+                    <NotificationBadge />
                 </div>
                 {platform !== 'macos' && platform !== 'unknown' && <WindowsControls />}
             </div>

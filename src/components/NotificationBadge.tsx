@@ -1,37 +1,62 @@
 /**
  * NotificationBadge Component
  * Displays unread notification count and toggles NotificationPanel
+ * Fetches notification count internally and listens to WebSocket for real-time updates
  */
 
 import { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
-import { Badge } from './ui/badge';
 import { NotificationPanel } from './NotificationPanel';
+import { notificationService } from '../services/notification-service';
+import { websocketService, WebSocketMessage } from '../services/websocket-service';
 
-interface NotificationBadgeProps {
-  unreadCount: number;
-  onUnreadCountChange?: (count: number) => void;
-}
+interface NotificationBadgeProps {}
 
-export function NotificationBadge({ unreadCount, onUnreadCountChange }: NotificationBadgeProps) {
+export function NotificationBadge({}: NotificationBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
+  const [unreadCount, setUnreadCount] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Sync local unread count with prop
+   * Fetch initial unread count
    */
   useEffect(() => {
-    setLocalUnreadCount(unreadCount);
-  }, [unreadCount]);
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await notificationService.getNotifications(1, 1, false);
+        setUnreadCount(response.unreadCount);
+      } catch (error) {
+        console.error('Failed to fetch unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+  }, []);
+
+  /**
+   * Listen to WebSocket for new notifications
+   */
+  useEffect(() => {
+    const handleWebSocketMessage = (message: WebSocketMessage) => {
+      if (message.type === 'notification') {
+        // Increment unread count when new notification arrives
+        setUnreadCount(prev => prev + 1);
+      }
+    };
+
+    const unsubscribe = websocketService.onMessage(handleWebSocketMessage);
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   /**
    * Handle unread count changes from NotificationPanel
    */
   const handleUnreadCountChange = (count: number) => {
-    setLocalUnreadCount(count);
-    onUnreadCountChange?.(count);
+    setUnreadCount(count);
   };
 
   /**
@@ -102,16 +127,7 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
           title="Notifications"
         >
           <Bell className="w-4 h-4" />
-          {/* {localUnreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center text-xs"
-            >
-              {localUnreadCount > 99 ? '99+' : localUnreadCount}
-            </Badge>
-          )} */}
-
-          {localUnreadCount > 0 && (
+          {unreadCount > 0 && (
             <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           )}
         </button>
