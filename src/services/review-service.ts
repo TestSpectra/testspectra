@@ -88,6 +88,26 @@ class ReviewService {
     const data = await response.json();
     return data.reviews || [];
   }
+
+  /**
+   * Get last review for a test case (for lazy loading)
+   */
+  async getLastReview(testCaseId: string): Promise<Review | null> {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}/last-review`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Failed to fetch last review" }));
+      throw new Error(error.error || "Failed to fetch last review");
+    }
+
+    return response.json();
+  }
 }
 
 export const reviewService = ReviewService.getInstance();

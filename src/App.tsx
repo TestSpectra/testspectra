@@ -10,6 +10,7 @@ import { RunsHistory } from './components/RunsHistory';
 import { TestCaseDetail } from './components/TestCaseDetail';
 import { TestCaseForm } from './components/TestCaseForm';
 import { TestCasesList } from './components/TestCasesList';
+import { TestCaseReviewQueue } from './components/TestCaseReviewQueue';
 import { TestReport } from './components/TestReport';
 import { TestSuites } from './components/TestSuites';
 import { TitleBar } from './components/TitleBar';
@@ -49,6 +50,7 @@ function AppContent() {
     if (path === '/' || path === '/dashboard') return 'dashboard';
     if (path.startsWith('/test-cases')) return 'test-cases';
     if (path.startsWith('/test-suites')) return 'test-suites';
+    if (path.startsWith('/review-queue')) return 'review-queue';
     if (path.startsWith('/runs-history')) return 'runs-history';
     if (path.startsWith('/configuration')) return 'configuration';
     if (path.startsWith('/tools')) return 'tools';
@@ -157,6 +159,7 @@ function AppContent() {
       case 'dashboard': navigate('/'); break;
       case 'test-cases': navigate('/test-cases'); break;
       case 'test-suites': navigate('/test-suites'); break;
+      case 'review-queue': navigate('/review-queue'); break;
       case 'runs-history': navigate('/runs-history'); break;
       case 'configuration': navigate('/configuration'); break;
       case 'tools': navigate('/tools'); break;
@@ -245,6 +248,11 @@ function AppContent() {
         />} />
 
         <Route path="/test-suites" element={<TestSuites />} />
+
+        <Route path="/review-queue" element={<TestCaseReviewQueue
+          onViewDetail={handleViewDetail}
+          onReviewTestCase={handleViewDetail}
+        />} />
 
         <Route path="/test-cases/new" element={<TestCaseForm
           onSave={handleSaveTestCase}

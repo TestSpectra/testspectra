@@ -102,7 +102,7 @@ export function ReviewHistory({ testCaseId, refreshTrigger }: ReviewHistoryProps
           <Clock className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400 text-sm">No reviews have been performed yet</p>
           <p className="text-slate-500 text-xs mt-1">
-            Reviews will appear here once a QA Lead reviews this test case
+            Reviews will appear here once someone with review permission reviews this test case
           </p>
         </div>
       ) : (

@@ -1,27 +1,29 @@
 import {
-  LayoutDashboard,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
   FileCheck,
   FolderTree,
-  History,
-  Settings,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Wrench,
   GitBranch,
-  Users,
-  ChevronDown,
-  UserCircle,
-  LogOut,
+  History,
   Info,
+  LayoutDashboard,
+  LogOut,
+  MessageSquare,
+  Settings,
+  UserCircle,
+  Users,
+  Wrench,
+  XCircle
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { TestSpectraLogo } from "./TestSpectraLogo";
 
 type View =
   | "dashboard"
   | "test-cases"
   | "test-suites"
+  | "review-queue"
   | "runs-history"
   | "configuration"
   | "tools"
@@ -48,6 +50,7 @@ export function Sidebar({
   const [isHovered, setIsHovered] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAccountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
 
   // Check screen width and auto-collapse
   useEffect(() => {
@@ -60,15 +63,56 @@ export function Sidebar({
     return () => window.removeEventListener("resize", checkWidth);
   }, []);
 
-  const menuItems = [
+  // Fetch pending review count
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      // Only fetch if user has review permission
+      if (!currentUser) return;
+      const hasPermission = currentUser.basePermissions?.includes('review_approve_test_cases') ||
+        currentUser.specialPermissions?.includes('review_approve_test_cases');
+      if (!hasPermission) return;
+
+      try {
+        const { testCaseService } = await import('../services/test-case-service');
+        const response = await testCaseService.listTestCases({
+          reviewStatusFilter: 'pending',
+          page: 1,
+          pageSize: 1, // We only need the count
+        });
+        setPendingReviewCount(response.total);
+      } catch (err) {
+        console.error('Failed to fetch pending review count:', err);
+      }
+    };
+
+    fetchPendingCount();
+
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const allMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "test-cases", label: "Test Cases", icon: FileCheck },
     { id: "test-suites", label: "Test Suites", icon: FolderTree },
+    { id: "review-queue", label: "Review Queue", icon: MessageSquare, requiresPermission: "review_approve_test_cases", badge: pendingReviewCount },
     { id: "runs-history", label: "Runs History", icon: History },
     { id: "configuration", label: "Configuration", icon: Settings },
     { id: "tools", label: "Tools", icon: Wrench },
     { id: "user-management", label: "User Management", icon: Users },
   ];
+
+  // Filter menu items based on user permissions
+  const menuItems = allMenuItems.filter(item => {
+    if (!item.requiresPermission) return true;
+    if (!currentUser) return false;
+    // Check both base and special permissions
+    return (
+      currentUser.basePermissions?.includes(item.requiresPermission) ||
+      currentUser.specialPermissions?.includes(item.requiresPermission)
+    );
+  });
 
   const getInitials = (name: string) => {
     return name
@@ -157,7 +201,7 @@ export function Sidebar({
                 (currentView === "test-report" && item.id === "dashboard");
 
               return (
-                <li key={item.id}>
+                <li key={item.id} className="relative">
                   <button
                     onClick={() => onViewChange(item.id as View)}
                     title={!isExpanded ? item.label : undefined}
@@ -168,10 +212,32 @@ export function Sidebar({
                       }`}
                   >
                     <Icon className="w-5 h-5 shrink-0" />
-                    <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+                    <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100 flex-1 text-left' : 'opacity-0 w-0'}`}>
                       {item.label}
                     </span>
+
+                    {/* Badge when expanded - inline */}
+                    {isExpanded && item.badge && item.badge > 0 && (
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${
+                        isActive 
+                          ? 'bg-white/20 text-white' 
+                          : 'bg-yellow-500/20 text-yellow-400'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
                   </button>
+
+                  {/* Badge when collapsed - absolute positioned */}
+                  {!isExpanded && item.badge && item.badge > 0 && (
+                    <span className={`absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-semibold rounded-full ${
+                      isActive 
+                        ? 'bg-white/20 text-white' 
+                        : 'bg-yellow-500/20 text-yellow-400'
+                    }`}>
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
                 </li>
               );
             })}

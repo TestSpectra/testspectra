@@ -26,6 +26,7 @@ pub fn review_routes(state: ReviewState) -> Router {
     Router::new()
         .route("/test-cases/:id/reviews", post(create_review))
         .route("/test-cases/:id/reviews", get(get_review_history))
+        .route("/test-cases/:id/last-review", get(get_last_review))
         .with_state(state)
 }
 
@@ -61,7 +62,7 @@ async fn create_review(
         }
     }
 
-    // Get reviewer info and check role
+    // Get reviewer info and check permissions
     let reviewer: User = sqlx::query_as(
         "SELECT * FROM users WHERE id = $1"
     )
@@ -70,10 +71,17 @@ async fn create_review(
     .await?
     .ok_or_else(|| AppError::NotFound("Reviewer not found".to_string()))?;
 
-    // Check if user has QA Lead role
-    if reviewer.role != "QA Lead" {
+    // Get user permissions
+    let special_permissions = get_user_special_permissions(&state.db, reviewer.id).await?;
+    let base_permissions = get_base_permissions_for_role(&reviewer.role);
+    
+    // Check if user has review permission
+    let has_review_permission = base_permissions.contains(&"review_approve_test_cases".to_string())
+        || special_permissions.contains(&"review_approve_test_cases".to_string());
+    
+    if !has_review_permission {
         return Err(AppError::Forbidden(
-            "Only QA Lead can review test cases".to_string()
+            "You don't have permission to review test cases".to_string()
         ));
     }
 
@@ -220,10 +228,94 @@ async fn get_review_history(
     })))
 }
 
+async fn get_last_review(
+    State(state): State<ReviewState>,
+    headers: HeaderMap,
+    Path(case_id): Path<String>,
+) -> Result<Json<Option<ReviewResponse>>, AppError> {
+    verify_token(&state, &headers)?;
+
+    // Get test case to verify it exists
+    let test_case: TestCase = sqlx::query_as(
+        "SELECT * FROM test_cases WHERE case_id = $1"
+    )
+    .bind(&case_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
+
+    // Get last review with reviewer name
+    let last_review: Option<ReviewWithReviewer> = sqlx::query_as(
+        r#"SELECT 
+            r.id, r.test_case_id, r.reviewer_id, r.action, r.comment, r.created_at,
+            u.name as reviewer_name
+           FROM test_case_reviews r
+           JOIN users u ON r.reviewer_id = u.id
+           WHERE r.test_case_id = $1
+           ORDER BY r.created_at DESC
+           LIMIT 1"#
+    )
+    .bind(test_case.id)
+    .fetch_optional(&state.db)
+    .await?;
+
+    let response = last_review.map(|r| ReviewResponse::from_review_with_reviewer(r, case_id));
+
+    Ok(Json(response))
+}
+
 fn verify_token(state: &ReviewState, headers: &HeaderMap) -> Result<String, AppError> {
     let token = extract_bearer_token(headers.get("authorization").and_then(|v| v.to_str().ok()))
         .ok_or_else(|| AppError::Unauthorized("Missing token".to_string()))?;
 
     state.jwt.get_user_id_from_token(&token)
         .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))
+}
+
+// Helper function to get base permissions for a role
+fn get_base_permissions_for_role(role: &str) -> Vec<String> {
+    match role {
+        "admin" | "ROLE_ADMIN" => vec![
+            "view_all_data".to_string(),
+            "manage_users".to_string(),
+            "full_test_case_access".to_string(),
+            "execute_all_tests".to_string(),
+            "manage_configurations".to_string(),
+            "export_reports".to_string(),
+            "manage_integrations".to_string(),
+            "review_approve_test_cases".to_string(),
+        ],
+        "qa_lead" | "ROLE_QA_LEAD" => vec![
+            "view_all_data".to_string(),
+            "manage_qa_team".to_string(),
+            "full_test_case_access".to_string(),
+            "execute_all_tests".to_string(),
+            "manage_test_configurations".to_string(),
+            "review_approve_test_cases".to_string(),
+            "export_reports".to_string(),
+        ],
+        "qa_engineer" | "ROLE_QA_ENGINEER" => vec![
+            "view_all_data".to_string(),
+            "create_edit_test_cases".to_string(),
+            "execute_all_tests".to_string(),
+            "record_test_results".to_string(),
+        ],
+        "developer" | "ROLE_DEVELOPER" => vec![
+            "view_all_data".to_string(),
+            "execute_automated_tests".to_string(),
+        ],
+        _ => vec!["view_all_data".to_string()],
+    }
+}
+
+// Helper function to get user special permissions from database
+async fn get_user_special_permissions(db: &PgPool, user_id: Uuid) -> Result<Vec<String>, AppError> {
+    let permissions: Vec<(String,)> = sqlx::query_as(
+        "SELECT permission FROM user_special_permissions WHERE user_id = $1"
+    )
+    .bind(user_id)
+    .fetch_all(db)
+    .await?;
+
+    Ok(permissions.into_iter().map(|(p,)| p).collect())
 }

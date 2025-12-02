@@ -944,9 +944,9 @@ export function TestCasesList({
                     <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
                       Status Otomasi
                     </th>
-                    <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
+                    {/* <th className="text-center px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
                       Review Status
-                    </th>
+                    </th> */}
                     <th className="text-center px-6 py-4 text-sm text-slate-400">
                       Last Execution
                     </th>
@@ -1415,7 +1415,7 @@ export function TestCasesList({
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        {/* <td className="px-6 py-4 text-center">
                           {editingId !== tc.id && (
                             <Badge
                               variant="outline"
@@ -1424,7 +1424,7 @@ export function TestCasesList({
                               {getReviewStatusBadge(tc.reviewStatus).text}
                             </Badge>
                           )}
-                        </td>
+                        </td> */}
                         <td className="px-6 py-4 text-center">
                           {tc.lastStatus === "passed" && (
                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-lg">
