@@ -17,8 +17,8 @@ interface NotificationBadgeProps {
 export function NotificationBadge({ unreadCount, onUnreadCountChange }: NotificationBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
+  const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
 
   /**
    * Sync local unread count with prop
@@ -44,11 +44,8 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       
-      // Check if click is outside both panel and button
-      const isOutsidePanel = panelRef.current && !panelRef.current.contains(target);
-      const isOutsideButton = buttonRef.current && !buttonRef.current.contains(target);
-      
-      if (isOutsidePanel && isOutsideButton) {
+      // Check if click is outside the entire container (button + panel)
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setIsOpen(false);
       }
     };
@@ -80,9 +77,8 @@ export function NotificationBadge({ unreadCount, onUnreadCountChange }: Notifica
   };
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <Button
-        ref={buttonRef}
         variant="ghost"
         size="icon"
         onClick={handleToggle}
