@@ -77,6 +77,7 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
         if (notification.type === 'test_case_created') {
           navigate(`/review-queue/review/${notification.relatedEntityId}`);
         } else {
+          // For all other notifications (including review_needs_revision), go to test case detail
           navigate(`/test-cases/${notification.relatedEntityId}`);
         }
         onClose?.();

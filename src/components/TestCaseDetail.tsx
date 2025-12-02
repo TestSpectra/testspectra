@@ -275,16 +275,16 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
               </table>
             </div>
           </div>
+        </div>
 
+        {/* Sidebar - 1 column */}
+        <div className="space-y-6">
           {/* Review History */}
           <ReviewHistory
             testCaseId={testCase.id}
             refreshTrigger={reviewRefreshTrigger}
           />
-        </div>
 
-        {/* Sidebar - 1 column */}
-        <div className="space-y-6">
           {/* Last Execution Status */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <h3 className="text-sm text-slate-400 mb-4">Last Execution</h3>
