@@ -54,9 +54,16 @@ export function TitleBar() {
             // @ts-ignore
             if (window.__TAURI__) {
                 const { getCurrentWindow } = await import('@tauri-apps/api/window');
-                await getCurrentWindow().toggleMaximize();
-                const isMaximized = await getCurrentWindow().isMaximized()
-                setIsMaximized(isMaximized)
+                
+                // macOS uses fullscreen, Windows/Linux uses maximize
+                if (platform === 'macos') {
+                    const isFullscreen = await getCurrentWindow().isFullscreen();
+                    await getCurrentWindow().setFullscreen(!isFullscreen);
+                } else {
+                    await getCurrentWindow().toggleMaximize();
+                    const isMaximized = await getCurrentWindow().isMaximized();
+                    setIsMaximized(isMaximized);
+                }
             }
         } catch (error) {
             console.error('Failed to maximize:', error);
