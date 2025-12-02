@@ -279,6 +279,12 @@ function AppContent() {
           onBack={() => navigate('/review-queue')}
         /> : <Navigate to="/review-queue" />} />
 
+        {/* Re-review route for revised test cases */}
+        <Route path="/review-queue/re-review/:testCaseId" element={<TestCaseReview
+          onBack={() => navigate('/review-queue')}
+          isReReview={true}
+        />} />
+
         <Route path="/test-cases/new" element={<TestCaseForm
           onSave={handleSaveTestCase}
           onCancel={() => navigate(-1)}

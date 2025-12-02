@@ -40,9 +40,10 @@ interface TestCase {
 interface TestCaseReviewProps {
   testCaseId?: string;
   onBack: () => void;
+  isReReview?: boolean;
 }
 
-export function TestCaseReview({ testCaseId: propTestCaseId, onBack }: TestCaseReviewProps) {
+export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview = false }: TestCaseReviewProps) {
   const { testCaseId: urlTestCaseId } = useParams<{ testCaseId: string }>();
   const testCaseId = propTestCaseId || urlTestCaseId;
   const [testCase, setTestCase] = useState<TestCase | null>(null);
@@ -136,6 +137,14 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack }: TestCaseR
           </button>
           <div className="border-l border-slate-700 h-8"></div>
           <TestCaseHeader testCase={testCase} />
+          
+          {/* Re-Review Badge */}
+          {isReReview && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-purple-400">Re-Review</span>
+            </div>
+          )}
         </div>
       </div>
 

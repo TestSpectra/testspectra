@@ -73,11 +73,16 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
 
       // Navigate to related test case if available
       if (notification.relatedEntityType === 'test_case' && notification.relatedEntityId) {
-        // For test_case_created and test_case_revised notifications, go to review page
-        if (notification.type === 'test_case_created' || notification.type === 'test_case_revised') {
+        // For test_case_created notifications, go to review page
+        if (notification.type === 'test_case_created') {
           navigate(`/review-queue/review/${notification.relatedEntityId}`);
-        } else {
-          // For all other notifications (including review_needs_revision), go to test case detail
+        } 
+        // For test_case_revised notifications, go to re-review page
+        else if (notification.type === 'test_case_revised') {
+          navigate(`/review-queue/re-review/${notification.relatedEntityId}`);
+        } 
+        // For all other notifications (including review_needs_revision), go to test case detail
+        else {
           navigate(`/test-cases/${notification.relatedEntityId}`);
         }
         onClose?.();
