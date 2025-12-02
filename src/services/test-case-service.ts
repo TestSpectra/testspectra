@@ -14,6 +14,8 @@ export interface TestStep {
   customExpectedResult?: string | null;
 }
 
+export type ReviewStatus = "pending" | "approved" | "needs_revision";
+
 export interface TestCase {
   id: string;
   title: string;
@@ -34,6 +36,7 @@ export interface TestCase {
   createdByName?: string;
   createdAt?: string;
   updatedAt?: string;
+  reviewStatus: ReviewStatus;
 }
 
 export interface TestCaseSummary {
@@ -49,6 +52,7 @@ export interface TestCaseSummary {
   executionOrder: number;
   updatedAt: string;
   createdByName?: string;
+  reviewStatus: ReviewStatus;
 }
 
 export interface ListTestCasesResponse {
@@ -65,6 +69,7 @@ export interface ListTestCasesParams {
   priorityFilter?: string;
   automationFilter?: string;
   statusFilter?: string;
+  reviewStatusFilter?: string;
   page?: number;
   pageSize?: number;
 }
@@ -138,6 +143,8 @@ class TestCaseService {
       queryParams.append("automationFilter", params.automationFilter);
     if (params.statusFilter)
       queryParams.append("statusFilter", params.statusFilter);
+    if (params.reviewStatusFilter)
+      queryParams.append("reviewStatusFilter", params.reviewStatusFilter);
     if (params.page) queryParams.append("page", params.page.toString());
     if (params.pageSize)
       queryParams.append("pageSize", params.pageSize.toString());
