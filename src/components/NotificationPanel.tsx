@@ -11,6 +11,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
+import { navigateToNotification } from '../lib/notification-navigation';
 
 interface NotificationPanelProps {
   onClose?: () => void;
@@ -71,22 +72,14 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
         onUnreadCountChange?.(newUnreadCount);
       }
 
-      // Navigate to related test case if available
-      if (notification.relatedEntityType === 'test_case' && notification.relatedEntityId) {
-        // For test_case_created notifications, go to review page
-        if (notification.type === 'test_case_created') {
-          navigate(`/review-queue/review/${notification.relatedEntityId}`);
-        } 
-        // For test_case_revised notifications, go to re-review page
-        else if (notification.type === 'test_case_revised') {
-          navigate(`/review-queue/re-review/${notification.relatedEntityId}`);
-        } 
-        // For all other notifications (including review_needs_revision), go to test case detail
-        else {
-          navigate(`/test-cases/${notification.relatedEntityId}`);
-        }
-        onClose?.();
-      }
+      // Navigate using utility function
+      navigateToNotification({
+        type: notification.type,
+        relatedEntityType: notification.relatedEntityType,
+        relatedEntityId: notification.relatedEntityId,
+      }, navigate);
+      
+      onClose?.();
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
     }

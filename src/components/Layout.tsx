@@ -2,10 +2,10 @@ import { Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Sidebar } from './Sidebar';
-import { NotificationBadge } from './NotificationBadge';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { notificationService, Notification } from '../services/notification-service';
 import { logDebug } from '../lib/debug';
+import { navigateToNotification } from '../lib/notification-navigation';
 
 interface LayoutProps {
   currentView: string;
@@ -55,10 +55,11 @@ export function Layout({ currentView, onViewChange, onLogout, currentUser, onChe
           action: notification.relatedEntityId ? {
             label: 'View',
             onClick: () => {
-              // Navigate to the related test case
-              if (notification.relatedEntityType === 'test_case' && notification.relatedEntityId) {
-                window.location.href = `/test-cases/${notification.relatedEntityId}`;
-              }
+              navigateToNotification({
+                type: notification.type,
+                relatedEntityType: notification.relatedEntityType,
+                relatedEntityId: notification.relatedEntityId,
+              });
             }
           } : undefined,
         });
