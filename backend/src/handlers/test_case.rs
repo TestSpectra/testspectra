@@ -81,11 +81,20 @@ async fn list_test_cases(
         }
     }
 
+    if let Some(ref review_status) = query.review_status_filter {
+        if !review_status.is_empty() && review_status.to_lowercase() != "all" {
+            params.push(review_status.to_lowercase());
+            conditions.push(format!("LOWER(review_status) = ${}", params.len()));
+        }
+    }
+
     let where_clause = conditions.join(" AND ");
 
     let count_sql = format!("SELECT COUNT(*) FROM test_cases WHERE {}", where_clause);
     let sql = format!(
-        r#"SELECT tc.*, u.name as created_by_name
+        r#"SELECT tc.case_id, tc.title, tc.suite, tc.priority, tc.case_type, tc.automation, 
+           tc.last_status, tc.page_load_avg, tc.last_run, tc.execution_order, tc.updated_at, 
+           tc.review_status, u.name as created_by_name
            FROM test_cases tc
            LEFT JOIN users u ON tc.created_by = u.id
            WHERE {}
@@ -117,6 +126,7 @@ async fn list_test_cases(
             execution_order: tc.execution_order,
             updated_at: tc.updated_at,
             created_by_name: tc.created_by_name,
+            review_status: tc.review_status,
         }).collect(),
         total,
         page,
@@ -141,6 +151,7 @@ struct TestCaseSummaryRow {
     execution_order: f64,
     updated_at: chrono::DateTime<chrono::Utc>,
     created_by_name: Option<String>,
+    review_status: String,
 }
 
 async fn build_query(db: &PgPool, sql: &str, params: &[String]) -> Result<Vec<TestCaseSummaryRow>, AppError> {
@@ -152,6 +163,7 @@ async fn build_query(db: &PgPool, sql: &str, params: &[String]) -> Result<Vec<Te
         3 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).fetch_all(db).await?,
         4 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).fetch_all(db).await?,
         5 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).fetch_all(db).await?,
+        6 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).bind(&params[5]).fetch_all(db).await?,
         _ => return Err(AppError::Internal("Too many parameters".to_string())),
     };
     Ok(result)
@@ -165,6 +177,7 @@ async fn build_count_query(db: &PgPool, sql: &str, params: &[String]) -> Result<
         3 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).fetch_one(db).await?,
         4 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).fetch_one(db).await?,
         5 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).fetch_one(db).await?,
+        6 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).bind(&params[5]).fetch_one(db).await?,
         _ => return Err(AppError::Internal("Too many parameters".to_string())),
     };
     Ok(result.0)
@@ -232,8 +245,8 @@ async fn create_test_case(
     let test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14)
+            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending')
            RETURNING *"#
     )
     .bind(id)
@@ -306,6 +319,22 @@ async fn update_test_case(
 ) -> Result<Json<TestCaseResponse>, AppError> {
     verify_token(&state, &headers)?;
 
+    // Get current test case to check review_status
+    let current: TestCase = sqlx::query_as(
+        "SELECT * FROM test_cases WHERE case_id = $1"
+    )
+    .bind(&case_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
+
+    // Reset review_status to pending if currently approved or needs_revision
+    let new_review_status = if current.review_status == "approved" || current.review_status == "needs_revision" {
+        "pending"
+    } else {
+        &current.review_status
+    };
+
     let test_case: TestCase = sqlx::query_as(
         r#"UPDATE test_cases SET
            title = COALESCE($1, title),
@@ -318,8 +347,9 @@ async fn update_test_case(
            pre_condition = COALESCE($8, pre_condition),
            post_condition = COALESCE($9, post_condition),
            tags = COALESCE($10, tags),
+           review_status = $11,
            updated_at = NOW()
-           WHERE case_id = $11
+           WHERE case_id = $12
            RETURNING *"#
     )
     .bind(&payload.title)
@@ -332,6 +362,7 @@ async fn update_test_case(
     .bind(&payload.pre_condition)
     .bind(&payload.post_condition)
     .bind(&payload.tags)
+    .bind(new_review_status)
     .bind(&case_id)
     .fetch_optional(&state.db)
     .await?
@@ -688,8 +719,8 @@ async fn duplicate_test_case(
     let new_test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14)
+            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending')
            RETURNING *"#
     )
     .bind(new_id)

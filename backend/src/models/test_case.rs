@@ -25,6 +25,7 @@ pub struct TestCase {
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub review_status: String,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize)]
@@ -63,6 +64,7 @@ pub struct TestCaseSummary {
     pub execution_order: f64,
     pub updated_at: DateTime<Utc>,
     pub created_by_name: Option<String>,
+    pub review_status: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -88,6 +90,7 @@ pub struct TestCaseResponse {
     pub created_by_name: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    pub review_status: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,6 +134,7 @@ impl TestCaseResponse {
             created_by_name: tc.created_by_name,
             created_at: tc.test_case.created_at.to_rfc3339(),
             updated_at: tc.test_case.updated_at.to_rfc3339(),
+            review_status: tc.test_case.review_status,
         }
     }
 }
@@ -191,6 +195,7 @@ pub struct ListTestCasesQuery {
     pub priority_filter: Option<String>,
     pub automation_filter: Option<String>,
     pub status_filter: Option<String>,
+    pub review_status_filter: Option<String>,
     pub page: Option<i32>,
     pub page_size: Option<i32>,
 }
