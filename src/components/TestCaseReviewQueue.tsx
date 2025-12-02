@@ -460,7 +460,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
                         <Button
                           onClick={() => onReviewTestCase(item.id)}
                           variant="outline"
-                          className="bg-transparent border-orange-600 text-orange-300 hover:bg-orange-600/10 hover:border-orange-500"
+                          className="bg-transparent border-orange-600 text-orange-300 hover:bg-orange-600/10 hover:text-orange-300 hover:border-orange-500"
                         >
                           <MessageSquare className="w-4 h-4 mr-2" />
                           Re-review
