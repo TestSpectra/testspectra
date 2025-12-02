@@ -200,6 +200,10 @@ function AppContent() {
     navigate(`/review-queue/review/${testCaseId}`);
   };
 
+  const handleReReviewTestCase = (testCaseId: string) => {
+    navigate(`/review-queue/re-review/${testCaseId}`);
+  };
+
   const handleDeleteFromDetail = (testCaseId: string) => {
     navigate('/test-cases');
   };
@@ -268,6 +272,7 @@ function AppContent() {
         <Route path="/review-queue" element={<TestCaseReviewQueue
           onViewDetail={handleViewDetail}
           onReviewTestCase={handleReviewTestCase}
+          onReReviewTestCase={handleReReviewTestCase}
         />} />
 
         <Route path="/review-queue/review/:testCaseId" element={<TestCaseReview

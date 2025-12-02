@@ -11,9 +11,10 @@ import { useWebSocket } from '../contexts/WebSocketContext';
 interface TestCaseReviewQueueProps {
   onViewDetail: (testCaseId: string) => void;
   onReviewTestCase: (testCaseId: string) => void;
+  onReReviewTestCase: (testCaseId: string) => void;
 }
 
-export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCaseReviewQueueProps) {
+export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReviewTestCase }: TestCaseReviewQueueProps) {
   const [testCases, setTestCases] = useState<TestCaseSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -462,7 +463,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase }: TestCase
 
                       {item.reviewStatus === 'needs_revision' && canReview && (
                         <Button
-                          onClick={() => onReviewTestCase(item.id)}
+                          onClick={() => onReReviewTestCase(item.id)}
                           variant="outline"
                           className="bg-transparent border-orange-600 text-orange-300 hover:bg-orange-600/10 hover:text-orange-300 hover:border-orange-500"
                         >

@@ -152,11 +152,6 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
         {/* Main Content - 2 columns */}
         <div className="col-span-2 space-y-6">
           <TestCaseDisplay testCase={testCase} />
-          
-          {/* Show review history if this is a re-review */}
-          {testCase.reviewStatus && testCase.reviewStatus !== 'pending' && (
-            <ReviewHistory testCaseId={testCase.id} />
-          )}
         </div>
 
         {/* Sidebar - Review Actions */}
@@ -285,6 +280,11 @@ export function TestCaseReview({ testCaseId: propTestCaseId, onBack, isReReview 
               </div>
             )}
           </div>
+
+          {/* Review History - Show if not pending */}
+          {testCase.reviewStatus && testCase.reviewStatus !== 'pending' && (
+            <ReviewHistory testCaseId={testCase.id} />
+          )}
 
           <TestCaseMetadata testCase={testCase} />
         </div>
