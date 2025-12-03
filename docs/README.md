@@ -27,6 +27,7 @@ Complete documentation for TestSpectra development, deployment, and releases.
 
 ### Development
 - [User Defined Actions](USER_DEFINED_ACTIONS.md) - Custom action types
+- [Local Workflow Testing](LOCAL_WORKFLOW_TESTING.md) - Test GitHub Actions locally
 
 ## 🚀 Quick Links
 
@@ -34,6 +35,7 @@ Complete documentation for TestSpectra development, deployment, and releases.
 1. Start here: [Main README](../README.md)
 2. Setup auto-updates: [Updater Setup Guide](UPDATER_SETUP_GUIDE.md)
 3. Understand versions: [Version Management](VERSION_MANAGEMENT.md)
+4. Test workflows: [Local Workflow Testing](LOCAL_WORKFLOW_TESTING.md)
 
 ### For Releases
 1. Follow: [Release Checklist](RELEASE_CHECKLIST.md)
@@ -56,6 +58,7 @@ Complete documentation for TestSpectra development, deployment, and releases.
 | Version Management | ✅ Current | 2024-11 |
 | Tauri Updater | ✅ Current | 2024-11 |
 | Prerelease Guide | ✅ Current | 2024-11 |
+| Local Workflow Testing | ✅ Current | 2024-12 |
 
 ## 🤝 Contributing
 
