@@ -64,13 +64,13 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
         // Increment unread count when new notification arrives
         setUnreadCount(prev => prev + 1);
         
-        // Add toast notification to stack
+        // Add toast notification to stack (prepend to show newest first)
         const toastNotification: ToastNotification = {
           ...notification,
           toastId: `${notification.id}-${Date.now()}`, // Unique ID for toast
         };
         
-        setToastNotifications(prev => [...prev, toastNotification]);
+        setToastNotifications(prev => [toastNotification, ...prev]);
       }
     };
 
