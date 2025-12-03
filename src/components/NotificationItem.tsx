@@ -12,13 +12,15 @@ interface NotificationItemProps {
   onClick?: () => void;
   showTimestamp?: boolean;
   compact?: boolean;
+  showUnreadIndicator?: boolean;
 }
 
 export function NotificationItem({ 
   notification, 
   onClick, 
   showTimestamp = true,
-  compact = false 
+  compact = false,
+  showUnreadIndicator = true
 }: NotificationItemProps) {
   
   const getNotificationIcon = (type: string) => {
@@ -74,7 +76,7 @@ export function NotificationItem({
             }`}>
               {notification.title}
             </h4>
-            {!notification.isRead && (
+            {!notification.isRead && showUnreadIndicator && (
               <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0 mt-1" />
             )}
           </div>

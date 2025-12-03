@@ -11,6 +11,7 @@ import { NotificationToast } from './NotificationToast';
 import { notificationService, Notification } from '../services/notification-service';
 import { websocketService, WebSocketMessage } from '../services/websocket-service';
 import { navigateToNotification } from '../lib/notification-navigation';
+import { useNavigate } from 'react-router-dom';
 
 interface NotificationBadgeProps {
   userId?: string;
@@ -22,6 +23,7 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
   const [toastNotification, setToastNotification] = useState<Notification | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate()
 
   /**
    * Fetch initial unread count
@@ -177,7 +179,7 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
               type: toastNotification.type,
               relatedEntityType: toastNotification.relatedEntityType,
               relatedEntityId: toastNotification.relatedEntityId,
-            });
+            }, navigate);
             setToastNotification(null);
           }}
         />

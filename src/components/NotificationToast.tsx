@@ -74,6 +74,7 @@ export function NotificationToast({
           <NotificationItem
             notification={notification}
             onClick={handleClick}
+            showUnreadIndicator={false}
             showTimestamp={true}
             compact={false}
           />
