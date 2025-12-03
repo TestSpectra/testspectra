@@ -1555,7 +1555,7 @@ export function TestCaseForm({
         <div
           className={
             !isMessageInView
-              ? "fixed top-4 left-1/2 -translate-x-1/2 z-40 w-max rounded-lg flex justify-center bg-slate-950/95"
+              ? "fixed top-12 left-1/2 -translate-x-1/2 z-40 w-max rounded-lg flex justify-center bg-slate-950/95"
               : ""
           }
         >
