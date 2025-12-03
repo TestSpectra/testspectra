@@ -235,7 +235,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           <Button
             onClick={() => onEdit(testCase.id)}
             variant="outline"
-            className="border-blue-600/50 text-blue-400 hover:bg-blue-600/20 hover:text-white"
+            className="bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/30 hover:border-blue-500/50 hover:text-blue-300 transition-all"
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit
@@ -243,7 +243,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           <Button
             onClick={() => onDelete(testCase.id)}
             variant="outline"
-            className="border-red-600/50 text-red-400 hover:bg-red-600/20 hover:text-white"
+            className="bg-red-600/10 border-red-500/30 text-red-400 hover:bg-red-600/30 hover:border-red-500/50 hover:text-red-300 transition-all"
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Delete
