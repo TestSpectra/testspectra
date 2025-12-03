@@ -4536,8 +4536,8 @@ html {
   padding: 0.5rem;
 }
 
-/* Action Card Highlight Animation */
-@keyframes action-highlight-pulse {
+/* Step Card Highlight Animation */
+@keyframes step-highlight-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5);
   }
@@ -4549,11 +4549,11 @@ html {
   }
 }
 
-.action-card-highlighted {
+.step-card-highlighted {
   outline: 1px solid #4ade8061;
   outline-offset: 1px;
   background-color: rgba(30, 41, 59, 0.9) !important;
-  animation: action-highlight-pulse 1.5s ease-out;
+  animation: step-highlight-pulse 1.5s ease-out;
 }
 
 /* Improved Input Focus Styles */

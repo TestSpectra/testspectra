@@ -16,7 +16,7 @@ import { Badge } from "./ui/badge";
 import { ConfirmDialog } from "./SimpleDialog";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { authService } from "../services/auth-service";
-import { testCaseService } from "../services/test-case-service";
+import { TestCase, testCaseService } from "../services/test-case-service";
 import { getApiUrl } from "../lib/config";
 import "../styles/drag-handle.css";
 import {
@@ -90,34 +90,32 @@ type AssertionType =
   | "isSelected";
 
 interface Assertion {
-  id: string;
-  type: AssertionType;
+  id?: string; // Frontend only, for React keys
+  assertionType: AssertionType;
   selector?: string;
-  value?: string;
+  expectedValue?: string;
   attributeName?: string;
   attributeValue?: string;
 }
 
-interface TestAction {
-  id: string;
-  type: ActionType;
-  // Common fields
+interface ActionParams {
   selector?: string;
   value?: string;
   text?: string;
   url?: string;
   timeout?: string;
-  // Scroll/Swipe
   direction?: "up" | "down" | "left" | "right";
-  // Drag and Drop
   targetSelector?: string;
-  // Press Key
   key?: string;
-  // Assertions for expected result
-  assertions?: Assertion[];
-  customExpectedResult?: string;
-  // Wait
   duration?: string;
+}
+
+interface TestStep {
+  id: string;
+  actionType: ActionType;
+  actionParams: ActionParams;
+  assertions: Assertion[];
+  customExpectedResult?: string;
 }
 
 // Action definitions with labels
@@ -349,50 +347,50 @@ const KEY_OPTIONS = [
 ];
 
 // Sortable Action Item Component
-interface SortableActionItemProps {
-  action: TestAction;
+interface SortableStepItemProps {
+  step: TestStep;
   index: number;
-  actionsLength: number;
+  stepsLength: number;
   inputClass: string;
   isHighlighted: boolean;
-  getActionColor: (type: ActionType) => string;
-  getActionLabel: (type: ActionType) => string;
-  handleUpdateAction: (id: string, updates: Partial<TestAction>) => void;
-  handleRemoveAction: (id: string) => void;
-  handleDuplicateAction: (id: string) => void;
-  handleInsertActionBelow: (id: string) => void;
-  handleAddAssertion: (actionId: string) => void;
+  getStepColor: (type: ActionType) => string;
+  getStepLabel: (type: ActionType) => string;
+  handleUpdateStep: (id: string, updates: Partial<TestStep>) => void;
+  handleRemoveStep: (id: string) => void;
+  handleDuplicateStep: (id: string) => void;
+  handleInsertStepBelow: (id: string) => void;
+  handleAddAssertion: (stepId: string) => void;
   handleUpdateAssertion: (
-    actionId: string,
+    stepId: string,
     assertionId: string,
     updates: Partial<Assertion>
   ) => void;
-  handleRemoveAssertion: (actionId: string, assertionId: string) => void;
-  renderActionFields: (action: TestAction) => React.ReactNode;
+  handleRemoveAssertion: (stepId: string, assertionId: string) => void;
+  renderStepFields: (step: TestStep) => React.ReactNode;
   renderAssertionFields: (
-    action: TestAction,
+    step: TestStep,
     assertion: Assertion
   ) => React.ReactNode;
 }
 
-function SortableActionItem({
-  action,
+function SortableStepItem({
+  step,
   index,
-  actionsLength,
+  stepsLength,
   inputClass,
   isHighlighted,
-  getActionColor,
-  getActionLabel,
-  handleUpdateAction,
-  handleRemoveAction,
-  handleDuplicateAction,
-  handleInsertActionBelow,
+  getStepColor,
+  getStepLabel,
+  handleUpdateStep,
+  handleRemoveStep,
+  handleDuplicateStep,
+  handleInsertStepBelow,
   handleAddAssertion,
   handleUpdateAssertion,
   handleRemoveAssertion,
-  renderActionFields,
+  renderStepFields,
   renderAssertionFields,
-}: SortableActionItemProps) {
+}: SortableStepItemProps) {
   const {
     attributes,
     listeners,
@@ -400,7 +398,7 @@ function SortableActionItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: action.id });
+  } = useSortable({ id: step.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -412,11 +410,12 @@ function SortableActionItem({
     <div
       ref={setNodeRef}
       style={style}
-      data-action-id={action.id}
-      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${isDragging ? "ring-2 ring-blue-500" : ""
-        } ${isHighlighted ? "action-card-highlighted" : ""}`}
+      data-step-id={step.id}
+      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${
+        isDragging ? "ring-2 ring-blue-500" : ""
+      } ${isHighlighted ? "step-card-highlighted" : ""}`}
     >
-      {/* Action Header */}
+      {/* Step Header */}
       <div className="flex items-start gap-3">
         {/* Number with Drag Handle on Hover */}
         <div className="drag-handle-container" {...attributes} {...listeners}>
@@ -428,30 +427,25 @@ function SortableActionItem({
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-3">
             <select
-              value={action.type}
+              value={step.actionType}
               onChange={(e) => {
                 const newType = e.target.value as ActionType;
                 const defaultAssertionType = ASSERTIONS_BY_ACTION[newType][0];
-                
-                // Reset all action-specific fields when changing type
-                handleUpdateAction(action.id, {
-                  type: newType,
-                  // Reset all optional fields
-                  selector: undefined,
-                  value: undefined,
-                  text: undefined,
-                  url: undefined,
-                  timeout: undefined,
-                  direction: undefined,
-                  targetSelector: undefined,
-                  key: undefined,
-                  duration: undefined,
+
+                // Reset all step-specific fields when changing type
+                handleUpdateStep(step.id, {
+                  actionType: newType,
+                  // Reset actionParams
+                  actionParams: {},
                   // Keep assertions but reset to default for new type
                   assertions: [
-                    { id: Date.now().toString(), type: defaultAssertionType },
+                    {
+                      id: Date.now().toString(),
+                      assertionType: defaultAssertionType,
+                    },
                   ],
                   // Keep custom expected result
-                  customExpectedResult: action.customExpectedResult,
+                  customExpectedResult: step.customExpectedResult,
                 });
               }}
               className={inputClass}
@@ -467,34 +461,34 @@ function SortableActionItem({
             </select>
             <Badge
               variant="outline"
-              className={`${getActionColor(action.type)} border shrink-0`}
+              className={`${getStepColor(step.actionType)} border shrink-0`}
             >
-              {getActionLabel(action.type)}
+              {getStepLabel(step.actionType)}
             </Badge>
           </div>
-          {renderActionFields(action)}
+          {renderStepFields(step)}
         </div>
         <div className="flex items-center gap-1 mt-1">
           <button
-            onClick={() => handleDuplicateAction(action.id)}
+            onClick={() => handleDuplicateStep(step.id)}
             className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
-            title="Duplicate Action"
+            title="Duplicate Step"
             tabIndex={1000 + index}
           >
             <Copy className="w-4 h-4" />
           </button>
           <button
-            onClick={() => handleInsertActionBelow(action.id)}
+            onClick={() => handleInsertStepBelow(step.id)}
             className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
-            title="Add Action Below"
+            title="Add Step Below"
             tabIndex={1000 + index}
           >
             <PlusCircle className="w-4 h-4" />
           </button>
           <button
-            onClick={() => handleRemoveAction(action.id)}
+            onClick={() => handleRemoveStep(step.id)}
             className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-            title="Delete Action"
+            title="Delete Step"
             tabIndex={1000 + index}
           >
             <Trash2 className="w-4 h-4" />
@@ -511,7 +505,7 @@ function SortableActionItem({
           </label>
           <button
             type="button"
-            onClick={() => handleAddAssertion(action.id)}
+            onClick={() => handleAddAssertion(step.id)}
             className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
           >
             <Plus size={12} />
@@ -520,10 +514,10 @@ function SortableActionItem({
         </div>
 
         {/* Assertions List */}
-        {(action.assertions || []).length > 0 && (
+        {(step.assertions || []).length > 0 && (
           <div className="space-y-2 mb-3">
-            {(action.assertions || []).map((assertion) => {
-              const availableAssertions = ASSERTIONS_BY_ACTION[action.type];
+            {(step.assertions || []).map((assertion) => {
+              const availableAssertions = ASSERTIONS_BY_ACTION[step.actionType];
               const filteredDefs = ASSERTION_DEFINITIONS.filter((a) =>
                 availableAssertions.includes(a.value)
               );
@@ -534,10 +528,10 @@ function SortableActionItem({
                   className="flex items-center gap-2 bg-slate-700/30 p-2 rounded-lg"
                 >
                   <select
-                    value={assertion.type}
+                    value={assertion.assertionType}
                     onChange={(e) =>
-                      handleUpdateAssertion(action.id, assertion.id, {
-                        type: e.target.value as AssertionType,
+                      handleUpdateAssertion(step.id, assertion.id || "", {
+                        assertionType: e.target.value as AssertionType,
                       })
                     }
                     className={`${inputClass} text-sm min-w-40`}
@@ -548,11 +542,11 @@ function SortableActionItem({
                       </option>
                     ))}
                   </select>
-                  {renderAssertionFields(action, assertion)}
+                  {renderAssertionFields(step, assertion)}
                   <button
                     type="button"
                     onClick={() =>
-                      handleRemoveAssertion(action.id, assertion.id)
+                      handleRemoveAssertion(step.id, assertion.id || "")
                     }
                     className="p-1 text-slate-500 hover:text-red-400 transition-colors"
                   >
@@ -570,9 +564,9 @@ function SortableActionItem({
             Custom Assertion (opsional)
           </label>
           <RichTextEditor
-            value={action.customExpectedResult || ""}
+            value={step.customExpectedResult || ""}
             onChange={(value) =>
-              handleUpdateAction(action.id, {
+              handleUpdateStep(step.id, {
                 customExpectedResult: value,
               })
             }
@@ -589,7 +583,7 @@ export function TestCaseForm({
   onSave,
   onCancel,
 }: TestCaseFormProps) {
-  const [loadedTestCase, setLoadedTestCase] = useState<any>(null);
+  const [loadedTestCase, setLoadedTestCase] = useState<TestCase | null>(null);
   const [isLoadingTestCase, setIsLoadingTestCase] = useState(false);
 
   // Fetch test case if testCaseId is provided (edit mode)
@@ -612,43 +606,23 @@ export function TestCaseForm({
   }, [testCaseId]);
 
   // Convert backend steps to frontend actions format
-  const convertStepsToActions = (steps: any[]): TestAction[] => {
+  const convertStepsFromBackend = (steps: any[]): TestStep[] => {
     if (!steps || steps.length === 0) {
       return [];
     }
 
-    return steps.map((step, index) => {
-      const action: TestAction = {
-        id: step.id || `step-${index}`,
-        type: step.actionType as ActionType,
-        customExpectedResult: step.customExpectedResult || "",
-        assertions: (step.assertions || []).map(
-          (assertion: any, idx: number) => ({
-            id: `assertion-${index}-${idx}`,
-            type: assertion.assertionType as AssertionType,
-            selector: assertion.selector || "",
-            value: assertion.expectedValue || "",
-          })
-        ),
-      };
-
-      // Map action params to action properties
-      if (step.actionParams) {
-        if (step.actionParams.url) action.url = step.actionParams.url;
-        if (step.actionParams.selector)
-          action.selector = step.actionParams.selector;
-        if (step.actionParams.text) action.text = step.actionParams.text;
-        if (step.actionParams.key) action.key = step.actionParams.key;
-        if (step.actionParams.duration)
-          action.duration = step.actionParams.duration;
-        if (step.actionParams.direction)
-          action.direction = step.actionParams.direction;
-        if (step.actionParams.targetSelector)
-          action.targetSelector = step.actionParams.targetSelector;
-      }
-
-      return action;
-    });
+    return steps.map((step, index) => ({
+      id: step.id || `step-${index}`,
+      actionType: step.actionType as ActionType,
+      actionParams: step.actionParams || {},
+      customExpectedResult: step.customExpectedResult || "",
+      assertions: (step.assertions || []).map(
+        (assertion: any, idx: number) => ({
+          ...assertion,
+          id: assertion.id || `assertion-${index}-${idx}`, // Add id for React keys
+        })
+      ),
+    }));
   };
 
   const [formData, setFormData] = useState({
@@ -663,7 +637,7 @@ export function TestCaseForm({
     filePath: "",
   });
 
-  const [actions, setActions] = useState<TestAction[]>([]);
+  const [steps, setSteps] = useState<TestStep[]>([]);
 
   // Update form when loadedTestCase changes (loaded from API)
   useEffect(() => {
@@ -678,9 +652,9 @@ export function TestCaseForm({
         postCondition: loadedTestCase.postCondition || "",
         automationStatus:
           loadedTestCase.automation === "Automated" ? "automated" : "manual",
-        filePath: loadedTestCase.filePath || "",
+        filePath: "",
       });
-      setActions(convertStepsToActions(loadedTestCase.steps || []));
+      setSteps(convertStepsFromBackend(loadedTestCase.steps || []));
     }
   }, [loadedTestCase]);
 
@@ -727,7 +701,7 @@ export function TestCaseForm({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSaving, formData, actions]);
+  }, [isSaving, formData, steps]);
 
   // Fetch suites on mount
   useEffect(() => {
@@ -788,38 +762,15 @@ export function TestCaseForm({
     }
   };
 
-  // Convert actions to steps format for API
-  const convertActionsToSteps = () => {
-    return actions.map((action, index) => {
-      // Build action_params from action properties
-      // Backend will clean up irrelevant fields
-      const actionParams: Record<string, any> = {};
-      if (action.url) actionParams.url = action.url;
-      if (action.selector) actionParams.selector = action.selector;
-      if (action.text) actionParams.text = action.text;
-      if (action.key) actionParams.key = action.key;
-      if (action.duration) actionParams.duration = action.duration;
-      if (action.direction) actionParams.direction = action.direction;
-      if (action.targetSelector)
-        actionParams.targetSelector = action.targetSelector;
-      if (action.value) actionParams.value = action.value;
-      if (action.timeout) actionParams.timeout = action.timeout;
-
-      // Convert assertions
-      const assertions = (action.assertions || []).map((assertion) => ({
-        assertionType: assertion.type,
-        selector: assertion.selector || null,
-        expectedValue: assertion.value || null,
-      }));
-
-      return {
-        stepOrder: index + 1,
-        actionType: action.type,
-        actionParams,
-        assertions,
-        customExpectedResult: action.customExpectedResult || null,
-      };
-    });
+  // Convert steps to API format (remove frontend-only fields)
+  const convertStepsForBackend = () => {
+    return steps.map((step, index) => ({
+      stepOrder: index + 1,
+      actionType: step.actionType,
+      actionParams: step.actionParams || {},
+      assertions: (step.assertions || []).map(({ id, ...assertion }) => assertion), // Remove id field
+      customExpectedResult: step.customExpectedResult || null,
+    }));
   };
 
   // Handle save test case
@@ -839,7 +790,7 @@ export function TestCaseForm({
 
     try {
       const apiUrl = await getApiUrl();
-      const steps = convertActionsToSteps();
+      const stepsForBackend = convertStepsForBackend();
 
       if (isEditing && testCaseId) {
         // Update existing test case
@@ -850,12 +801,12 @@ export function TestCaseForm({
           caseType: formData.caseType,
           automation:
             formData.automationStatus === "automated" ? "Automated" : "Manual",
-          preCondition: formData.preCondition || null,
-          postCondition: formData.postCondition || null,
+          preCondition: formData.preCondition,
+          postCondition: formData.postCondition,
         });
 
         // Update steps separately using the new format
-        await testCaseService.updateTestSteps(testCaseId, steps)
+        await testCaseService.updateTestSteps(testCaseId, stepsForBackend);
       } else {
         // Create new test case
         const token = authService.getAccessToken();
@@ -912,10 +863,10 @@ export function TestCaseForm({
   };
 
   // Ref to track newly added action for auto-scroll and focus
-  const newActionIdRef = useRef<string | null>(null);
+  const newStepIdRef = useRef<string | null>(null);
 
-  // State to track highlighted action (for temporary glow effect)
-  const [highlightedActionId, setHighlightedActionId] = useState<string | null>(
+  // State to track highlighted step (for temporary glow effect)
+  const [highlightedStepId, setHighlightedStepId] = useState<string | null>(
     null
   );
 
@@ -923,23 +874,23 @@ export function TestCaseForm({
 
   // Auto-scroll, highlight, and focus on newly added action
   useEffect(() => {
-    if (newActionIdRef.current) {
-      const actionId = newActionIdRef.current;
-      newActionIdRef.current = null;
+    if (newStepIdRef.current) {
+      const stepId = newStepIdRef.current;
+      newStepIdRef.current = null;
 
       // Set highlight immediately
-      setHighlightedActionId(actionId);
+      setHighlightedStepId(stepId);
 
       // Small delay to ensure DOM is updated
       setTimeout(() => {
-        const actionElement = document.querySelector(
-          `[data-action-id="${actionId}"]`
+        const stepElement = document.querySelector(
+          `[data-step-id="${stepId}"]`
         );
-        if (actionElement) {
-          actionElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (stepElement) {
+          stepElement.scrollIntoView({ behavior: "smooth", block: "center" });
 
-          // Focus on the first input field in the action
-          const firstInput = actionElement.querySelector(
+          // Focus on the first input field in the step
+          const firstInput = stepElement.querySelector(
             "input, select"
           ) as HTMLElement;
           if (firstInput) {
@@ -954,89 +905,90 @@ export function TestCaseForm({
       }
 
       highlightTimeoutRef.current = window.setTimeout(() => {
-        setHighlightedActionId(null);
+        setHighlightedStepId(null);
         highlightTimeoutRef.current = null;
       }, 1000);
     }
-  }, [actions]);
+  }, [steps]);
 
-  const handleAddAction = () => {
+  const handleAddStep = () => {
     const actionType: ActionType = "click";
     const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
-    const newActionId = Date.now().toString();
-    const newAction: TestAction = {
-      id: newActionId,
-      type: actionType,
-      assertions: [{ id: newActionId + "_a", type: defaultAssertionType }],
+    const newStepId = Date.now().toString();
+    const newAction: TestStep = {
+      id: newStepId,
+      actionType: actionType,
+      actionParams: {},
+      assertions: [
+        { id: newStepId + "_a", assertionType: defaultAssertionType },
+      ],
     };
-    newActionIdRef.current = newActionId;
-    setActions([...actions, newAction]);
+    newStepIdRef.current = newStepId;
+    setSteps([...steps, newAction]);
   };
 
-  const handleAddAssertion = (actionId: string) => {
-    const action = actions.find((a) => a.id === actionId);
-    if (!action) return;
+  const handleAddAssertion = (stepId: string) => {
+    const step = steps.find((s) => s.id === stepId);
+    if (!step) return;
 
-    const availableAssertions = ASSERTIONS_BY_ACTION[action.type];
+    const availableAssertions = ASSERTIONS_BY_ACTION[step.actionType];
     const newAssertion: Assertion = {
       id: Date.now().toString(),
-      type: availableAssertions[0],
+      assertionType: availableAssertions[0],
     };
 
-    handleUpdateAction(actionId, {
-      assertions: [...(action.assertions || []), newAssertion],
+    handleUpdateStep(stepId, {
+      assertions: [...(step.assertions || []), newAssertion],
     });
   };
 
   const handleUpdateAssertion = (
-    actionId: string,
+    stepId: string,
     assertionId: string,
     updates: Partial<Assertion>
   ) => {
-    const action = actions.find((a) => a.id === actionId);
-    if (!action) return;
+    const step = steps.find((s) => s.id === stepId);
+    if (!step) return;
 
-    const updatedAssertions = (action.assertions || []).map((assertion) =>
+    const updatedAssertions = (step.assertions || []).map((assertion) =>
       assertion.id === assertionId ? { ...assertion, ...updates } : assertion
     );
 
-    handleUpdateAction(actionId, { assertions: updatedAssertions });
+    handleUpdateStep(stepId, { assertions: updatedAssertions });
   };
 
-  const handleRemoveAssertion = (actionId: string, assertionId: string) => {
-    const action = actions.find((a) => a.id === actionId);
-    if (!action) return;
+  const handleRemoveAssertion = (stepId: string, assertionId: string) => {
+    const step = steps.find((s) => s.id === stepId);
+    if (!step) return;
 
-    const updatedAssertions = (action.assertions || []).filter(
+    const updatedAssertions = (step.assertions || []).filter(
       (assertion) => assertion.id !== assertionId
     );
 
-    handleUpdateAction(actionId, { assertions: updatedAssertions });
+    handleUpdateStep(stepId, { assertions: updatedAssertions });
   };
 
   // State for delete confirmation dialog
-  const [actionToDelete, setActionToDelete] = useState<string | null>(null);
+  const [stepToDelete, setStepToDelete] = useState<string | null>(null);
 
-  // Check if action has any filled data (besides id and type)
-  const actionHasData = (action: TestAction): boolean => {
-    // Check basic fields
-    if (action.selector || action.value || action.text || action.url)
-      return true;
-    if (
-      action.timeout ||
-      action.targetSelector ||
-      action.key ||
-      action.duration
-    )
-      return true;
-    if (action.customExpectedResult) return true;
+  // Check if step has any filled data (besides id and type)
+  const stepHasData = (step: TestStep): boolean => {
+    // Check actionParams
+    if (step.actionParams && Object.keys(step.actionParams).length > 0) {
+      const hasFilledParam = Object.values(step.actionParams).some(
+        (val) => val !== undefined && val !== null && val !== ""
+      );
+      if (hasFilledParam) return true;
+    }
+
+    if (step.customExpectedResult) return true;
 
     // Check if any assertion has filled data
-    if (action.assertions && action.assertions.length > 0) {
-      for (const assertion of action.assertions) {
+    if (step.assertions && step.assertions.length > 0) {
+      for (const assertion of step.assertions) {
         if (
           assertion.selector ||
-          assertion.value ||
+          assertion.expectedValue ||
           assertion.attributeName ||
           assertion.attributeValue
         ) {
@@ -1048,65 +1000,68 @@ export function TestCaseForm({
     return false;
   };
 
-  const handleRemoveAction = (id: string) => {
-    const action = actions.find((a) => a.id === id);
-    if (!action) return;
+  const handleRemoveStep = (id: string) => {
+    const step = steps.find((s) => s.id === id);
+    if (!step) return;
 
-    // If action has no data, delete immediately
-    if (!actionHasData(action)) {
-      setActions(actions.filter((a) => a.id !== id));
+    // If step has no data, delete immediately
+    if (!stepHasData(step)) {
+      setSteps(steps.filter((s) => s.id !== id));
       return;
     }
 
     // Otherwise show confirmation dialog
-    setActionToDelete(id);
+    setStepToDelete(id);
   };
 
-  const confirmRemoveAction = () => {
-    if (actionToDelete) {
-      setActions(actions.filter((action) => action.id !== actionToDelete));
-      setActionToDelete(null);
+  const confirmRemoveStep = () => {
+    if (stepToDelete) {
+      setSteps(steps.filter((step) => step.id !== stepToDelete));
+      setStepToDelete(null);
     }
   };
 
-  const handleDuplicateAction = (id: string) => {
-    const actionIndex = actions.findIndex((a) => a.id === id);
-    if (actionIndex === -1) return;
+  const handleDuplicateStep = (id: string) => {
+    const stepIndex = steps.findIndex((s) => s.id === id);
+    if (stepIndex === -1) return;
 
-    const actionToDuplicate = actions[actionIndex];
-    const newActionId = Date.now().toString();
-    const duplicatedAction: TestAction = {
-      ...actionToDuplicate,
-      id: newActionId,
-      assertions: (actionToDuplicate.assertions || []).map((a) => ({
+    const stepToDuplicate = steps[stepIndex];
+    const newStepId = Date.now().toString();
+    const duplicatedStep: TestStep = {
+      ...stepToDuplicate,
+      id: newStepId,
+      assertions: (stepToDuplicate.assertions || []).map((a) => ({
         ...a,
-        id: newActionId + "_" + Math.random().toString(36).substr(2, 9),
+        id: newStepId + "_" + Math.random().toString(36).substr(2, 9),
       })),
     };
 
-    const newActions = [...actions];
-    newActions.splice(actionIndex + 1, 0, duplicatedAction);
-    newActionIdRef.current = newActionId;
-    setActions(newActions);
+    const newSteps = [...steps];
+    newSteps.splice(stepIndex + 1, 0, duplicatedStep);
+    newStepIdRef.current = newStepId;
+    setSteps(newSteps);
   };
 
-  const handleInsertActionBelow = (id: string) => {
-    const actionIndex = actions.findIndex((a) => a.id === id);
-    if (actionIndex === -1) return;
+  const handleInsertStepBelow = (id: string) => {
+    const stepIndex = steps.findIndex((s) => s.id === id);
+    if (stepIndex === -1) return;
 
     const actionType: ActionType = "click";
     const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
-    const newActionId = Date.now().toString();
-    const newAction: TestAction = {
-      id: newActionId,
-      type: actionType,
-      assertions: [{ id: newActionId + "_a", type: defaultAssertionType }],
+    const newStepId = Date.now().toString();
+    const newStep: TestStep = {
+      id: newStepId,
+      actionType: actionType,
+      actionParams: {},
+      assertions: [
+        { id: newStepId + "_a", assertionType: defaultAssertionType },
+      ],
     };
 
-    const newActions = [...actions];
-    newActions.splice(actionIndex + 1, 0, newAction);
-    newActionIdRef.current = newActionId;
-    setActions(newActions);
+    const newSteps = [...steps];
+    newSteps.splice(stepIndex + 1, 0, newStep);
+    newStepIdRef.current = newStepId;
+    setSteps(newSteps);
   };
 
   // Drag and drop sensors
@@ -1124,16 +1079,31 @@ export function TestCaseForm({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = actions.findIndex((a) => a.id === active.id);
-      const newIndex = actions.findIndex((a) => a.id === over.id);
-      setActions(arrayMove(actions, oldIndex, newIndex));
+      const oldIndex = steps.findIndex((s) => s.id === active.id);
+      const newIndex = steps.findIndex((s) => s.id === over.id);
+      setSteps(arrayMove(steps, oldIndex, newIndex));
     }
   };
 
-  const handleUpdateAction = (id: string, updates: Partial<TestAction>) => {
-    setActions(
-      actions.map((action) =>
-        action.id === id ? { ...action, ...updates } : action
+  const handleUpdateStep = (id: string, updates: Partial<TestStep>) => {
+    setSteps(
+      steps.map((step) => (step.id === id ? { ...step, ...updates } : step))
+    );
+  };
+
+  const handleUpdateStepParam = (
+    id: string,
+    paramKey: keyof ActionParams,
+    value: any
+  ) => {
+    setSteps(
+      steps.map((step) =>
+        step.id === id
+          ? {
+              ...step,
+              actionParams: { ...step.actionParams, [paramKey]: value },
+            }
+          : step
       )
     );
   };
@@ -1151,15 +1121,15 @@ export function TestCaseForm({
   const inputClass =
     "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-colors duration-150";
 
-  const renderActionFields = (action: TestAction) => {
-    switch (action.type) {
+  const renderStepFields = (step: TestStep) => {
+    switch (step.actionType) {
       case "navigate":
         return (
           <input
             type="text"
-            value={action.url || ""}
+            value={step.actionParams?.url || ""}
             onChange={(e) =>
-              handleUpdateAction(action.id, { url: e.target.value })
+              handleUpdateStepParam(step.id, "url", e.target.value)
             }
             placeholder="URL (e.g. https://example.com) or relative path (e.g. /some-path)"
             className={`w-full ${inputClass}`}
@@ -1173,18 +1143,18 @@ export function TestCaseForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              value={action.selector || ""}
+              value={step.actionParams?.selector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
+                handleUpdateStepParam(step.id, "selector", e.target.value)
               }
               placeholder="Selector (e.g., #submit-btn)"
               className={inputClass}
             />
             <input
               type="text"
-              value={action.text || ""}
+              value={step.actionParams?.text || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { text: e.target.value })
+                handleUpdateStepParam(step.id, "text", e.target.value)
               }
               placeholder="Or Text (e.g., 'Submit')"
               className={inputClass}
@@ -1197,18 +1167,18 @@ export function TestCaseForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              value={action.selector || ""}
+              value={step.actionParams?.selector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
+                handleUpdateStepParam(step.id, "selector", e.target.value)
               }
               placeholder="Selector (e.g., #email)"
               className={inputClass}
             />
             <input
               type="text"
-              value={action.value || ""}
+              value={step.actionParams?.value || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { value: e.target.value })
+                handleUpdateStepParam(step.id, "value", e.target.value)
               }
               placeholder="Text to type"
               className={inputClass}
@@ -1221,9 +1191,9 @@ export function TestCaseForm({
         return (
           <input
             type="text"
-            value={action.selector || ""}
+            value={step.actionParams?.selector || ""}
             onChange={(e) =>
-              handleUpdateAction(action.id, { selector: e.target.value })
+              handleUpdateStepParam(step.id, "selector", e.target.value)
             }
             placeholder="Selector (e.g., #input-field)"
             className={`w-full ${inputClass}`}
@@ -1235,18 +1205,18 @@ export function TestCaseForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              value={action.selector || ""}
+              value={step.actionParams?.selector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
+                handleUpdateStepParam(step.id, "selector", e.target.value)
               }
               placeholder="Selector (e.g., #country)"
               className={inputClass}
             />
             <input
               type="text"
-              value={action.value || ""}
+              value={step.actionParams?.value || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { value: e.target.value })
+                handleUpdateStepParam(step.id, "value", e.target.value)
               }
               placeholder="Option value or text"
               className={inputClass}
@@ -1258,11 +1228,13 @@ export function TestCaseForm({
         return (
           <div className="grid grid-cols-2 gap-3">
             <select
-              value={action.direction || "down"}
+              value={step.actionParams?.direction || "down"}
               onChange={(e) =>
-                handleUpdateAction(action.id, {
-                  direction: e.target.value as any,
-                })
+                handleUpdateStepParam(
+                  step.id,
+                  "direction",
+                  e.target.value as any
+                )
               }
               className={inputClass}
             >
@@ -1273,9 +1245,9 @@ export function TestCaseForm({
             </select>
             <input
               type="text"
-              value={action.selector || ""}
+              value={step.actionParams?.selector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
+                handleUpdateStepParam(step.id, "selector", e.target.value)
               }
               placeholder="Target selector (optional)"
               className={inputClass}
@@ -1287,11 +1259,13 @@ export function TestCaseForm({
         return (
           <div className="grid grid-cols-2 gap-3">
             <select
-              value={action.direction || "up"}
+              value={step.actionParams?.direction || "up"}
               onChange={(e) =>
-                handleUpdateAction(action.id, {
-                  direction: e.target.value as any,
-                })
+                handleUpdateStepParam(
+                  step.id,
+                  "direction",
+                  e.target.value as any
+                )
               }
               className={inputClass}
             >
@@ -1302,9 +1276,9 @@ export function TestCaseForm({
             </select>
             <input
               type="text"
-              value={action.selector || ""}
+              value={step.actionParams?.selector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
+                handleUpdateStepParam(step.id, "selector", e.target.value)
               }
               placeholder="Element selector (optional)"
               className={inputClass}
@@ -1316,9 +1290,9 @@ export function TestCaseForm({
         return (
           <input
             type="text"
-            value={action.timeout || ""}
+            value={step.actionParams?.timeout || ""}
             onChange={(e) =>
-              handleUpdateAction(action.id, { timeout: e.target.value })
+              handleUpdateStepParam(step.id, "timeout", e.target.value)
             }
             placeholder="Duration in ms (e.g., 3000)"
             className={`w-full ${inputClass}`}
@@ -1330,18 +1304,18 @@ export function TestCaseForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              value={action.selector || ""}
+              value={step.actionParams?.selector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
+                handleUpdateStepParam(step.id, "selector", e.target.value)
               }
               placeholder="Selector (e.g., .loading-complete)"
               className={inputClass}
             />
             <input
               type="text"
-              value={action.timeout || ""}
+              value={step.actionParams?.timeout || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { timeout: e.target.value })
+                handleUpdateStepParam(step.id, "timeout", e.target.value)
               }
               placeholder="Timeout ms (e.g., 10000)"
               className={inputClass}
@@ -1352,9 +1326,9 @@ export function TestCaseForm({
       case "pressKey":
         return (
           <select
-            value={action.key || "Enter"}
+            value={step.actionParams?.key || "Enter"}
             onChange={(e) =>
-              handleUpdateAction(action.id, { key: e.target.value })
+              handleUpdateStepParam(step.id, "key", e.target.value)
             }
             className={`w-full ${inputClass}`}
           >
@@ -1371,20 +1345,22 @@ export function TestCaseForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              value={action.selector || ""}
+              value={step.actionParams?.selector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, { selector: e.target.value })
+                handleUpdateStepParam(step.id, "selector", e.target.value)
               }
               placeholder="Source selector"
               className={inputClass}
             />
             <input
               type="text"
-              value={action.targetSelector || ""}
+              value={step.actionParams?.targetSelector || ""}
               onChange={(e) =>
-                handleUpdateAction(action.id, {
-                  targetSelector: e.target.value,
-                })
+                handleUpdateStepParam(
+                  step.id,
+                  "targetSelector",
+                  e.target.value
+                )
               }
               placeholder="Target selector"
               className={inputClass}
@@ -1405,9 +1381,9 @@ export function TestCaseForm({
     }
   };
 
-  const renderAssertionFields = (action: TestAction, assertion: Assertion) => {
+  const renderAssertionFields = (step: TestStep, assertion: Assertion) => {
     const assertionDef = ASSERTION_DEFINITIONS.find(
-      (a) => a.value === assertion.type
+      (a) => a.value === assertion.assertionType
     );
     if (!assertionDef) return null;
 
@@ -1418,7 +1394,7 @@ export function TestCaseForm({
             type="text"
             value={assertion.selector || ""}
             onChange={(e) =>
-              handleUpdateAssertion(action.id, assertion.id, {
+              handleUpdateAssertion(step.id, assertion.id || "", {
                 selector: e.target.value,
               })
             }
@@ -1429,10 +1405,10 @@ export function TestCaseForm({
         {assertionDef.needsValue && (
           <input
             type="text"
-            value={assertion.value || ""}
+            value={assertion.expectedValue || ""}
             onChange={(e) =>
-              handleUpdateAssertion(action.id, assertion.id, {
-                value: e.target.value,
+              handleUpdateAssertion(step.id, assertion.id || "", {
+                expectedValue: e.target.value,
               })
             }
             placeholder="Expected value"
@@ -1445,7 +1421,7 @@ export function TestCaseForm({
               type="text"
               value={assertion.attributeName || ""}
               onChange={(e) =>
-                handleUpdateAssertion(action.id, assertion.id, {
+                handleUpdateAssertion(step.id, assertion.id || "", {
                   attributeName: e.target.value,
                 })
               }
@@ -1456,7 +1432,7 @@ export function TestCaseForm({
               type="text"
               value={assertion.attributeValue || ""}
               onChange={(e) =>
-                handleUpdateAssertion(action.id, assertion.id, {
+                handleUpdateAssertion(step.id, assertion.id || "", {
                   attributeValue: e.target.value,
                 })
               }
@@ -1469,7 +1445,7 @@ export function TestCaseForm({
     );
   };
 
-  const getActionColor = (type: ActionType) => {
+  const getStepColor = (type: ActionType) => {
     const colors: Record<ActionType, string> = {
       navigate: "bg-blue-500/20 text-blue-400 border-blue-500/30",
       click: "bg-purple-500/20 text-purple-400 border-purple-500/30",
@@ -1491,7 +1467,7 @@ export function TestCaseForm({
     return colors[type];
   };
 
-  const getActionLabel = (type: ActionType) => {
+  const getStepLabel = (type: ActionType) => {
     return ACTION_DEFINITIONS.find((a) => a.value === type)?.label || type;
   };
 
@@ -1788,9 +1764,9 @@ export function TestCaseForm({
           {/* Action Steps */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <div className="mb-6">
-              <h2 className="mb-1">Action Steps</h2>
+              <h2 className="mb-1">Test Steps</h2>
               <p className="text-sm text-slate-400">
-                Define test actions in sequence (drag to reorder)
+                Define test steps in sequence (drag to reorder)
               </p>
             </div>
 
@@ -1800,28 +1776,28 @@ export function TestCaseForm({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={actions.map((a) => a.id)}
+                items={steps.map((s) => s.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-4">
-                  {actions.map((action, index) => (
-                    <SortableActionItem
-                      key={action.id}
-                      action={action}
+                  {steps.map((step, index) => (
+                    <SortableStepItem
+                      key={step.id}
+                      step={step}
                       index={index}
-                      actionsLength={actions.length}
+                      stepsLength={steps.length}
                       inputClass={inputClass}
-                      isHighlighted={highlightedActionId === action.id}
-                      getActionColor={getActionColor}
-                      getActionLabel={getActionLabel}
-                      handleUpdateAction={handleUpdateAction}
-                      handleRemoveAction={handleRemoveAction}
-                      handleDuplicateAction={handleDuplicateAction}
-                      handleInsertActionBelow={handleInsertActionBelow}
+                      isHighlighted={highlightedStepId === step.id}
+                      getStepColor={getStepColor}
+                      getStepLabel={getStepLabel}
+                      handleUpdateStep={handleUpdateStep}
+                      handleRemoveStep={handleRemoveStep}
+                      handleDuplicateStep={handleDuplicateStep}
+                      handleInsertStepBelow={handleInsertStepBelow}
                       handleAddAssertion={handleAddAssertion}
                       handleUpdateAssertion={handleUpdateAssertion}
                       handleRemoveAssertion={handleRemoveAssertion}
-                      renderActionFields={renderActionFields}
+                      renderStepFields={renderStepFields}
                       renderAssertionFields={renderAssertionFields}
                     />
                   ))}
@@ -1829,14 +1805,14 @@ export function TestCaseForm({
               </SortableContext>
             </DndContext>
 
-            {/* Add Action Button - at bottom for easy access */}
+            {/* Add Step Button - at bottom for easy access */}
             <Button
-              onClick={handleAddAction}
+              onClick={handleAddStep}
               variant="outline"
               className="w-full mt-4 border-slate-600 border-dashed bg-transparent text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-500"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Action
+              Add Step
             </Button>
           </div>
         </div>
@@ -1952,13 +1928,13 @@ export function TestCaseForm({
 
       {/* Delete Action Confirmation Dialog */}
       <ConfirmDialog
-        isOpen={!!actionToDelete}
-        title="Delete Action Step?"
-        message="Are you sure you want to delete this action step? This action cannot be undone."
+        isOpen={!!stepToDelete}
+        title="Delete Test Step?"
+        message="Are you sure you want to delete this test step? This action cannot be undone."
         confirmLabel="Delete"
         cancelLabel="Cancel"
-        onConfirm={confirmRemoveAction}
-        onCancel={() => setActionToDelete(null)}
+        onConfirm={confirmRemoveStep}
+        onCancel={() => setStepToDelete(null)}
       />
     </div>
   );
