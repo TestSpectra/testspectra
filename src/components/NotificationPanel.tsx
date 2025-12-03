@@ -5,13 +5,14 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, CheckCheck, Clock, X, RefreshCw } from 'lucide-react';
+import { Bell, CheckCheck, X } from 'lucide-react';
 import { notificationService, Notification } from '../services/notification-service';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import { navigateToNotification } from '../lib/notification-navigation';
+import { NotificationItem } from './NotificationItem';
 
 interface NotificationPanelProps {
   onClose?: () => void;
@@ -102,42 +103,7 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
     }
   };
 
-  /**
-   * Format timestamp for display
-   */
-  const formatTimestamp = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return date.toLocaleDateString();
-  };
-
-  /**
-   * Get notification icon based on type
-   */
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'review_approved':
-        return <Check className="w-4 h-4 text-green-500" />;
-      case 'review_needs_revision':
-        return <Clock className="w-4 h-4 text-orange-500" />;
-      case 'test_case_created':
-        return <Bell className="w-4 h-4 text-blue-500" />;
-      case 'test_case_revised':
-        return <RefreshCw className="w-4 h-4 text-purple-500" />;
-      default:
-        return <Bell className="w-4 h-4 text-blue-500" />;
-    }
-  };
 
   /**
    * Load notifications on mount
@@ -226,38 +192,12 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
           ) : (
             <div className="divide-y divide-slate-800">
               {notifications.map((notification) => (
-                <button
+                <NotificationItem
                   key={notification.id}
+                  notification={notification}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`w-full p-4 text-left transition-colors hover:bg-slate-800/50 ${
-                    !notification.isRead ? 'bg-slate-800/30' : ''
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 shrink-0">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h4 className={`text-sm font-medium ${
-                          !notification.isRead ? 'text-slate-100' : 'text-slate-300'
-                        }`}>
-                          {notification.title}
-                        </h4>
-                        {!notification.isRead && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0 mt-1" />
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-400 mb-2">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <Clock className="w-3 h-3" />
-                        {formatTimestamp(notification.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-                </button>
+                  showTimestamp={true}
+                />
               ))}
             </div>
           )}

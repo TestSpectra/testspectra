@@ -7,8 +7,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { NotificationPanel } from './NotificationPanel';
-import { notificationService } from '../services/notification-service';
+import { NotificationToast } from './NotificationToast';
+import { notificationService, Notification } from '../services/notification-service';
 import { websocketService, WebSocketMessage } from '../services/websocket-service';
+import { navigateToNotification } from '../lib/notification-navigation';
 
 interface NotificationBadgeProps {
   userId?: string;
@@ -17,6 +19,7 @@ interface NotificationBadgeProps {
 export function NotificationBadge({ userId }: NotificationBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [toastNotification, setToastNotification] = useState<Notification | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -49,9 +52,14 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
    */
   useEffect(() => {
     const handleWebSocketMessage = (message: WebSocketMessage) => {
-      if (message.type === 'notification') {
+      if (message.type === 'notification' && message.payload) {
+        const notification = message.payload as Notification;
+        
         // Increment unread count when new notification arrives
         setUnreadCount(prev => prev + 1);
+        
+        // Show toast notification
+        setToastNotification(notification);
       }
     };
 
@@ -158,6 +166,22 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
           onUnreadCountChange={handleUnreadCountChange}
         />
       </div>
+
+      {/* Toast notification popup */}
+      {toastNotification && (
+        <NotificationToast
+          notification={toastNotification}
+          onClose={() => setToastNotification(null)}
+          onClick={() => {
+            navigateToNotification({
+              type: toastNotification.type,
+              relatedEntityType: toastNotification.relatedEntityType,
+              relatedEntityId: toastNotification.relatedEntityId,
+            });
+            setToastNotification(null);
+          }}
+        />
+      )}
     </>
   );
 }
