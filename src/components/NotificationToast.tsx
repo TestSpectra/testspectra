@@ -52,7 +52,7 @@ export function NotificationToast({
     <div
       style={{ zIndex: 9999 }}
       className={`
-        fixed top-4 right-4 w-96
+        fixed top-12 right-4 w-96
         transition-all duration-300 ease-out
         ${isVisible && !isLeaving 
           ? 'opacity-100 translate-x-0' 
