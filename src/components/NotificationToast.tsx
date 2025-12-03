@@ -16,16 +16,16 @@ interface NotificationToastProps {
   duration?: number;
 }
 
-export function NotificationToast({ 
+export function NotificationToast({
   notification,
   index,
-  onClose, 
+  onClose,
   onClick,
-  duration = 5000 
+  duration = 5000
 }: NotificationToastProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  
+
   // Calculate vertical position based on index
   // Each toast is ~120px tall with 8px gap
   const topPosition = 48 + (index * 128); // 48px (top-12) + index * (120px height + 8px gap)
@@ -56,15 +56,16 @@ export function NotificationToast({
 
   return (
     <div
-      style={{ 
+      style={{
         zIndex: 9999,
         top: `${topPosition}px`
       }}
+      onClick={handleClick}
       className={`
         fixed right-4 w-96
         transition-all duration-300 ease-out
-        ${isVisible && !isLeaving 
-          ? 'opacity-100 translate-x-0' 
+        ${isVisible && !isLeaving
+          ? 'opacity-100 translate-x-0'
           : 'opacity-0 translate-x-full'
         }
       `}
@@ -82,7 +83,6 @@ export function NotificationToast({
           {/* Notification content */}
           <NotificationItem
             notification={notification}
-            onClick={handleClick}
             showUnreadIndicator={false}
             showTimestamp={true}
             compact={false}

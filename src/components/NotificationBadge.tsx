@@ -5,13 +5,13 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { NotificationPanel } from './NotificationPanel';
 import { NotificationToast } from './NotificationToast';
 import { notificationService, Notification } from '../services/notification-service';
 import { websocketService, WebSocketMessage } from '../services/websocket-service';
 import { navigateToNotification } from '../lib/notification-navigation';
-import { useNavigate } from 'react-router-dom';
 
 interface NotificationBadgeProps {
   userId?: string;
@@ -22,12 +22,12 @@ interface ToastNotification extends Notification {
 }
 
 export function NotificationBadge({ userId }: NotificationBadgeProps) {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [toastNotifications, setToastNotifications] = useState<ToastNotification[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate()
 
   /**
    * Fetch initial unread count
@@ -60,16 +60,16 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
     const handleWebSocketMessage = (message: WebSocketMessage) => {
       if (message.type === 'notification' && message.payload) {
         const notification = message.payload as Notification;
-        
+
         // Increment unread count when new notification arrives
         setUnreadCount(prev => prev + 1);
-        
+
         // Add toast notification to stack (prepend to show newest first)
         const toastNotification: ToastNotification = {
           ...notification,
           toastId: `${notification.id}-${Date.now()}`, // Unique ID for toast
         };
-        
+
         setToastNotifications(prev => [toastNotification, ...prev]);
       }
     };
@@ -197,7 +197,7 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
               type: toast.type,
               relatedEntityType: toast.relatedEntityType,
               relatedEntityId: toast.relatedEntityId,
-            });
+            }, navigate);
             removeToast(toast.toastId);
           }}
         />
