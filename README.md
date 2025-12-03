@@ -81,4 +81,13 @@
   - Updates download and install automatically with progress indication
 
   For setup and configuration details, see `docs/TAURI_UPDATER.md`.
+
+  ## Documentation
+
+  - **[Deployment Guide](docs/DEPLOYMENT.md)** - Backend deployment and desktop app releases
+  - **[Release Checklist](docs/RELEASE_CHECKLIST.md)** - Step-by-step release process
+  - **[Version Management](docs/VERSION_MANAGEMENT.md)** - Version compatibility rules
+  - **[Tauri Updater](docs/TAURI_UPDATER.md)** - Auto-update setup and configuration
+  - **[Prerelease Guide](docs/PRERELEASE_GUIDE.md)** - Creating RC, alpha, beta releases
+  - **[Changelog](CHANGELOG.md)** - Version history and changes
   
