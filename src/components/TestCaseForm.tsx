@@ -411,9 +411,8 @@ function SortableStepItem({
       ref={setNodeRef}
       style={style}
       data-step-id={step.id}
-      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${
-        isDragging ? "ring-2 ring-blue-500" : ""
-      } ${isHighlighted ? "step-card-highlighted" : ""}`}
+      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${isDragging ? "ring-2 ring-blue-500" : ""
+        } ${isHighlighted ? "step-card-highlighted" : ""}`}
     >
       {/* Step Header */}
       <div className="flex items-start gap-3">
@@ -788,9 +787,10 @@ export function TestCaseForm({
     setIsSaving(true);
     setSaveError(null);
 
+    const stepsForBackend = convertStepsForBackend();
+
     try {
       const apiUrl = await getApiUrl();
-      const stepsForBackend = convertStepsForBackend();
 
       if (isEditing && testCaseId) {
         // Update existing test case
@@ -827,7 +827,7 @@ export function TestCaseForm({
                 : "Manual",
             preCondition: formData.preCondition || null,
             postCondition: formData.postCondition || null,
-            steps,
+            steps: stepsForBackend,
           }),
         });
 
@@ -1100,9 +1100,9 @@ export function TestCaseForm({
       steps.map((step) =>
         step.id === id
           ? {
-              ...step,
-              actionParams: { ...step.actionParams, [paramKey]: value },
-            }
+            ...step,
+            actionParams: { ...step.actionParams, [paramKey]: value },
+          }
           : step
       )
     );
@@ -1537,7 +1537,7 @@ export function TestCaseForm({
         <div
           className={
             !isMessageInView
-              ? "fixed top-4 left-1/2 -translate-x-1/2 z-40 w-max rounded-lg flex justify-center bg-slate-950/95"
+              ? "fixed top-12 left-1/2 -translate-x-1/2 z-40 w-max rounded-lg flex justify-center bg-slate-950/95"
               : ""
           }
         >
