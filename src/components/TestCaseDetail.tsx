@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { TestCaseHeader } from './TestCaseHeader';
 import { TestCaseDisplay } from './TestCaseDisplay';
 import { TestCaseMetadata } from './TestCaseMetadata';
+import { ConfirmDialog } from './SimpleDialog';
 import { toast } from 'sonner';
 
 interface TestStep {
@@ -65,6 +66,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   const [error, setError] = useState<string | null>(null);
   const [reviewRefreshTrigger, setReviewRefreshTrigger] = useState(0);
   const [isMarkingRevised, setIsMarkingRevised] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const fetchTestCase = async () => {
@@ -102,6 +104,28 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
     } finally {
       setIsMarkingRevised(false);
     }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await testCaseService.deleteTestCase(testCaseId);
+      setShowDeleteConfirm(false);
+      toast.success('Test case deleted successfully');
+      onDelete(testCaseId);
+    } catch (err) {
+      console.error('Failed to delete test case:', err);
+      toast.error('Failed to delete test case', {
+        description: err instanceof Error ? err.message : 'An error occurred',
+      });
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
   };
 
 
@@ -241,7 +265,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
             Edit
           </Button>
           <Button
-            onClick={() => onDelete(testCase.id)}
+            onClick={handleDeleteClick}
             variant="outline"
             className="bg-red-600/10 border-red-500/30 text-red-400 hover:bg-red-600/30 hover:border-red-500/50 hover:text-red-300 transition-all"
           >
@@ -415,6 +439,17 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           <TestCaseMetadata testCase={testCase} />
         </div>
       </div>
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Konfirmasi Hapus"
+        message="Apakah Anda yakin ingin menghapus test case ini?"
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 }
