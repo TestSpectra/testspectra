@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck, X } from 'lucide-react';
+import { Bell, CheckCheck, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { notificationService, Notification } from '../services/notification-service';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -205,28 +205,28 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
 
         {/* Pagination */}
         {total > pageSize && (
-          <div className="p-4 border-t border-slate-800 flex items-center justify-between">
-            <Button
-              variant="outline"
-              size="sm"
+          <div className="p-3 border-t border-slate-800 flex items-center justify-center gap-2">
+            <button
               onClick={() => loadNotifications(page - 1)}
               disabled={!hasPrevious || loading}
-              className="text-slate-300"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+              title="Previous page"
             >
-              Previous
-            </Button>
-            <span className="text-sm text-slate-400">
-              Page {page} of {Math.ceil(total / pageSize)}
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            
+            <span className="text-xs text-slate-500 min-w-[80px] text-center">
+              {page} / {Math.ceil(total / pageSize)}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
+            
+            <button
               onClick={() => loadNotifications(page + 1)}
               disabled={!hasMore || loading}
-              className="text-slate-300"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+              title="Next page"
             >
-              Next
-            </Button>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
       </CardContent>
