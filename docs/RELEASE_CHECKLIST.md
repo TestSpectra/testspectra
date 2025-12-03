@@ -22,18 +22,16 @@ Quick reference for creating a new release with auto-update support.
 
 ### 1. Update Version Numbers
 
-**⚠️ IMPORTANT: Update backend version BEFORE creating tag!**
+**Note**: You only need to create a git tag! The GitHub Actions workflows automatically update:
 
-Update version in:
-- `backend/Cargo.toml` → `version = "0.1.25"`
+**Backend workflow** (`backend-docker.yml`):
+- `backend/Cargo.toml` - Updated from tag version
 
-**Note**: The GitHub Actions workflow automatically updates:
+**Desktop app workflow** (`release.yml`):
 - `package.json`
 - `src-tauri/tauri.conf.json`
 - `src-tauri/Cargo.toml`
 - `src-tauri/Cargo.lock`
-
-**Why?** The backend Docker image is built from the tag, so `backend/Cargo.toml` must already have the correct version when you create the tag. The workflow will verify this and fail if versions don't match.
 
 ### 2. Update Changelog
 
@@ -51,17 +49,15 @@ Add release notes to `CHANGELOG.md`:
 ### 3. Commit and Tag
 
 ```bash
-# Commit backend version change
-git add backend/Cargo.toml CHANGELOG.md
-git commit -m "chore: bump backend version to 0.1.25"
+# Update changelog
+git add CHANGELOG.md
+git commit -m "docs: update changelog for v0.1.25"
 git push origin main
 
-# Create and push tag
+# Create and push tag - workflows handle version updates!
 git tag v0.1.25
 git push origin v0.1.25
 ```
-
-**Important**: Push the commit BEFORE pushing the tag! This ensures the backend version is correct when the Docker image is built.
 
 ### 4. GitHub Actions Builds Release
 

@@ -4,59 +4,49 @@
 
 The backend Docker image is built and pushed to GitHub Container Registry (GHCR) automatically when you create a version tag.
 
-## Important: Version Synchronization
+## How It Works
 
-**⚠️ CRITICAL**: You must update `backend/Cargo.toml` BEFORE creating the git tag!
-
-### Why?
-
-The workflow builds the Docker image from the tagged commit. If `backend/Cargo.toml` doesn't have the correct version when you create the tag, the Docker image will be built with the old version.
-
-### What Happens
+The workflow automatically updates `backend/Cargo.toml` version based on the git tag:
 
 ```
 Tag v0.3.0 created
     ↓
-Workflow checks out tag v0.3.0
+Workflow extracts version: 0.3.0
     ↓
-Reads backend/Cargo.toml
+Updates backend/Cargo.toml to version = "0.3.0"
     ↓
-If version != 0.3.0 → ❌ FAIL
-If version == 0.3.0 → ✅ Build Docker image
+Commits and pushes to main branch
+    ↓
+Builds Docker image with correct version
 ```
 
 ## Release Process
 
-### 1. Update Backend Version
+### Simple: Just Create a Tag
 
 ```bash
-# Edit backend/Cargo.toml
-version = "0.3.0"
-```
-
-### 2. Commit Changes
-
-```bash
-git add backend/Cargo.toml
-git commit -m "chore: bump backend version to 0.3.0"
-git push origin main
-```
-
-### 3. Create Tag
-
-```bash
+# Create and push tag - workflow handles the rest!
 git tag v0.3.0
 git push origin v0.3.0
 ```
 
-### 4. Workflow Runs Automatically
+The workflow will automatically:
+1. Extract version from tag (strips `v` prefix)
+2. Update `backend/Cargo.toml` to match
+3. Commit and push the change
+4. Build Docker image with correct version
+5. Push to GHCR with multiple tags
+
+### Workflow Steps
 
 The `backend-docker.yml` workflow will:
 
-1. **Verify version** - Check that `backend/Cargo.toml` matches tag
-2. **Build Docker image** - Build from `backend/Dockerfile`
-3. **Push to GHCR** - Push to `ghcr.io/testspectra/server`
-4. **Tag images** - Create multiple tags:
+1. **Extract version** - Get version from tag (e.g., `v0.3.0` → `0.3.0`)
+2. **Update Cargo.toml** - Set `version = "0.3.0"` in `backend/Cargo.toml`
+3. **Commit & push** - Commit the version change to main branch
+4. **Build Docker image** - Build from the updated commit
+5. **Push to GHCR** - Push to `ghcr.io/testspectra/server`
+6. **Tag images** - Create multiple tags:
    - `latest` (if on main branch)
    - `0.3.0` (exact version)
    - `0.3` (major.minor)
@@ -107,22 +97,12 @@ Expected response:
 
 ## Troubleshooting
 
-### Version Mismatch Error
+### Workflow Fails to Update Version
 
-**Error:**
-```
-❌ ERROR: Version mismatch!
-Tag version: 0.3.0
-Cargo.toml version: 0.2.2
-Please update backend/Cargo.toml to version 0.3.0 before creating the tag
-```
-
-**Solution:**
-1. Delete the tag: `git tag -d v0.3.0 && git push origin :refs/tags/v0.3.0`
-2. Update `backend/Cargo.toml` to correct version
-3. Commit: `git add backend/Cargo.toml && git commit -m "chore: bump backend version to 0.3.0"`
-4. Push: `git push origin main`
-5. Recreate tag: `git tag v0.3.0 && git push origin v0.3.0`
+If the workflow fails during the commit step, check:
+1. GitHub Actions has write permissions
+2. Branch protection rules allow bot commits
+3. No merge conflicts in `backend/Cargo.toml`
 
 ### Docker Image Has Wrong Version
 
