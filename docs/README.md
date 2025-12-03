@@ -11,6 +11,7 @@ Complete documentation for TestSpectra development, deployment, and releases.
 ### Deployment & Releases
 - [Deployment Guide](DEPLOYMENT.md) - Backend deployment and desktop app releases
 - [Release Checklist](RELEASE_CHECKLIST.md) - Step-by-step release process
+- [Backend Release](BACKEND_RELEASE.md) - Backend-specific release process and troubleshooting
 - [Prerelease Guide](PRERELEASE_GUIDE.md) - Creating RC, alpha, beta releases
 - [Release Template](../RELEASE.md) - GitHub release notes template
 
@@ -36,8 +37,9 @@ Complete documentation for TestSpectra development, deployment, and releases.
 
 ### For Releases
 1. Follow: [Release Checklist](RELEASE_CHECKLIST.md)
-2. Deploy backend: [Deployment Guide](DEPLOYMENT.md)
-3. Create prerelease: [Prerelease Guide](PRERELEASE_GUIDE.md)
+2. Backend release: [Backend Release](BACKEND_RELEASE.md)
+3. Deploy backend: [Deployment Guide](DEPLOYMENT.md)
+4. Create prerelease: [Prerelease Guide](PRERELEASE_GUIDE.md)
 
 ### For Troubleshooting
 1. Update issues: [Updater Troubleshooting](UPDATER_TROUBLESHOOTING.md)
@@ -49,7 +51,8 @@ Complete documentation for TestSpectra development, deployment, and releases.
 | Document | Status | Last Updated |
 |----------|--------|--------------|
 | Deployment Guide | ✅ Current | 2024-11 |
-| Release Checklist | ✅ Current | 2024-11 |
+| Release Checklist | ✅ Current | 2024-12 |
+| Backend Release | ✅ Current | 2024-12 |
 | Version Management | ✅ Current | 2024-11 |
 | Tauri Updater | ✅ Current | 2024-11 |
 | Prerelease Guide | ✅ Current | 2024-11 |

@@ -22,6 +22,8 @@ Quick reference for creating a new release with auto-update support.
 
 ### 1. Update Version Numbers
 
+**⚠️ IMPORTANT: Update backend version BEFORE creating tag!**
+
 Update version in:
 - `backend/Cargo.toml` → `version = "0.1.25"`
 
@@ -30,6 +32,8 @@ Update version in:
 - `src-tauri/tauri.conf.json`
 - `src-tauri/Cargo.toml`
 - `src-tauri/Cargo.lock`
+
+**Why?** The backend Docker image is built from the tag, so `backend/Cargo.toml` must already have the correct version when you create the tag. The workflow will verify this and fail if versions don't match.
 
 ### 2. Update Changelog
 
@@ -47,20 +51,34 @@ Add release notes to `CHANGELOG.md`:
 ### 3. Commit and Tag
 
 ```bash
-git add .
-git commit -m "chore: bump version to 0.1.25"
-git tag v0.1.25
+# Commit backend version change
+git add backend/Cargo.toml CHANGELOG.md
+git commit -m "chore: bump backend version to 0.1.25"
 git push origin main
+
+# Create and push tag
+git tag v0.1.25
 git push origin v0.1.25
 ```
 
+**Important**: Push the commit BEFORE pushing the tag! This ensures the backend version is correct when the Docker image is built.
+
 ### 4. GitHub Actions Builds Release
 
-The `release.yml` workflow will automatically:
-- Build for macOS, Windows, and Linux
-- Sign the binaries
-- Create GitHub release
-- Upload installers and `latest.json`
+Two workflows will run automatically:
+
+**`release.yml`** (Desktop app):
+- Updates frontend version files automatically
+- Builds for macOS, Windows, and Linux
+- Signs the binaries
+- Creates GitHub release
+- Uploads installers and `latest.json`
+
+**`backend-docker.yml`** (Backend):
+- Verifies backend version matches tag
+- Builds Docker image
+- Pushes to GitHub Container Registry (ghcr.io)
+- Tags: `latest`, `0.1.25`, `0.1`, etc.
 
 ### 5. Verify Release
 
