@@ -1388,7 +1388,7 @@ export function TestCaseForm({
     if (!assertionDef) return null;
 
     return (
-      <div className="flex items-center gap-2 flex-1">
+      <div className="flex items-center gap-2 flex-1 flex-wrap">
         {assertionDef.needsSelector && (
           <input
             type="text"
@@ -1399,7 +1399,7 @@ export function TestCaseForm({
               })
             }
             placeholder="Selector"
-            className={`flex-1 ${inputClass} text-sm`}
+            className={`flex-1 min-w-[150px] ${inputClass} text-sm`}
           />
         )}
         {assertionDef.needsValue && (
@@ -1412,7 +1412,7 @@ export function TestCaseForm({
               })
             }
             placeholder="Expected value"
-            className={`flex-1 ${inputClass} text-sm`}
+            className={`flex-1 min-w-[150px] ${inputClass} text-sm`}
           />
         )}
         {assertionDef.needsAttribute && (
@@ -1426,7 +1426,7 @@ export function TestCaseForm({
                 })
               }
               placeholder="Attr name"
-              className={`flex-1 ${inputClass} text-sm`}
+              className={`flex-1 min-w-[120px] ${inputClass} text-sm`}
             />
             <input
               type="text"
@@ -1437,7 +1437,7 @@ export function TestCaseForm({
                 })
               }
               placeholder="Attr value"
-              className={`flex-1 ${inputClass} text-sm`}
+              className={`flex-1 min-w-[120px] ${inputClass} text-sm`}
             />
           </>
         )}
@@ -1587,24 +1587,6 @@ export function TestCaseForm({
           {/* Basic Information */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             <h2 className="mb-6">Informasi Dasar</h2>
-
-            {/* <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">
-                  Test Case ID
-                </label>
-                <input
-                  type="text"
-                  value={formData.id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, id: e.target.value })
-                  }
-                  placeholder="TC-1001"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={isEditing}
-                />
-              </div>
-            </div> */}
 
             <div className="mb-4">
               <label className="block text-sm text-slate-400 mb-2">Title</label>
