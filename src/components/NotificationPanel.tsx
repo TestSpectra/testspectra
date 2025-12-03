@@ -144,7 +144,7 @@ export function NotificationPanel({ onClose, onUnreadCountChange, isOpen = true 
    */
   useEffect(() => {
     loadNotifications(1);
-  }, []);
+  }, [isOpen]);
 
   /**
    * Handle animation state
