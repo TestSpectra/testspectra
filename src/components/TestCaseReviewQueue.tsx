@@ -113,12 +113,14 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
         const stats = message.payload || message.data;
         if (stats) {
           setStats(stats as ReviewStats);
+          // Refetch test cases when stats change (review status updated)
+          fetchTestCases();
         }
       }
     });
 
     return unsubscribe;
-  }, [onMessage]);
+  }, [onMessage, fetchTestCases]);
 
   // Lazy load last review for a test case
   const loadLastReview = useCallback(async (testCaseId: string) => {
