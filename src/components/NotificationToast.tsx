@@ -10,19 +10,25 @@ import { NotificationItem } from './NotificationItem';
 
 interface NotificationToastProps {
   notification: Notification;
+  index: number;
   onClose: () => void;
   onClick: () => void;
   duration?: number;
 }
 
 export function NotificationToast({ 
-  notification, 
+  notification,
+  index,
   onClose, 
   onClick,
   duration = 5000 
 }: NotificationToastProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  
+  // Calculate vertical position based on index
+  // Each toast is ~120px tall with 8px gap
+  const topPosition = 48 + (index * 128); // 48px (top-12) + index * (120px height + 8px gap)
 
   useEffect(() => {
     // Trigger enter animation
@@ -50,9 +56,12 @@ export function NotificationToast({
 
   return (
     <div
-      style={{ zIndex: 9999 }}
+      style={{ 
+        zIndex: 9999,
+        top: `${topPosition}px`
+      }}
       className={`
-        fixed top-12 right-4 w-96
+        fixed right-4 w-96
         transition-all duration-300 ease-out
         ${isVisible && !isLeaving 
           ? 'opacity-100 translate-x-0' 

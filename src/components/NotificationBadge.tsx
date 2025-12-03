@@ -17,10 +17,14 @@ interface NotificationBadgeProps {
   userId?: string;
 }
 
+interface ToastNotification extends Notification {
+  toastId: string;
+}
+
 export function NotificationBadge({ userId }: NotificationBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [toastNotification, setToastNotification] = useState<Notification | null>(null);
+  const [toastNotifications, setToastNotifications] = useState<ToastNotification[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate()
@@ -60,8 +64,13 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
         // Increment unread count when new notification arrives
         setUnreadCount(prev => prev + 1);
         
-        // Show toast notification
-        setToastNotification(notification);
+        // Add toast notification to stack
+        const toastNotification: ToastNotification = {
+          ...notification,
+          toastId: `${notification.id}-${Date.now()}`, // Unique ID for toast
+        };
+        
+        setToastNotifications(prev => [...prev, toastNotification]);
       }
     };
 
@@ -71,6 +80,13 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
       unsubscribe();
     };
   }, []);
+
+  /**
+   * Remove toast from stack
+   */
+  const removeToast = (toastId: string) => {
+    setToastNotifications(prev => prev.filter(t => t.toastId !== toastId));
+  };
 
   /**
    * Handle unread count changes from NotificationPanel
@@ -169,21 +185,23 @@ export function NotificationBadge({ userId }: NotificationBadgeProps) {
         />
       </div>
 
-      {/* Toast notification popup */}
-      {toastNotification && (
+      {/* Toast notification popups - stacked */}
+      {toastNotifications.map((toast, index) => (
         <NotificationToast
-          notification={toastNotification}
-          onClose={() => setToastNotification(null)}
+          key={toast.toastId}
+          notification={toast}
+          index={index}
+          onClose={() => removeToast(toast.toastId)}
           onClick={() => {
             navigateToNotification({
-              type: toastNotification.type,
-              relatedEntityType: toastNotification.relatedEntityType,
-              relatedEntityId: toastNotification.relatedEntityId,
-            }, navigate);
-            setToastNotification(null);
+              type: toast.type,
+              relatedEntityType: toast.relatedEntityType,
+              relatedEntityId: toast.relatedEntityId,
+            });
+            removeToast(toast.toastId);
           }}
         />
-      )}
+      ))}
     </>
   );
 }
