@@ -40,7 +40,6 @@ export class WebSocketService {
    */
   async connect(token: string): Promise<void> {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      logDebug('WebSocket already connected');
       return;
     }
 
@@ -52,12 +51,9 @@ export class WebSocketService {
       // Convert HTTP(S) URL to WS(S) URL and add token as query parameter
       const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws?token=' + encodeURIComponent(token);
       
-      logDebug(`WebSocket connecting to ${wsUrl.replace(/token=[^&]+/, 'token=***')}`);
-      
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
-        logDebug('WebSocket connected');
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
 
@@ -68,7 +64,6 @@ export class WebSocketService {
       this.ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-          logDebug(`WebSocket message received: ${message.type}`);
           
           // Handle pong responses
           if (message.type === 'pong') {
@@ -80,20 +75,19 @@ export class WebSocketService {
             try {
               callback(message);
             } catch (error) {
-              console.error('Error in WebSocket message callback:', error);
+              // Silent error handling
             }
           });
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          // Silent error handling
         }
       };
 
-      this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+      this.ws.onerror = () => {
+        // Silent error handling
       };
 
-      this.ws.onclose = (event) => {
-        logDebug(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+      this.ws.onclose = () => {
         this.stopPingInterval();
         
         // Attempt reconnection if not intentionally closed
@@ -102,7 +96,6 @@ export class WebSocketService {
         }
       };
     } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
       throw error;
     }
   }
@@ -120,7 +113,6 @@ export class WebSocketService {
     }
 
     if (this.ws) {
-      logDebug('WebSocket disconnecting');
       this.ws.close();
       this.ws = null;
     }
@@ -149,15 +141,13 @@ export class WebSocketService {
    */
   send(message: WebSocketMessage): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket is not connected, cannot send message');
       return;
     }
 
     try {
       this.ws.send(JSON.stringify(message));
-      logDebug(`WebSocket message sent: ${message.type}`);
     } catch (error) {
-      console.error('Error sending WebSocket message:', error);
+      // Silent error handling
     }
   }
 
@@ -173,7 +163,6 @@ export class WebSocketService {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
       return;
     }
 
@@ -183,14 +172,12 @@ export class WebSocketService {
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    
-    logDebug(`WebSocket reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       if (this.token && !this.isIntentionallyClosed) {
-        this.connect(this.token).catch(error => {
-          console.error('Reconnection failed:', error);
+        this.connect(this.token).catch(() => {
+          // Silent error handling
         });
       }
     }, delay);
