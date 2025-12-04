@@ -305,9 +305,10 @@ async fn mark_as_revised(
         ));
     }
 
-    // Update test case status to pending_revision (not pending, to differentiate from new test cases)
+    // Update test case status to pending_revision and reset submitted_for_review_at
+    // This ensures the revised test case gets proper position in review queue
     sqlx::query(
-        "UPDATE test_cases SET review_status = 'pending_revision', updated_at = NOW() WHERE id = $1"
+        "UPDATE test_cases SET review_status = 'pending_revision', updated_at = NOW(), submitted_for_review_at = NOW() WHERE id = $1"
     )
     .bind(test_case.id)
     .execute(&state.db)
@@ -466,16 +467,17 @@ async fn get_review_queue(
     );
 
     // Main query with sorting
+    // Note: submitted_for_review_at provides deterministic ordering for pagination
     let sql = format!(
         r#"SELECT tc.case_id, tc.title, tc.suite, tc.priority, tc.case_type, tc.automation,
            tc.last_status, tc.page_load_avg, tc.last_run, tc.execution_order, tc.updated_at,
-           tc.review_status, u.name as created_by_name
+           tc.review_status, u.name as created_by_name, tc.submitted_for_review_at
            FROM test_cases tc
            LEFT JOIN users u ON tc.created_by = u.id
            WHERE {}
            ORDER BY 
              CASE WHEN tc.review_status = 'pending' THEN 0 ELSE 1 END,
-             tc.updated_at ASC
+             tc.submitted_for_review_at ASC NULLS LAST
            LIMIT {} OFFSET {}"#,
         where_clause, page_size, offset
     );

@@ -26,6 +26,7 @@ pub struct TestCase {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub review_status: String,
+    pub submitted_for_review_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize)]

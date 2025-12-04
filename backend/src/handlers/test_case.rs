@@ -247,8 +247,8 @@ async fn create_test_case(
     let test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending')
+            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status, submitted_for_review_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending', NOW())
            RETURNING *"#
     )
     .bind(id)
@@ -735,8 +735,8 @@ async fn duplicate_test_case(
     let new_test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending')
+            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status, submitted_for_review_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending', NOW())
            RETURNING *"#
     )
     .bind(new_id)

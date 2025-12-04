@@ -93,6 +93,7 @@ pub struct ReviewQueueItem {
     pub updated_at: DateTime<Utc>,
     pub review_status: String,
     pub created_by_name: Option<String>,
+    pub submitted_for_review_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]

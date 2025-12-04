@@ -40,6 +40,7 @@ pub fn start_execution_order_maintenance(db: PgPool) {
 
 /// Perform a single execution_order rebalance pass.
 /// Returns the number of rows updated.
+/// Note: Does not update updated_at to preserve original modification timestamps
 pub async fn rebalance_execution_order_once(db: &PgPool) -> Result<i64, sqlx::Error> {
     let result = sqlx::query(
         r#"
@@ -48,8 +49,7 @@ pub async fn rebalance_execution_order_once(db: &PgPool) -> Result<i64, sqlx::Er
             FROM test_cases
         )
         UPDATE test_cases t
-        SET execution_order = ordered.rn::double precision,
-            updated_at = NOW()
+        SET execution_order = ordered.rn::double precision
         FROM ordered
         WHERE t.id = ordered.id
         "#,
