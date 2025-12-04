@@ -97,12 +97,12 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
     }
   }, [filterStatus, searchQuery, filterPriority, filterSuite]);
 
-  // Initial fetch
+  // Initial fetch - when filters change, reset and fetch page 1
   useEffect(() => {
     setCurrentPage(1);
     setTestCases([]);
     fetchTestCases(1, false);
-  }, [filterStatus, searchQuery, filterPriority, filterSuite]);
+  }, [fetchTestCases]); // Only depend on fetchTestCases, which already depends on filters
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
@@ -138,7 +138,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
     });
 
     return unsubscribe;
-  }, [onMessage, filterStatus, searchQuery, filterPriority, filterSuite]);
+  }, [onMessage, fetchTestCases]); // Depend on fetchTestCases which includes all filters
 
   // Lazy load last review for a test case
   const loadLastReview = useCallback(async (testCaseId: string) => {
