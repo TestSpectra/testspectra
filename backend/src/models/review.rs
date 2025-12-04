@@ -57,3 +57,50 @@ impl ReviewResponse {
         }
     }
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewStats {
+    pub pending: i64,
+    pub pending_revision: i64,
+    pub approved: i64,
+    pub needs_revision: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewQueueQuery {
+    pub status: Option<String>,
+    pub search: Option<String>,
+    pub priority: Option<String>,
+    pub suite: Option<String>,
+    pub page: Option<i32>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewQueueItem {
+    pub case_id: String,
+    pub title: String,
+    pub suite: String,
+    pub priority: String,
+    pub case_type: String,
+    pub automation: String,
+    pub last_status: String,
+    pub page_load_avg: Option<String>,
+    pub last_run: Option<String>,
+    pub execution_order: f64,
+    pub updated_at: DateTime<Utc>,
+    pub review_status: String,
+    pub created_by_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewQueueResponse {
+    pub items: Vec<ReviewQueueItem>,
+    pub total: i64,
+    pub page: i32,
+    pub page_size: i32,
+    pub available_suites: Vec<String>,
+}

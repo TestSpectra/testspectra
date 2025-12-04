@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Eye, CheckCircle, XCircle, Clock, Search, User, Calendar, MessageSquare, Loader2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { testCaseService, TestCaseSummary, ReviewStatus } from '../services/test-case-service';
-import { reviewService, Review, ReviewStats } from '../services/review-service';
+import { ReviewStatus } from '../services/test-case-service';
+import { reviewService, Review, ReviewStats, ReviewQueueItem } from '../services/review-service';
 import { authService } from '../services/auth-service';
 import { getTimeAgo } from '../lib/utils';
 import { useWebSocket } from '../contexts/WebSocketContext';
@@ -15,7 +15,7 @@ interface TestCaseReviewQueueProps {
 }
 
 export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReviewTestCase }: TestCaseReviewQueueProps) {
-  const [testCases, setTestCases] = useState<TestCaseSummary[]>([]);
+  const [testCases, setTestCases] = useState<ReviewQueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -28,13 +28,23 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterSuite, setFilterSuite] = useState('all');
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [availableSuites, setAvailableSuites] = useState<string[]>([]);
+
   // Stats
-  const [stats, setStats] = useState<ReviewStats>({ pending: 0, pending_revision: 0, approved: 0, needs_revision: 0 });
+  const [stats, setStats] = useState<ReviewStats>({ pending: 0, pendingRevision: 0, approved: 0, needsRevision: 0 });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   // Last review cache
   const [lastReviews, setLastReviews] = useState<Record<string, Review | null>>({});
   const [loadingReviews, setLoadingReviews] = useState<Record<string, boolean>>({});
+
+  // Lazy loading
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   // WebSocket for realtime updates
   const { onMessage } = useWebSocket();
@@ -46,47 +56,53 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
   const handleStatsCardClick = (status: string) => {
     setFilterStatus(status);
     localStorage.setItem('reviewQueueFilterStatus', status);
+    setCurrentPage(1);
+    setTestCases([]); // Clear existing data
   };
 
-  // Fetch test cases
-  const fetchTestCases = useCallback(async () => {
-    setIsLoading(true);
+  // Fetch test cases from backend with pagination
+  const fetchTestCases = useCallback(async (page: number, append: boolean = false) => {
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
+    
     try {
-      // TODO: Update backend to accept array of review statuses (reviewStatusFilter: string[])
-      // This will allow filtering multiple statuses on backend side instead of client side
-      // Example: reviewStatusFilter: ['pending', 'pending_revision']
-      const response = await testCaseService.listTestCases({
-        searchQuery: searchQuery || undefined,
-        priorityFilter: filterPriority !== 'all' ? filterPriority : undefined,
-        // Don't send reviewStatusFilter to backend - we'll filter on client side
-        // This allows us to show both 'pending' and 'pending_revision' when filtering by 'pending'
-        page: 1,
-        pageSize: 100, // Get more items for review queue
+      const response = await reviewService.getReviewQueue({
+        status: filterStatus,
+        search: searchQuery || undefined,
+        priority: filterPriority,
+        suite: filterSuite,
+        page,
       });
+
+      if (append) {
+        setTestCases(prev => [...prev, ...response.items]);
+      } else {
+        setTestCases(response.items);
+      }
       
-      // Sort: pending first, then by oldest
-      const sorted = response.testCases.sort((a, b) => {
-        // Pending first
-        if (a.reviewStatus === 'pending' && b.reviewStatus !== 'pending') return -1;
-        if (a.reviewStatus !== 'pending' && b.reviewStatus === 'pending') return 1;
-        
-        // Then by oldest (updatedAt ascending)
-        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-      });
-      
-      setTestCases(sorted);
+      setTotalItems(response.total);
+      setAvailableSuites(response.availableSuites);
+      setHasMore(response.items.length === response.pageSize);
+      setCurrentPage(page);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch test cases');
-      console.error('Failed to fetch test cases:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch review queue');
+      console.error('Failed to fetch review queue:', err);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
-  }, [searchQuery, filterPriority, filterSuite]);
+  }, [filterStatus, searchQuery, filterPriority, filterSuite]);
 
+  // Initial fetch
   useEffect(() => {
-    fetchTestCases();
-  }, [fetchTestCases]);
+    setCurrentPage(1);
+    setTestCases([]);
+    fetchTestCases(1, false);
+  }, [filterStatus, searchQuery, filterPriority, filterSuite]);
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
@@ -114,13 +130,15 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
         if (stats) {
           setStats(stats as ReviewStats);
           // Refetch test cases when stats change (review status updated)
-          fetchTestCases();
+          setCurrentPage(1);
+          setTestCases([]);
+          fetchTestCases(1, false);
         }
       }
     });
 
     return unsubscribe;
-  }, [onMessage, fetchTestCases]);
+  }, [onMessage, filterStatus, searchQuery, filterPriority, filterSuite]);
 
   // Lazy load last review for a test case
   const loadLastReview = useCallback(async (testCaseId: string) => {
@@ -144,38 +162,40 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
 
   // Load last reviews for visible test cases
   useEffect(() => {
-    filteredQueue.forEach(tc => {
+    testCases.forEach(tc => {
       if (tc.reviewStatus !== 'pending') {
-        loadLastReview(tc.id);
+        loadLastReview(tc.caseId);
       }
     });
-  }, [testCases, filterStatus, filterPriority, filterSuite, searchQuery]);
+  }, [testCases]);
 
-  // Filter test cases
-  const filteredQueue = testCases.filter(item => {
-    const matchesSearch = 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.createdByName && item.createdByName.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    // When filtering by 'pending', show both 'pending' and 'pending_revision'
-    const matchesStatus = filterStatus === 'all' || 
-      item.reviewStatus === filterStatus ||
-      (filterStatus === 'pending' && item.reviewStatus === 'pending_revision');
-    
-    const matchesPriority = filterPriority === 'all' || item.priority.toLowerCase() === filterPriority;
-    const matchesSuite = filterSuite === 'all' || item.suite === filterSuite;
-    
-    return matchesSearch && matchesStatus && matchesPriority && matchesSuite;
-  });
+  // Intersection Observer for lazy loading more pages
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          fetchTestCases(currentPage + 1, true);
+        }
+      },
+      { threshold: 0.1 }
+    );
 
-  // Get unique suites for filter dropdown
-  const uniqueSuites = Array.from(new Set(testCases.map(tc => tc.suite))).sort();
+    const currentTarget = observerTarget.current;
+    if (currentTarget && hasMore) {
+      observer.observe(currentTarget);
+    }
 
-  // Use stats from API instead of filtering
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, isLoadingMore, currentPage, fetchTestCases]);
+
+  // Use stats from API
   const pendingCount = stats.pending;
   const approvedCount = stats.approved;
-  const rejectedCount = stats.needs_revision;
+  const rejectedCount = stats.needsRevision;
 
   const getPriorityColor = (priority: string) => {
     const colors: any = {
@@ -247,9 +267,9 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
             <h3 className="text-sm text-slate-400">Pending Review</h3>
             <Clock className="w-5 h-5 text-blue-400" />
           </div>
-          <p className="text-3xl text-blue-400">{isLoadingStats ? '-' : (pendingCount + stats.pending_revision)}</p>
+          <p className="text-3xl text-blue-400">{isLoadingStats ? '-' : (pendingCount + stats.pendingRevision)}</p>
           <p className="text-xs text-slate-500 mt-1">
-            {pendingCount} new, {stats.pending_revision} revised
+            {pendingCount} new, {stats.pendingRevision} revised
           </p>
         </div>
 
@@ -311,7 +331,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             >
               <option value="all">All Suites</option>
-              {uniqueSuites.map(suite => (
+              {availableSuites.map(suite => (
                 <option key={suite} value={suite}>{suite}</option>
               ))}
             </select>
@@ -352,20 +372,18 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
       {/* Review Queue List */}
       {!isLoading && (
         <div className="space-y-4">
-          {filteredQueue.length === 0 ? (
+          {testCases.length === 0 ? (
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-12 text-center">
               <MessageSquare className="w-12 h-12 text-slate-600 mx-auto mb-4" />
               <p className="text-slate-400">No test cases found</p>
               <p className="text-sm text-slate-500 mt-1">Try adjusting your filters</p>
             </div>
           ) : (
-            filteredQueue.map((item) => {
-              const lastReview = lastReviews[item.id];
-              const isLoadingReview = loadingReviews[item.id];
-
+            <>
+              {testCases.map((item) => {
               return (
                 <div
-                  key={item.id}
+                  key={item.caseId}
                   className={`bg-slate-900 border rounded-xl p-6 transition-all hover:border-slate-700 ${
                     item.reviewStatus === 'pending' 
                       ? 'border-yellow-500/30 hover:border-yellow-500/50' 
@@ -391,7 +409,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                           {/* Title & ID */}
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-slate-200">{item.title}</h3>
-                            <span className="text-sm text-blue-400">{item.id}</span>
+                            <span className="text-sm text-blue-400">{item.caseId}</span>
                             {getStatusBadge(item.reviewStatus)}
                           </div>
 
@@ -429,12 +447,12 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                                   : 'bg-red-950/30 border-red-800/30'
                               }`}
                             >
-                              {isLoadingReview ? (
+                              {loadingReviews[item.caseId] ? (
                                 <div className="flex items-center gap-2">
                                   <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />
                                   <span className="text-xs text-slate-400">Loading review...</span>
                                 </div>
-                              ) : lastReview ? (
+                              ) : lastReviews[item.caseId] ? (
                                 <>
                                   <div className="flex items-center gap-2 mb-2">
                                     <MessageSquare
@@ -443,11 +461,11 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                                       }`}
                                     />
                                     <span className="text-xs text-slate-400">
-                                      Review by {lastReview.reviewerName} • {getTimeAgo(lastReview.createdAt)}
+                                      Review by {lastReviews[item.caseId]?.reviewerName} • {getTimeAgo(lastReviews[item.caseId]?.createdAt || '')}
                                     </span>
                                   </div>
-                                  {lastReview.comment && (
-                                    <p className="text-sm text-slate-300 line-clamp-2">{lastReview.comment}</p>
+                                  {lastReviews[item.caseId]?.comment && (
+                                    <p className="text-sm text-slate-300 line-clamp-2">{lastReviews[item.caseId]?.comment}</p>
                                   )}
                                 </>
                               ) : (
@@ -464,7 +482,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
 
                       {item.reviewStatus === 'pending' && canReview && (
                         <Button
-                          onClick={() => onReviewTestCase(item.id)}
+                          onClick={() => onReviewTestCase(item.caseId)}
                           className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                           <MessageSquare className="w-4 h-4 mr-2" />
@@ -474,7 +492,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
 
                       {item.reviewStatus === 'pending_revision' && canReview && (
                         <Button
-                          onClick={() => onReReviewTestCase(item.id)}
+                          onClick={() => onReReviewTestCase(item.caseId)}
                           className="bg-purple-600 hover:bg-purple-700 text-white"
                         >
                           <MessageSquare className="w-4 h-4 mr-2" />
@@ -484,7 +502,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
 
                       {item.reviewStatus === 'needs_revision' && canReview && (
                         <Button
-                          onClick={() => onReReviewTestCase(item.id)}
+                          onClick={() => onReReviewTestCase(item.caseId)}
                           variant="outline"
                           className="bg-transparent border-orange-600 text-orange-300 hover:bg-orange-600/10 hover:text-orange-300 hover:border-orange-500"
                         >
@@ -496,7 +514,18 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                   </div>
                 </div>
               );
-            })
+            })}
+
+            {/* Lazy loading trigger */}
+            {hasMore && (
+              <div ref={observerTarget} className="bg-slate-900 rounded-xl border border-slate-800 p-6 text-center">
+                <Loader2 className="w-6 h-6 text-teal-400 mx-auto mb-2 animate-spin" />
+                <p className="text-sm text-slate-400">
+                  Loading more... ({testCases.length} of {totalItems})
+                </p>
+              </div>
+            )}
+          </>
           )}
         </div>
       )}

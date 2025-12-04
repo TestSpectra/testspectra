@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::HeaderMap,
     routing::{get, post},
     Json, Router,
@@ -29,6 +29,7 @@ pub fn review_routes(state: ReviewState) -> Router {
         .route("/test-cases/:id/last-review", get(get_last_review))
         .route("/test-cases/:id/mark-revised", post(mark_as_revised))
         .route("/reviews/stats", get(get_review_stats))
+        .route("/reviews/queue", get(get_review_queue))
         .with_state(state)
 }
 
@@ -360,7 +361,7 @@ async fn mark_as_revised(
 async fn get_review_stats(
     State(state): State<ReviewState>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ReviewStats>, AppError> {
     verify_token(&state, &headers)?;
 
     // Get counts for each review status
@@ -388,12 +389,148 @@ async fn get_review_stats(
     .fetch_one(&state.db)
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "pending": pending_count.0,
-        "pending_revision": pending_revision_count.0,
-        "approved": approved_count.0,
-        "needs_revision": needs_revision_count.0
-    })))
+    Ok(Json(ReviewStats {
+        pending: pending_count.0,
+        pending_revision: pending_revision_count.0,
+        approved: approved_count.0,
+        needs_revision: needs_revision_count.0,
+    }))
+}
+
+async fn get_review_queue(
+    State(state): State<ReviewState>,
+    headers: HeaderMap,
+    Query(query): Query<ReviewQueueQuery>,
+) -> Result<Json<ReviewQueueResponse>, AppError> {
+    verify_token(&state, &headers)?;
+
+    let page = query.page.unwrap_or(1).max(1);
+    let page_size = 10; // Fixed page size
+    let offset = (page - 1) * page_size;
+
+    // Build WHERE conditions
+    let mut conditions = vec![];
+    let mut params: Vec<String> = vec![];
+
+    // Status filter - required
+    let status = query.status.unwrap_or_else(|| "pending".to_string());
+    
+    // For 'pending', we need to handle both 'pending' and 'pending_revision'
+    if status == "pending" {
+        conditions.push("(review_status = 'pending' OR review_status = 'pending_revision')".to_string());
+    } else {
+        params.push(status.clone());
+        conditions.push(format!("review_status = ${}", params.len()));
+    }
+
+    // Search filter
+    if let Some(ref search) = query.search {
+        if !search.is_empty() {
+            params.push(format!("%{}%", search));
+            let param_idx = params.len();
+            conditions.push(format!(
+                "(title ILIKE ${} OR case_id ILIKE ${} OR u.name ILIKE ${})",
+                param_idx, param_idx, param_idx
+            ));
+        }
+    }
+
+    // Priority filter
+    if let Some(ref priority) = query.priority {
+        if priority != "all" && !priority.is_empty() {
+            params.push(priority.to_lowercase());
+            conditions.push(format!("LOWER(tc.priority) = ${}", params.len()));
+        }
+    }
+
+    // Suite filter
+    if let Some(ref suite) = query.suite {
+        if suite != "all" && !suite.is_empty() {
+            params.push(suite.clone());
+            conditions.push(format!("tc.suite = ${}", params.len()));
+        }
+    }
+
+    let where_clause = if conditions.is_empty() {
+        "1=1".to_string()
+    } else {
+        conditions.join(" AND ")
+    };
+
+    // Count query
+    let count_sql = format!(
+        r#"SELECT COUNT(*) FROM test_cases tc
+           LEFT JOIN users u ON tc.created_by = u.id
+           WHERE {}"#,
+        where_clause
+    );
+
+    // Main query with sorting
+    let sql = format!(
+        r#"SELECT tc.case_id, tc.title, tc.suite, tc.priority, tc.case_type, tc.automation,
+           tc.last_status, tc.page_load_avg, tc.last_run, tc.execution_order, tc.updated_at,
+           tc.review_status, u.name as created_by_name
+           FROM test_cases tc
+           LEFT JOIN users u ON tc.created_by = u.id
+           WHERE {}
+           ORDER BY 
+             CASE WHEN tc.review_status = 'pending' THEN 0 ELSE 1 END,
+             tc.updated_at ASC
+           LIMIT {} OFFSET {}"#,
+        where_clause, page_size, offset
+    );
+
+    // Execute queries
+    let test_cases: Vec<ReviewQueueItem> = build_review_queue_query(&state.db, &sql, &params).await?;
+    let total: i64 = build_review_count_query(&state.db, &count_sql, &params).await?;
+
+    // Get unique suites for filter
+    let suites: Vec<(String,)> = sqlx::query_as(
+        "SELECT DISTINCT suite FROM test_cases ORDER BY suite"
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    Ok(Json(ReviewQueueResponse {
+        items: test_cases,
+        total,
+        page,
+        page_size,
+        available_suites: suites.into_iter().map(|(s,)| s).collect(),
+    }))
+}
+
+// Helper functions for dynamic query building
+async fn build_review_queue_query(
+    db: &PgPool,
+    sql: &str,
+    params: &[String],
+) -> Result<Vec<ReviewQueueItem>, AppError> {
+    let result = match params.len() {
+        0 => sqlx::query_as(sql).fetch_all(db).await?,
+        1 => sqlx::query_as(sql).bind(&params[0]).fetch_all(db).await?,
+        2 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).fetch_all(db).await?,
+        3 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).fetch_all(db).await?,
+        4 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).fetch_all(db).await?,
+        _ => return Err(AppError::Internal("Too many parameters".to_string())),
+    };
+    Ok(result)
+}
+
+async fn build_review_count_query(
+    db: &PgPool,
+    sql: &str,
+    params: &[String],
+) -> Result<i64, AppError> {
+    let result: (i64,) = match params.len() {
+        0 => sqlx::query_as(sql).fetch_one(db).await?,
+        1 => sqlx::query_as(sql).bind(&params[0]).fetch_one(db).await?,
+        2 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).fetch_one(db).await?,
+        3 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).fetch_one(db).await?,
+        4 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).fetch_one(db).await?,
+        _ => return Err(AppError::Internal("Too many parameters".to_string())),
+    };
+    Ok(result.0)
 }
 
 fn verify_token(state: &ReviewState, headers: &HeaderMap) -> Result<String, AppError> {
@@ -479,15 +616,18 @@ async fn broadcast_review_stats_update(state: &ReviewState) -> Result<(), AppErr
     .fetch_one(&state.db)
     .await?;
 
+    // Create stats object
+    let stats = ReviewStats {
+        pending: pending_count.0,
+        pending_revision: pending_revision_count.0,
+        approved: approved_count.0,
+        needs_revision: needs_revision_count.0,
+    };
+
     // Broadcast to all connected clients
     let message = serde_json::json!({
         "type": "review_stats_update",
-        "data": {
-            "pending": pending_count.0,
-            "pending_revision": pending_revision_count.0,
-            "approved": approved_count.0,
-            "needs_revision": needs_revision_count.0
-        }
+        "payload": stats
     });
 
     state.ws_manager.broadcast(message.to_string()).await;
