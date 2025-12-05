@@ -421,7 +421,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5" />
-                              {getTimeAgo(item.updatedAt)}
+                              {getTimeAgo(item.submittedForReviewAt)}
                             </span>
                           </div>
 

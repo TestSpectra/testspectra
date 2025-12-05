@@ -204,6 +204,7 @@ export interface ReviewQueueItem {
   lastRun?: string;
   executionOrder: number;
   updatedAt: string;
+  submittedForReviewAt: string;
   reviewStatus: ReviewStatus;
   createdByName?: string;
 }
