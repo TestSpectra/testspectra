@@ -887,7 +887,22 @@ export function TestCaseForm({
           `[data-step-id="${stepId}"]`
         );
         if (stepElement) {
-          stepElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Find the main element as the scroll container
+          const mainElement = document.querySelector('main');
+          if (mainElement) {
+            // Calculate the position to scroll to within the main element
+            const stepRect = stepElement.getBoundingClientRect();
+            const mainRect = mainElement.getBoundingClientRect();
+            const scrollTop = mainElement.scrollTop + stepRect.top - mainRect.top - (mainRect.height / 2) + (stepRect.height / 2);
+            
+            mainElement.scrollTo({
+              top: scrollTop,
+              behavior: "smooth"
+            });
+          } else {
+            // Fallback to default scrollIntoView if main element not found
+            stepElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
 
           // Focus on the first input field in the step
           const firstInput = stepElement.querySelector(
