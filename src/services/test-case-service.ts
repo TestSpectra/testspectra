@@ -290,7 +290,7 @@ class TestCaseService {
     steps: TestStep[]
   ): Promise<TestCase> {
     const apiUrl = await getApiUrl();
-    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}/steps`, {
+    const response = await fetch(`${apiUrl}/test-steps/${testCaseId}`, {
       method: "PUT",
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ steps }),

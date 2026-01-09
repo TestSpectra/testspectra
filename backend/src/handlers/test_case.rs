@@ -1,193 +1,24 @@
 use axum::{
     extract::{Path, Query, State},
     http::HeaderMap,
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
-use serde::{Deserialize};
 
 use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
+use crate::handlers::test_step::validate_and_prepare_step;
 use crate::models::test_case::*;
+use crate::models::test_step::TestStep;
 use crate::websocket::WsManager;
-use crate::models::test_step::*;
 
 #[derive(Clone)]
 pub struct TestCaseState {
     pub db: PgPool,
     pub jwt: JwtService,
     pub ws_manager: WsManager,
-}
-
-fn is_valid_action_type(action_type: &str) -> bool {
-    ACTION_DEFINITIONS
-        .iter()
-        .any(|def| def.value.eq_ignore_ascii_case(action_type))
-}
-
-fn is_valid_assertion_type(assertion_type: &str) -> bool {
-    ASSERTION_DEFINITIONS
-        .iter()
-        .any(|def| def.value == assertion_type)
-}
-
-fn get_assertion_definition(assertion_type: &str) -> Option<&'static AssertionDefinition> {
-    ASSERTION_DEFINITIONS
-        .iter()
-        .find(|def| def.value == assertion_type)
-}
-
-fn allowed_assertions_for_action(action_type: &str) -> &'static [&'static str] {
-    match action_type {
-        "navigate" => &["urlContains", "urlEquals", "titleContains", "titleEquals", "elementDisplayed", "elementExists"],
-        "click" => &["elementDisplayed", "elementNotDisplayed", "elementExists", "textContains", "textEquals", "urlContains", "hasClass", "isEnabled", "isDisabled"],
-        "type" => &["valueEquals", "valueContains", "elementDisplayed", "hasClass", "isEnabled", "textContains"],
-        "clear" => &["valueEquals", "elementDisplayed"],
-        "select" => &["valueEquals", "isSelected", "textEquals", "elementDisplayed"],
-        "scroll" => &["elementDisplayed", "elementInViewport", "elementExists"],
-        "swipe" => &["elementDisplayed", "elementNotDisplayed", "elementExists"],
-        "wait" => &["elementDisplayed", "elementExists", "elementClickable"],
-        "waitForElement" => &["elementDisplayed", "elementExists", "elementClickable"],
-        "pressKey" => &["elementDisplayed", "valueContains", "textContains", "urlContains"],
-        "longPress" => &["elementDisplayed", "textContains", "hasClass", "elementExists"],
-        "doubleClick" => &["elementDisplayed", "textContains", "hasClass", "elementExists"],
-        "hover" => &["elementDisplayed", "hasClass", "hasAttribute", "textContains"],
-        "dragDrop" => &["elementDisplayed", "hasClass", "elementExists"],
-        "back" => &["urlContains", "elementDisplayed", "titleContains"],
-        "refresh" => &["elementDisplayed", "elementExists"],
-        _ => &[],
-    }
-}
-
-fn is_valid_key_option(key: &str) -> bool {
-    KEY_OPTIONS.iter().any(|opt| opt.value == key)
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct IncomingAssertion {
-    #[serde(rename = "assertionType")]
-    assertion_type: String,
-    selector: Option<String>,
-    #[serde(rename = "expectedValue")]
-    expected_value: Option<String>,
-    #[serde(rename = "attributeName")]
-    attribute_name: Option<String>,
-    #[serde(rename = "attributeValue")]
-    attribute_value: Option<String>,
-}
-
-// Validate a single test step against the canonical definitions and
-// return cleaned action_params and assertions JSON values to be stored.
-fn validate_and_prepare_step(step: &CreateTestStepRequest) -> Result<(serde_json::Value, serde_json::Value), AppError> {
-    let action_type = step.action_type.as_str();
-
-    if !is_valid_action_type(action_type) {
-        return Err(AppError::BadRequest(format!("Invalid action type: {}", action_type)));
-    }
-
-    // Validate and clean action params using existing logic
-    let raw_params = step
-        .action_params
-        .clone()
-        .unwrap_or_else(|| serde_json::json!({}));
-    let action_params = cleanup_action_params(action_type, &raw_params);
-
-    // Validate assertions
-    let assertions_value = step
-        .assertions
-        .clone()
-        .unwrap_or_else(|| serde_json::json!([]));
-
-    if !assertions_value.is_array() {
-        return Err(AppError::BadRequest("Assertions must be an array".to_string()));
-    }
-
-    let allowed_for_action = allowed_assertions_for_action(action_type);
-
-    for item in assertions_value.as_array().unwrap() {
-        let assertion: IncomingAssertion = serde_json::from_value(item.clone()).map_err(|_| {
-            AppError::BadRequest("Invalid assertion format".to_string())
-        })?;
-
-        if !is_valid_assertion_type(&assertion.assertion_type) {
-            return Err(AppError::BadRequest(format!(
-                "Invalid assertion type: {}",
-                assertion.assertion_type
-            )));
-        }
-
-        if !allowed_for_action
-            .iter()
-            .any(|allowed| *allowed == assertion.assertion_type)
-        {
-            return Err(AppError::BadRequest(format!(
-                "Assertion '{}' is not allowed for action '{}'",
-                assertion.assertion_type, action_type
-            )));
-        }
-
-        if let Some(def) = get_assertion_definition(&assertion.assertion_type) {
-            if def.needs_selector
-                && assertion
-                    .selector
-                    .as_ref()
-                    .map(|s| s.trim().is_empty())
-                    .unwrap_or(true)
-            {
-                return Err(AppError::BadRequest(format!(
-                    "Assertion '{}' requires a selector",
-                    assertion.assertion_type
-                )));
-            }
-
-            if def.needs_value
-                && assertion
-                    .expected_value
-                    .as_ref()
-                    .map(|s| s.trim().is_empty())
-                    .unwrap_or(true)
-            {
-                return Err(AppError::BadRequest(format!(
-                    "Assertion '{}' requires an expectedValue",
-                    assertion.assertion_type
-                )));
-            }
-
-            if def.needs_attribute
-                && assertion
-                    .attribute_name
-                    .as_ref()
-                    .map(|s| s.trim().is_empty())
-                    .unwrap_or(true)
-            {
-                return Err(AppError::BadRequest(format!(
-                    "Assertion '{}' requires an attributeName",
-                    assertion.assertion_type
-                )));
-            }
-        }
-    }
-
-    // Additional validation for specific actions
-    if action_type == "pressKey" {
-        if let Some(key_val) = action_params.get("key").and_then(|v| v.as_str()) {
-            if !is_valid_key_option(key_val) {
-                return Err(AppError::BadRequest(format!(
-                    "Invalid key '{}' for pressKey action",
-                    key_val
-                )));
-            }
-        } else {
-            return Err(AppError::BadRequest(
-                "pressKey action requires a 'key' parameter".to_string(),
-            ));
-        }
-    }
-
-    Ok((action_params, assertions_value))
 }
 
 pub fn test_case_routes(state: TestCaseState) -> Router {
@@ -198,67 +29,13 @@ pub fn test_case_routes(state: TestCaseState) -> Router {
         .route("/test-cases/:id", get(get_test_case))
         .route("/test-cases/:id", put(update_test_case))
         .route("/test-cases/:id", delete(delete_test_case))
-        .route("/test-cases/:id/steps", put(update_test_steps))
         .route("/test-cases/:id/duplicate", post(duplicate_test_case))
         .route("/test-cases/reorder", put(reorder_test_case))
-        .route("/test-cases/rebalance-order", post(rebalance_execution_order))
-        .route("/test-steps/metadata", get(get_test_step_metadata))
-        .with_state(state)
-}
-
-// Endpoint to expose canonical action/assertion/key definitions to the frontend
-async fn get_test_step_metadata(
-    State(state): State<TestCaseState>,
-    headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, AppError> {
-    // Reuse the same auth as other test case endpoints
-    verify_token(&state, &headers)?;
-
-    let actions: Vec<serde_json::Value> = ACTION_DEFINITIONS
-        .iter()
-        .map(|a| {
-            serde_json::json!({
-                "value": a.value,
-                "label": a.label,
-                "platform": a.platform,
-                "icon": a.icon,
-            })
-        })
-        .collect();
-
-    let assertions: Vec<serde_json::Value> = ASSERTION_DEFINITIONS
-        .iter()
-        .map(|a| {
-            serde_json::json!({
-                "value": a.value,
-                "label": a.label,
-                "needsSelector": a.needs_selector,
-                "needsValue": a.needs_value,
-                "needsAttribute": a.needs_attribute,
-            })
-        })
-        .collect();
-
-    let mut assertions_by_action = serde_json::Map::new();
-    for action in ACTION_DEFINITIONS {
-        let allowed = allowed_assertions_for_action(action.value);
-        assertions_by_action.insert(
-            action.value.to_string(),
-            serde_json::json!(allowed),
-        );
-    }
-
-    let key_options: Vec<serde_json::Value> = KEY_OPTIONS
-        .iter()
-        .map(|k| serde_json::json!({ "value": k.value, "label": k.label }))
-        .collect();
-
-    Ok(Json(serde_json::json!({
-        "actions": actions,
-        "assertions": assertions,
-        "assertionsByAction": assertions_by_action,
-        "keyOptions": key_options,
-    })))
+        .route(
+            "/test-cases/rebalance-order",
+            post(rebalance_execution_order),
+        )
+        .with_state(state.clone())
 }
 
 async fn list_test_cases(
@@ -278,7 +55,11 @@ async fn list_test_cases(
     if let Some(ref search) = query.search_query {
         if !search.is_empty() {
             params.push(format!("%{}%", search));
-            conditions.push(format!("(title ILIKE ${} OR case_id ILIKE ${})", params.len(), params.len()));
+            conditions.push(format!(
+                "(title ILIKE ${} OR case_id ILIKE ${})",
+                params.len(),
+                params.len()
+            ));
         }
     }
 
@@ -337,26 +118,30 @@ async fn list_test_cases(
     let total: i64 = build_count_query(&state.db, &count_sql, &params).await?;
 
     // Get all unique suites
-    let suites: Vec<(String,)> = sqlx::query_as("SELECT DISTINCT suite FROM test_cases ORDER BY suite")
-        .fetch_all(&state.db)
-        .await?;
+    let suites: Vec<(String,)> =
+        sqlx::query_as("SELECT DISTINCT suite FROM test_cases ORDER BY suite")
+            .fetch_all(&state.db)
+            .await?;
 
     let response = ListTestCasesResponse {
-        test_cases: test_cases.into_iter().map(|tc| TestCaseSummary {
-            id: tc.case_id,
-            title: tc.title,
-            suite: tc.suite,
-            priority: tc.priority,
-            case_type: tc.case_type,
-            automation: tc.automation,
-            last_status: tc.last_status,
-            page_load_avg: tc.page_load_avg,
-            last_run: tc.last_run,
-            execution_order: tc.execution_order,
-            updated_at: tc.updated_at,
-            created_by_name: tc.created_by_name,
-            review_status: tc.review_status,
-        }).collect(),
+        test_cases: test_cases
+            .into_iter()
+            .map(|tc| TestCaseSummary {
+                id: tc.case_id,
+                title: tc.title,
+                suite: tc.suite,
+                priority: tc.priority,
+                case_type: tc.case_type,
+                automation: tc.automation,
+                last_status: tc.last_status,
+                page_load_avg: tc.page_load_avg,
+                last_run: tc.last_run,
+                execution_order: tc.execution_order,
+                updated_at: tc.updated_at,
+                created_by_name: tc.created_by_name,
+                review_status: tc.review_status,
+            })
+            .collect(),
         total,
         page,
         page_size,
@@ -383,16 +168,60 @@ struct TestCaseSummaryRow {
     review_status: String,
 }
 
-async fn build_query(db: &PgPool, sql: &str, params: &[String]) -> Result<Vec<TestCaseSummaryRow>, AppError> {
+async fn build_query(
+    db: &PgPool,
+    sql: &str,
+    params: &[String],
+) -> Result<Vec<TestCaseSummaryRow>, AppError> {
     // Dynamic query building based on param count
     let result = match params.len() {
         0 => sqlx::query_as(sql).fetch_all(db).await?,
         1 => sqlx::query_as(sql).bind(&params[0]).fetch_all(db).await?,
-        2 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).fetch_all(db).await?,
-        3 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).fetch_all(db).await?,
-        4 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).fetch_all(db).await?,
-        5 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).fetch_all(db).await?,
-        6 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).bind(&params[5]).fetch_all(db).await?,
+        2 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .fetch_all(db)
+                .await?
+        }
+        3 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .fetch_all(db)
+                .await?
+        }
+        4 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .bind(&params[3])
+                .fetch_all(db)
+                .await?
+        }
+        5 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .bind(&params[3])
+                .bind(&params[4])
+                .fetch_all(db)
+                .await?
+        }
+        6 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .bind(&params[3])
+                .bind(&params[4])
+                .bind(&params[5])
+                .fetch_all(db)
+                .await?
+        }
         _ => return Err(AppError::Internal("Too many parameters".to_string())),
     };
     Ok(result)
@@ -402,11 +231,51 @@ async fn build_count_query(db: &PgPool, sql: &str, params: &[String]) -> Result<
     let result: (i64,) = match params.len() {
         0 => sqlx::query_as(sql).fetch_one(db).await?,
         1 => sqlx::query_as(sql).bind(&params[0]).fetch_one(db).await?,
-        2 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).fetch_one(db).await?,
-        3 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).fetch_one(db).await?,
-        4 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).fetch_one(db).await?,
-        5 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).fetch_one(db).await?,
-        6 => sqlx::query_as(sql).bind(&params[0]).bind(&params[1]).bind(&params[2]).bind(&params[3]).bind(&params[4]).bind(&params[5]).fetch_one(db).await?,
+        2 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .fetch_one(db)
+                .await?
+        }
+        3 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .fetch_one(db)
+                .await?
+        }
+        4 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .bind(&params[3])
+                .fetch_one(db)
+                .await?
+        }
+        5 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .bind(&params[3])
+                .bind(&params[4])
+                .fetch_one(db)
+                .await?
+        }
+        6 => {
+            sqlx::query_as(sql)
+                .bind(&params[0])
+                .bind(&params[1])
+                .bind(&params[2])
+                .bind(&params[3])
+                .bind(&params[4])
+                .bind(&params[5])
+                .fetch_one(db)
+                .await?
+        }
         _ => return Err(AppError::Internal("Too many parameters".to_string())),
     };
     Ok(result.0)
@@ -419,27 +288,22 @@ async fn get_test_case(
 ) -> Result<Json<TestCaseResponse>, AppError> {
     verify_token(&state, &headers)?;
 
-    let test_case: TestCase = sqlx::query_as(
-        "SELECT * FROM test_cases WHERE case_id = $1"
-    )
-    .bind(&case_id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
+    let test_case: TestCase = sqlx::query_as("SELECT * FROM test_cases WHERE case_id = $1")
+        .bind(&case_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
 
-    let steps: Vec<TestStep> = sqlx::query_as(
-        "SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order"
-    )
-    .bind(test_case.id)
-    .fetch_all(&state.db)
-    .await?;
+    let steps: Vec<TestStep> =
+        sqlx::query_as("SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order")
+            .bind(test_case.id)
+            .fetch_all(&state.db)
+            .await?;
 
-    let creator_name: Option<(String,)> = sqlx::query_as(
-        "SELECT name FROM users WHERE id = $1"
-    )
-    .bind(test_case.created_by)
-    .fetch_optional(&state.db)
-    .await?;
+    let creator_name: Option<(String,)> = sqlx::query_as("SELECT name FROM users WHERE id = $1")
+        .bind(test_case.created_by)
+        .fetch_optional(&state.db)
+        .await?;
 
     Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
         test_case,
@@ -454,8 +318,8 @@ async fn create_test_case(
     Json(payload): Json<CreateTestCaseRequest>,
 ) -> Result<Json<TestCaseResponse>, AppError> {
     let user_id = verify_token(&state, &headers)?;
-    let user_uuid = Uuid::parse_str(&user_id)
-        .map_err(|_| AppError::Internal("Invalid user ID".to_string()))?;
+    let user_uuid =
+        Uuid::parse_str(&user_id).map_err(|_| AppError::Internal("Invalid user ID".to_string()))?;
 
     let id = Uuid::new_v4();
 
@@ -523,21 +387,21 @@ async fn create_test_case(
         }
     }
 
-    let creator_name: Option<(String,)> = sqlx::query_as(
-        "SELECT name FROM users WHERE id = $1"
-    )
-    .bind(user_uuid)
-    .fetch_optional(&state.db)
-    .await?;
+    let creator_name: Option<(String,)> = sqlx::query_as("SELECT name FROM users WHERE id = $1")
+        .bind(user_uuid)
+        .fetch_optional(&state.db)
+        .await?;
 
     // Send notification to QA Leads
     if let Some((name,)) = &creator_name {
-        let notification_result = crate::handlers::notification::create_test_case_created_notification(
-            &state.db,
-            Some(&state.ws_manager),
-            name,
-            &case_id,
-        ).await;
+        let notification_result =
+            crate::handlers::notification::create_test_case_created_notification(
+                &state.db,
+                Some(&state.ws_manager),
+                name,
+                &case_id,
+            )
+            .await;
 
         if let Err(e) = notification_result {
             tracing::error!("Failed to create notifications for QA Leads: {:?}", e);
@@ -560,20 +424,19 @@ async fn update_test_case(
     verify_token(&state, &headers)?;
 
     // Get current test case to check review_status
-    let current: TestCase = sqlx::query_as(
-        "SELECT * FROM test_cases WHERE case_id = $1"
-    )
-    .bind(&case_id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
+    let current: TestCase = sqlx::query_as("SELECT * FROM test_cases WHERE case_id = $1")
+        .bind(&case_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
 
     // Reset review_status to pending if currently approved or needs_revision
-    let new_review_status = if current.review_status == "approved" || current.review_status == "needs_revision" {
-        "pending"
-    } else {
-        &current.review_status
-    };
+    let new_review_status =
+        if current.review_status == "approved" || current.review_status == "needs_revision" {
+            "pending"
+        } else {
+            &current.review_status
+        };
 
     let test_case: TestCase = sqlx::query_as(
         r#"UPDATE test_cases SET
@@ -590,7 +453,7 @@ async fn update_test_case(
            review_status = $11,
            updated_at = NOW()
            WHERE case_id = $12
-           RETURNING *"#
+           RETURNING *"#,
     )
     .bind(&payload.title)
     .bind(&payload.description)
@@ -644,178 +507,16 @@ async fn update_test_case(
         new_steps
     } else {
         // Fetch existing steps
-        sqlx::query_as(
-            "SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order"
-        )
-        .bind(test_case.id)
-        .fetch_all(&state.db)
-        .await?
+        sqlx::query_as("SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order")
+            .bind(test_case.id)
+            .fetch_all(&state.db)
+            .await?
     };
 
-    let creator_name: Option<(String,)> = sqlx::query_as(
-        "SELECT name FROM users WHERE id = $1"
-    )
-    .bind(test_case.created_by)
-    .fetch_optional(&state.db)
-    .await?;
-
-    Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
-        test_case,
-        steps,
-        created_by_name: creator_name.map(|(n,)| n),
-    })))
-}
-
-// Helper function to clean up action_params based on action_type
-fn cleanup_action_params(action_type: &str, params: &serde_json::Value) -> serde_json::Value {
-    if !params.is_object() {
-        return serde_json::json!({});
-    }
-
-    let obj = params.as_object().unwrap();
-    let mut cleaned = serde_json::Map::new();
-
-    match action_type {
-        "navigate" => {
-            if let Some(url) = obj.get("url") {
-                cleaned.insert("url".to_string(), url.clone());
-            }
-        }
-        "click" | "doubleClick" | "longPress" => {
-            if let Some(selector) = obj.get("selector") {
-                cleaned.insert("selector".to_string(), selector.clone());
-            }
-            if let Some(text) = obj.get("text") {
-                cleaned.insert("text".to_string(), text.clone());
-            }
-        }
-        "type" => {
-            if let Some(selector) = obj.get("selector") {
-                cleaned.insert("selector".to_string(), selector.clone());
-            }
-            if let Some(value) = obj.get("value") {
-                cleaned.insert("value".to_string(), value.clone());
-            }
-        }
-        "clear" | "hover" => {
-            if let Some(selector) = obj.get("selector") {
-                cleaned.insert("selector".to_string(), selector.clone());
-            }
-        }
-        "select" => {
-            if let Some(selector) = obj.get("selector") {
-                cleaned.insert("selector".to_string(), selector.clone());
-            }
-            if let Some(value) = obj.get("value") {
-                cleaned.insert("value".to_string(), value.clone());
-            }
-        }
-        "scroll" | "swipe" => {
-            if let Some(direction) = obj.get("direction") {
-                cleaned.insert("direction".to_string(), direction.clone());
-            }
-            if let Some(selector) = obj.get("selector") {
-                cleaned.insert("selector".to_string(), selector.clone());
-            }
-        }
-        "wait" => {
-            if let Some(timeout) = obj.get("timeout") {
-                cleaned.insert("timeout".to_string(), timeout.clone());
-            }
-        }
-        "waitForElement" => {
-            if let Some(selector) = obj.get("selector") {
-                cleaned.insert("selector".to_string(), selector.clone());
-            }
-            if let Some(timeout) = obj.get("timeout") {
-                cleaned.insert("timeout".to_string(), timeout.clone());
-            }
-        }
-        "pressKey" => {
-            if let Some(key) = obj.get("key") {
-                cleaned.insert("key".to_string(), key.clone());
-            }
-        }
-        "dragDrop" => {
-            if let Some(selector) = obj.get("selector") {
-                cleaned.insert("selector".to_string(), selector.clone());
-            }
-            if let Some(target) = obj.get("targetSelector") {
-                cleaned.insert("targetSelector".to_string(), target.clone());
-            }
-        }
-        "back" | "refresh" => {
-            // No params needed
-        }
-        _ => {
-            // Unknown action type, keep all params
-            return params.clone();
-        }
-    }
-
-    serde_json::Value::Object(cleaned)
-}
-
-async fn update_test_steps(
-    State(state): State<TestCaseState>,
-    headers: HeaderMap,
-    Path(case_id): Path<String>,
-    Json(payload): Json<UpdateTestStepsRequest>,
-) -> Result<Json<TestCaseResponse>, AppError> {
-    verify_token(&state, &headers)?;
-
-    let test_case: TestCase = sqlx::query_as(
-        "SELECT * FROM test_cases WHERE case_id = $1"
-    )
-    .bind(&case_id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
-
-    // Delete existing steps
-    sqlx::query("DELETE FROM test_steps WHERE test_case_id = $1")
-        .bind(test_case.id)
-        .execute(&state.db)
+    let creator_name: Option<(String,)> = sqlx::query_as("SELECT name FROM users WHERE id = $1")
+        .bind(test_case.created_by)
+        .fetch_optional(&state.db)
         .await?;
-
-    // Insert new steps with proper ordering (use array index for step_order)
-    let mut steps = Vec::new();
-    for (order, step) in payload.steps.iter().enumerate() {
-        let step_id = Uuid::new_v4();
-
-        // Validate and normalize according to backend definitions
-        let (action_params, assertions) = validate_and_prepare_step(step)?;
-
-        let inserted: TestStep = sqlx::query_as(
-            r#"INSERT INTO test_steps 
-               (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING *"#
-        )
-        .bind(step_id)
-        .bind(test_case.id)
-        .bind((order + 1) as i32)  // Always use array index + 1 for ordering
-        .bind(&step.action_type)
-        .bind(&action_params)
-        .bind(&assertions)
-        .bind(&step.custom_expected_result)
-        .fetch_one(&state.db)
-        .await?;
-        steps.push(inserted);
-    }
-
-    // Update test case timestamp
-    sqlx::query("UPDATE test_cases SET updated_at = NOW() WHERE id = $1")
-        .bind(test_case.id)
-        .execute(&state.db)
-        .await?;
-
-    let creator_name: Option<(String,)> = sqlx::query_as(
-        "SELECT name FROM users WHERE id = $1"
-    )
-    .bind(test_case.created_by)
-    .fetch_optional(&state.db)
-    .await?;
 
     Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
         test_case,
@@ -832,12 +533,10 @@ async fn delete_test_case(
     verify_token(&state, &headers)?;
 
     // Get test case first
-    let test_case: Option<TestCase> = sqlx::query_as(
-        "SELECT * FROM test_cases WHERE case_id = $1"
-    )
-    .bind(&case_id)
-    .fetch_optional(&state.db)
-    .await?;
+    let test_case: Option<TestCase> = sqlx::query_as("SELECT * FROM test_cases WHERE case_id = $1")
+        .bind(&case_id)
+        .fetch_optional(&state.db)
+        .await?;
 
     if let Some(tc) = test_case {
         // Delete steps first
@@ -871,12 +570,11 @@ async fn bulk_delete_test_cases(
     let mut deleted_count = 0;
 
     for case_id in &payload.test_case_ids {
-        let test_case: Option<TestCase> = sqlx::query_as(
-            "SELECT * FROM test_cases WHERE case_id = $1"
-        )
-        .bind(case_id)
-        .fetch_optional(&state.db)
-        .await?;
+        let test_case: Option<TestCase> =
+            sqlx::query_as("SELECT * FROM test_cases WHERE case_id = $1")
+                .bind(case_id)
+                .fetch_optional(&state.db)
+                .await?;
 
         if let Some(tc) = test_case {
             sqlx::query("DELETE FROM test_steps WHERE test_case_id = $1")
@@ -906,25 +604,22 @@ async fn duplicate_test_case(
     Path(case_id): Path<String>,
 ) -> Result<Json<TestCaseResponse>, AppError> {
     let user_id = verify_token(&state, &headers)?;
-    let user_uuid = Uuid::parse_str(&user_id)
-        .map_err(|_| AppError::Internal("Invalid user ID".to_string()))?;
+    let user_uuid =
+        Uuid::parse_str(&user_id).map_err(|_| AppError::Internal("Invalid user ID".to_string()))?;
 
     // Get the original test case
-    let original: TestCase = sqlx::query_as(
-        "SELECT * FROM test_cases WHERE case_id = $1"
-    )
-    .bind(&case_id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
+    let original: TestCase = sqlx::query_as("SELECT * FROM test_cases WHERE case_id = $1")
+        .bind(&case_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
 
     // Get original steps
-    let original_steps: Vec<TestStep> = sqlx::query_as(
-        "SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order"
-    )
-    .bind(original.id)
-    .fetch_all(&state.db)
-    .await?;
+    let original_steps: Vec<TestStep> =
+        sqlx::query_as("SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order")
+            .bind(original.id)
+            .fetch_all(&state.db)
+            .await?;
 
     // Generate new IDs
     let new_id = Uuid::new_v4();
@@ -996,12 +691,10 @@ async fn duplicate_test_case(
         new_steps.push(inserted);
     }
 
-    let creator_name: Option<(String,)> = sqlx::query_as(
-        "SELECT name FROM users WHERE id = $1"
-    )
-    .bind(user_uuid)
-    .fetch_optional(&state.db)
-    .await?;
+    let creator_name: Option<(String,)> = sqlx::query_as("SELECT name FROM users WHERE id = $1")
+        .bind(user_uuid)
+        .fetch_optional(&state.db)
+        .await?;
 
     Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
         test_case: new_test_case,
@@ -1027,36 +720,33 @@ async fn reorder_test_case(
 
     // Fetch prev and next execution_order if provided (global ordering)
     let prev_order: Option<f64> = if let Some(ref prev_id) = payload.prev_id {
-        let row: Option<(f64,)> = sqlx::query_as(
-            "SELECT execution_order FROM test_cases WHERE case_id = $1"
-        )
-        .bind(prev_id)
-        .fetch_optional(&state.db)
-        .await?;
+        let row: Option<(f64,)> =
+            sqlx::query_as("SELECT execution_order FROM test_cases WHERE case_id = $1")
+                .bind(prev_id)
+                .fetch_optional(&state.db)
+                .await?;
         row.map(|(v,)| v)
     } else {
         None
     };
 
     let next_order: Option<f64> = if let Some(ref next_id) = payload.next_id {
-        let row: Option<(f64,)> = sqlx::query_as(
-            "SELECT execution_order FROM test_cases WHERE case_id = $1"
-        )
-        .bind(next_id)
-        .fetch_optional(&state.db)
-        .await?;
+        let row: Option<(f64,)> =
+            sqlx::query_as("SELECT execution_order FROM test_cases WHERE case_id = $1")
+                .bind(next_id)
+                .fetch_optional(&state.db)
+                .await?;
         row.map(|(v,)| v)
     } else {
         None
     };
 
     // Fetch current execution_order for all moved items and keep their relative order
-    let mut moved_rows: Vec<(String, f64)> = sqlx::query_as(
-        "SELECT case_id, execution_order FROM test_cases WHERE case_id = ANY($1)"
-    )
-    .bind(&payload.moved_ids)
-    .fetch_all(&state.db)
-    .await?;
+    let mut moved_rows: Vec<(String, f64)> =
+        sqlx::query_as("SELECT case_id, execution_order FROM test_cases WHERE case_id = ANY($1)")
+            .bind(&payload.moved_ids)
+            .fetch_all(&state.db)
+            .await?;
 
     // Sort by current execution_order to preserve internal ordering
     moved_rows.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -1148,10 +838,12 @@ async fn rebalance_execution_order(
     })))
 }
 
-fn verify_token(state: &TestCaseState, headers: &HeaderMap) -> Result<String, AppError> {
+pub(crate) fn verify_token(state: &TestCaseState, headers: &HeaderMap) -> Result<String, AppError> {
     let token = extract_bearer_token(headers.get("authorization").and_then(|v| v.to_str().ok()))
         .ok_or_else(|| AppError::Unauthorized("Missing token".to_string()))?;
 
-    state.jwt.get_user_id_from_token(&token)
+    state
+        .jwt
+        .get_user_id_from_token(&token)
         .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))
 }

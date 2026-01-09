@@ -1,4 +1,8 @@
-use serde::{Serialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use sqlx::FromRow;
+use uuid::Uuid;
 
 // Centralized definitions for actions, assertions, and key options used in test steps.
 
@@ -191,3 +195,32 @@ pub static KEY_OPTIONS: &[KeyOption] = &[
     KeyOption { value: "ArrowRight", label: "Arrow Right" },
     KeyOption { value: "Space", label: "Space" },
 ];
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct TestStep {
+    pub id: Uuid,
+    pub test_case_id: Uuid,
+    pub step_order: i32,
+    pub action_type: String,
+    pub action_params: JsonValue,
+    pub assertions: JsonValue,
+    pub custom_expected_result: Option<String>, // Rich text HTML
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTestStepRequest {
+    pub id: Option<String>,  // Optional: for preserving frontend IDs
+    pub step_order: i32,
+    pub action_type: String,
+    pub action_params: Option<JsonValue>,
+    pub assertions: Option<JsonValue>,
+    pub custom_expected_result: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateTestStepsRequest {
+    pub steps: Vec<CreateTestStepRequest>,
+}

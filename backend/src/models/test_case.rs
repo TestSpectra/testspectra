@@ -4,6 +4,8 @@ use serde_json::Value as JsonValue;
 use sqlx::FromRow;
 use uuid::Uuid;
 
+use crate::models::test_step::{TestStep, CreateTestStepRequest};
+
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct TestCase {
     pub id: Uuid,
@@ -27,19 +29,6 @@ pub struct TestCase {
     pub updated_at: DateTime<Utc>,
     pub review_status: String,
     pub submitted_for_review_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, FromRow, Serialize)]
-pub struct TestStep {
-    pub id: Uuid,
-    pub test_case_id: Uuid,
-    pub step_order: i32,
-    pub action_type: String,
-    pub action_params: JsonValue,
-    pub assertions: JsonValue,
-    pub custom_expected_result: Option<String>, // Rich text HTML
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize)]
@@ -156,17 +145,6 @@ pub struct CreateTestCaseRequest {
     pub steps: Option<Vec<CreateTestStepRequest>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateTestStepRequest {
-    pub id: Option<String>,  // Optional: for preserving frontend IDs
-    pub step_order: i32,
-    pub action_type: String,
-    pub action_params: Option<JsonValue>,
-    pub assertions: Option<JsonValue>,
-    pub custom_expected_result: Option<String>,
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateTestCaseRequest {
@@ -181,11 +159,6 @@ pub struct UpdateTestCaseRequest {
     pub post_condition: Option<String>,
     pub tags: Option<Vec<String>>,
     pub steps: Option<Vec<CreateTestStepRequest>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UpdateTestStepsRequest {
-    pub steps: Vec<CreateTestStepRequest>,
 }
 
 #[derive(Debug, Deserialize)]

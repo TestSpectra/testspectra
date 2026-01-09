@@ -17,6 +17,8 @@ use handlers::{user::UserState, test_case::TestCaseState, test_suite::TestSuiteS
 use axum::routing::get;
 use websocket::WsManager;
 
+use crate::handlers::test_step::TestStepState;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load .env file
@@ -59,6 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create states
     let user_state = UserState { db: db.clone(), jwt: jwt.clone() };
     let test_case_state = TestCaseState { db: db.clone(), jwt: jwt.clone(), ws_manager: ws_manager.clone() };
+    let test_step_state = TestStepState { db: db.clone(), jwt: jwt.clone() };
     let test_suite_state = TestSuiteState { db: db.clone(), jwt: jwt.clone() };
     let action_def_state = ActionDefinitionState { pool: db.clone() };
     let review_state = ReviewState { db: db.clone(), jwt: jwt.clone(), ws_manager: ws_manager.clone() };
@@ -87,6 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(websocket_state)
         .nest("/api", handlers::user_routes(user_state))
         .nest("/api", handlers::test_case_routes(test_case_state))
+        .nest("/api", handlers::test_step_routes(test_step_state))
         .nest("/api", handlers::test_suite_routes(test_suite_state))
         .nest("/api", handlers::review_routes(review_state))
         .nest("/api", handlers::notification_routes(notification_state))
