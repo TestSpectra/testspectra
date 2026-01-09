@@ -40,6 +40,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { TestCaseMetadata } from "./TestCaseMetadata";
 
 interface TestSuite {
   id: string;
@@ -203,8 +204,9 @@ function SortableStepItem({
       ref={setNodeRef}
       style={style}
       data-step-id={step.id}
-      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${isDragging ? "ring-2 ring-blue-500" : ""
-        } ${isHighlighted ? "step-card-highlighted" : ""}`}
+      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${
+        isDragging ? "ring-2 ring-blue-500" : ""
+      } ${isHighlighted ? "step-card-highlighted" : ""}`}
     >
       {/* Step Header */}
       <div className="flex items-start gap-3">
@@ -223,7 +225,8 @@ function SortableStepItem({
                 const newType = e.target.value as ActionType;
                 const availableAssertions = assertionsByAction[newType] || [];
                 const defaultAssertionType =
-                  availableAssertions[0] || ("elementDisplayed" as AssertionType);
+                  availableAssertions[0] ||
+                  ("elementDisplayed" as AssertionType);
 
                 // Reset all step-specific fields when changing type
                 handleUpdateStep(step.id, {
@@ -310,7 +313,8 @@ function SortableStepItem({
         {(step.assertions || []).length > 0 && (
           <div className="space-y-2 mb-3">
             {(step.assertions || []).map((assertion) => {
-              const availableAssertions = assertionsByAction[step.actionType] || [];
+              const availableAssertions =
+                assertionsByAction[step.actionType] || [];
               const filteredDefs = assertionDefinitions.filter((a) =>
                 availableAssertions.includes(a.value)
               );
@@ -433,9 +437,8 @@ export function TestCaseForm({
   const [steps, setSteps] = useState<TestStep[]>([]);
 
   // Metadata for actions, assertions, and key options provided by backend
-  const [stepMetadata, setStepMetadata] = useState<TestStepMetadataResponse | null>(
-    null
-  );
+  const [stepMetadata, setStepMetadata] =
+    useState<TestStepMetadataResponse | null>(null);
 
   // Derived helpers from metadata
   const actionDefinitions = (stepMetadata?.actions ?? []).map((a) => ({
@@ -602,7 +605,9 @@ export function TestCaseForm({
       stepOrder: index + 1,
       actionType: step.actionType,
       actionParams: step.actionParams || {},
-      assertions: (step.assertions || []).map(({ id, ...assertion }) => assertion), // Remove id field
+      assertions: (step.assertions || []).map(
+        ({ id, ...assertion }) => assertion
+      ), // Remove id field
       customExpectedResult: step.customExpectedResult || null,
     }));
   };
@@ -723,16 +728,21 @@ export function TestCaseForm({
         );
         if (stepElement) {
           // Find the main element as the scroll container
-          const mainElement = document.querySelector('main');
+          const mainElement = document.querySelector("main");
           if (mainElement) {
             // Calculate the position to scroll to within the main element
             const stepRect = stepElement.getBoundingClientRect();
             const mainRect = mainElement.getBoundingClientRect();
-            const scrollTop = mainElement.scrollTop + stepRect.top - mainRect.top - (mainRect.height / 2) + (stepRect.height / 2);
-            
+            const scrollTop =
+              mainElement.scrollTop +
+              stepRect.top -
+              mainRect.top -
+              mainRect.height / 2 +
+              stepRect.height / 2;
+
             mainElement.scrollTo({
               top: scrollTop,
-              behavior: "smooth"
+              behavior: "smooth",
             });
           } else {
             // Fallback to default scrollIntoView if main element not found
@@ -954,9 +964,9 @@ export function TestCaseForm({
       steps.map((step) =>
         step.id === id
           ? {
-            ...step,
-            actionParams: { ...step.actionParams, [paramKey]: value },
-          }
+              ...step,
+              actionParams: { ...step.actionParams, [paramKey]: value },
+            }
           : step
       )
     );
@@ -965,10 +975,10 @@ export function TestCaseForm({
   const handleGenerateScript = () => {
     alert(
       "Script skeleton akan dibuat di working directory:\n\n/tests/" +
-      formData.suite.toLowerCase().replace(/\s+/g, "-") +
-      "/" +
-      formData.id.toLowerCase() +
-      ".test.ts"
+        formData.suite.toLowerCase().replace(/\s+/g, "-") +
+        "/" +
+        formData.id.toLowerCase() +
+        ".test.ts"
     );
   };
 
@@ -1210,11 +1220,7 @@ export function TestCaseForm({
               type="text"
               value={step.actionParams?.targetSelector || ""}
               onChange={(e) =>
-                handleUpdateStepParam(
-                  step.id,
-                  "targetSelector",
-                  e.target.value
-                )
+                handleUpdateStepParam(step.id, "targetSelector", e.target.value)
               }
               placeholder="Target selector"
               className={inputClass}
@@ -1396,8 +1402,9 @@ export function TestCaseForm({
           }
         >
           <div
-            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-              }`}
+            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${
+              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+            }`}
           >
             {saveError}
           </div>
@@ -1414,8 +1421,9 @@ export function TestCaseForm({
           }
         >
           <div
-            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-              }`}
+            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${
+              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+            }`}
           >
             <svg
               className="w-5 h-5"
@@ -1743,24 +1751,8 @@ export function TestCaseForm({
           )}
 
           {/* Quick Info - Only show in edit mode */}
-          {isEditing && (
-            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-              <h3 className="text-sm mb-4">Info</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Created By:</span>
-                  <span className="text-slate-200">Ahmad R.</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Created At:</span>
-                  <span className="text-slate-200">24 Nov 2025</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Last Modified:</span>
-                  <span className="text-slate-200">24 Nov 2025</span>
-                </div>
-              </div>
-            </div>
+          {isEditing && loadedTestCase && (
+            <TestCaseMetadata testCase={loadedTestCase} />
           )}
         </div>
       </div>
