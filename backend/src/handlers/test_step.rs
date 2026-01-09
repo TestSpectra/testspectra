@@ -7,10 +7,10 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::error::AppError;
-use crate::models::test_step::*;
 use crate::auth::{extract_bearer_token, JwtService};
+use crate::error::AppError;
 use crate::models::test_case::{TestCase, TestCaseResponse, TestCaseWithSteps};
+use crate::models::test_step::*;
 use sqlx::PgPool;
 
 fn is_valid_action_type(action_type: &str) -> bool {
@@ -68,9 +68,24 @@ fn allowed_assertions_for_action(action_type: &str) -> &'static [&'static str] {
             "elementDisplayed",
         ],
         "scroll" => &["elementDisplayed", "elementInViewport", "elementExists"],
-        "swipe" => &["elementDisplayed", "elementNotDisplayed", "elementExists"],
-        "wait" => &["elementDisplayed", "elementExists", "elementClickable"],
-        "waitForElement" => &["elementDisplayed", "elementExists", "elementClickable"],
+        "swipe" => &[
+            "elementDisplayed",
+            "elementNotDisplayed",
+            "elementExists",
+            "hasAttribute",
+        ],
+        "wait" => &[
+            "elementDisplayed",
+            "elementExists",
+            "elementClickable",
+            "hasAttribute",
+        ],
+        "waitForElement" => &[
+            "elementDisplayed",
+            "elementExists",
+            "elementClickable",
+            "hasAttribute",
+        ],
         "pressKey" => &[
             "elementDisplayed",
             "valueContains",
