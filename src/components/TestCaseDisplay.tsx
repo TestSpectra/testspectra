@@ -1,5 +1,6 @@
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { Badge } from './ui/badge';
+import { useEffect, useState } from "react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { testCaseService } from "../services/test-case-service";
 
 interface TestStep {
   id?: string;
@@ -21,89 +22,54 @@ interface TestCaseDisplayProps {
   };
 }
 
-const getActionIcon = (actionType: string) => {
-  const icons: any = {
-    'navigate': '🌐',
-    'click': '👆',
-    'type': '⌨️',
-    'clear': '🧹',
-    'select': '📋',
-    'scroll': '📜',
-    'swipe': '👉',
-    'wait': '⏱️',
-    'waitForElement': '⏳',
-    'pressKey': '⌨️',
-    'longPress': '👆⏱️',
-    'doubleClick': '👆👆',
-    'hover': '🖱️',
-    'dragDrop': '↔️',
-    'back': '◀️',
-    'refresh': '🔄',
-    'assert': '👁️',
-    'elementDisplayed': '👁️',
-    'elementNotDisplayed': '🚫',
-    'elementExists': '✅',
-    'elementClickable': '👆✅',
-    'elementInViewport': '📱',
-    'textEquals': '📝=',
-    'textContains': '📝⊃',
-    'valueEquals': '💾=',
-    'valueContains': '💾⊃',
-    'urlEquals': '🔗=',
-    'urlContains': '🔗⊃',
-    'titleEquals': '📄=',
-    'titleContains': '📄⊃',
-    'hasClass': '🎨',
-    'hasAttribute': '🏷️',
-    'isEnabled': '✅',
-    'isDisabled': '❌',
-    'isSelected': '☑️',
-  };
-  return icons[actionType] || '▶️';
-};
-
-const getActionLabel = (actionType: string) => {
-  const labels: any = {
-    'navigate': 'Navigate',
-    'click': 'Click / Tap',
-    'type': 'Type Text',
-    'clear': 'Clear Input',
-    'select': 'Select Option',
-    'scroll': 'Scroll',
-    'swipe': 'Swipe',
-    'wait': 'Wait (Duration)',
-    'waitForElement': 'Wait for Element',
-    'pressKey': 'Press Key',
-    'longPress': 'Long Press / Hold',
-    'doubleClick': 'Double Click / Tap',
-    'hover': 'Hover',
-    'dragDrop': 'Drag and Drop',
-    'back': 'Go Back',
-    'refresh': 'Refresh Page',
-    'assert': 'Assert',
-    'elementDisplayed': 'Element is Visible',
-    'elementNotDisplayed': 'Element is Hidden',
-    'elementExists': 'Element Exists',
-    'elementClickable': 'Element is Clickable',
-    'elementInViewport': 'Element in Viewport',
-    'textEquals': 'Text Equals',
-    'textContains': 'Text Contains',
-    'valueEquals': 'Value Equals',
-    'valueContains': 'Value Contains',
-    'urlEquals': 'URL Equals',
-    'urlContains': 'URL Contains',
-    'titleEquals': 'Title Equals',
-    'titleContains': 'Title Contains',
-    'hasClass': 'Has CSS Class',
-    'hasAttribute': 'Has Attribute',
-    'isEnabled': 'Is Enabled',
-    'isDisabled': 'Is Disabled',
-    'isSelected': 'Is Selected / Checked',
-  };
-  return labels[actionType] || actionType;
-};
-
 export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
+  const [labelMap, setLabelMap] = useState<Record<string, string>>({});
+  const [iconMap, setIconMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMetadata = async () => {
+      try {
+        const metadata = await testCaseService.getTestStepMetadata();
+        if (cancelled) return;
+
+        const labels: Record<string, string> = {};
+        const icons: Record<string, string> = {};
+
+        metadata.actions.forEach((a) => {
+          labels[a.value] = a.label;
+          if (a.icon) {
+            icons[a.value] = a.icon;
+          }
+        });
+
+        metadata.assertions.forEach((a) => {
+          labels[a.value] = a.label;
+        });
+
+        setLabelMap(labels);
+        setIconMap(icons);
+      } catch (error) {
+        console.error("Failed to load test step metadata for labels:", error);
+      }
+    };
+
+    loadMetadata();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const getActionLabel = (actionType: string) => {
+    return labelMap[actionType] || actionType;
+  };
+
+  const getActionIcon = (actionType: string) => {
+    return iconMap[actionType];
+  };
+
   const steps: TestStep[] = testCase.steps || [];
 
   return (
@@ -129,7 +95,9 @@ export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
             <AlertCircle className="w-5 h-5 text-blue-400" />
             Description
           </h2>
-          <p className="text-slate-300 leading-relaxed">{testCase.description}</p>
+          <p className="text-slate-300 leading-relaxed">
+            {testCase.description}
+          </p>
         </div>
       )}
 
@@ -150,21 +118,32 @@ export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">{getActionIcon(step.actionType)}</span>
-                    <span className="text-sm text-teal-400 font-medium">{getActionLabel(step.actionType)}</span>
+                    <span className="text-lg">
+                      {getActionIcon(step.actionType)}
+                    </span>
+                    <span className="text-sm text-teal-400 font-medium">
+                      {getActionLabel(step.actionType)}
+                    </span>
                   </div>
 
                   {/* Action Parameters */}
-                  {step.actionParams && Object.keys(step.actionParams).length > 0 && (
-                    <div className="space-y-1 text-xs mb-2">
-                      {Object.entries(step.actionParams).map(([key, value]) => (
-                        <div key={key} className="flex gap-2">
-                          <span className="text-slate-500 capitalize">{key}:</span>
-                          <code className="text-purple-400 bg-purple-950/30 px-2 py-0.5 rounded">{String(value)}</code>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {step.actionParams &&
+                    Object.keys(step.actionParams).length > 0 && (
+                      <div className="space-y-1 text-xs mb-2">
+                        {Object.entries(step.actionParams).map(
+                          ([key, value]) => (
+                            <div key={key} className="flex gap-2">
+                              <span className="text-slate-500 capitalize">
+                                {key}:
+                              </span>
+                              <code className="text-purple-400 bg-purple-950/30 px-2 py-0.5 rounded">
+                                {String(value)}
+                              </code>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
 
                   {/* Assertions */}
                   {step.assertions && step.assertions.length > 0 && (
@@ -173,15 +152,21 @@ export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
                       <div className="space-y-1">
                         {step.assertions.map((assertion: any, idx: number) => (
                           <div key={idx} className="text-xs text-slate-300">
-                            <span className="text-green-400 mr-1">{getActionIcon(assertion.assertionType)}</span>
-                            <span className="text-green-400 font-medium">{getActionLabel(assertion.assertionType)}</span>
+                            <span className="text-green-400 mr-1">
+                              {getActionIcon(assertion.assertionType)}
+                            </span>
+                            <span className="text-green-400 font-medium">
+                              {getActionLabel(assertion.assertionType)}
+                            </span>
                             {assertion.selector && (
                               <code className="ml-2 text-purple-400 bg-purple-950/30 px-1 py-0.5 rounded text-[10px]">
                                 {assertion.selector}
                               </code>
                             )}
                             {assertion.expectedValue && (
-                              <span className="ml-2 text-orange-400">= {assertion.expectedValue}</span>
+                              <span className="ml-2 text-orange-400">
+                                = {assertion.expectedValue}
+                              </span>
                             )}
                           </div>
                         ))}
@@ -193,7 +178,9 @@ export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
                   {step.customExpectedResult && (
                     <div
                       className="mt-2 text-xs text-slate-400 prose prose-sm prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: step.customExpectedResult }}
+                      dangerouslySetInnerHTML={{
+                        __html: step.customExpectedResult,
+                      }}
                     />
                   )}
                 </div>

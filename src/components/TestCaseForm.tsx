@@ -16,7 +16,11 @@ import { Badge } from "./ui/badge";
 import { ConfirmDialog } from "./SimpleDialog";
 import { RichTextEditor } from "./ui/rich-text-editor";
 import { authService } from "../services/auth-service";
-import { TestCase, testCaseService } from "../services/test-case-service";
+import {
+  TestCase,
+  testCaseService,
+  TestStepMetadataResponse,
+} from "../services/test-case-service";
 import { getApiUrl } from "../lib/config";
 import "../styles/drag-handle.css";
 import {
@@ -118,234 +122,6 @@ interface TestStep {
   customExpectedResult?: string;
 }
 
-// Action definitions with labels
-const ACTION_DEFINITIONS: {
-  value: ActionType;
-  label: string;
-  platform: "both" | "web" | "mobile";
-}[] = [
-    { value: "navigate", label: "Navigate to URL", platform: "both" },
-    { value: "click", label: "Click / Tap", platform: "both" },
-    { value: "type", label: "Type Text", platform: "both" },
-    { value: "clear", label: "Clear Input", platform: "both" },
-    { value: "select", label: "Select Option", platform: "both" },
-    { value: "scroll", label: "Scroll", platform: "both" },
-    { value: "swipe", label: "Swipe", platform: "mobile" },
-    { value: "wait", label: "Wait (Duration)", platform: "both" },
-    { value: "waitForElement", label: "Wait for Element", platform: "both" },
-    { value: "pressKey", label: "Press Key", platform: "both" },
-    { value: "longPress", label: "Long Press / Hold", platform: "both" },
-    { value: "doubleClick", label: "Double Click / Tap", platform: "both" },
-    { value: "hover", label: "Hover", platform: "web" },
-    { value: "dragDrop", label: "Drag and Drop", platform: "both" },
-    { value: "back", label: "Go Back", platform: "both" },
-    { value: "refresh", label: "Refresh Page", platform: "web" },
-  ];
-
-// Assertion definitions with labels
-const ASSERTION_DEFINITIONS: {
-  value: AssertionType;
-  label: string;
-  needsSelector: boolean;
-  needsValue: boolean;
-  needsAttribute: boolean;
-}[] = [
-    {
-      value: "elementDisplayed",
-      label: "Element is Visible",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-    {
-      value: "elementNotDisplayed",
-      label: "Element is Hidden",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-    {
-      value: "elementExists",
-      label: "Element Exists",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-    {
-      value: "elementClickable",
-      label: "Element is Clickable",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-    {
-      value: "elementInViewport",
-      label: "Element in Viewport",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-    {
-      value: "textEquals",
-      label: "Text Equals",
-      needsSelector: true,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "textContains",
-      label: "Text Contains",
-      needsSelector: true,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "valueEquals",
-      label: "Value Equals",
-      needsSelector: true,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "valueContains",
-      label: "Value Contains",
-      needsSelector: true,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "urlEquals",
-      label: "URL Equals",
-      needsSelector: false,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "urlContains",
-      label: "URL Contains",
-      needsSelector: false,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "titleEquals",
-      label: "Title Equals",
-      needsSelector: false,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "titleContains",
-      label: "Title Contains",
-      needsSelector: false,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "hasClass",
-      label: "Has CSS Class",
-      needsSelector: true,
-      needsValue: true,
-      needsAttribute: false,
-    },
-    {
-      value: "hasAttribute",
-      label: "Has Attribute",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: true,
-    },
-    {
-      value: "isEnabled",
-      label: "Is Enabled",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-    {
-      value: "isDisabled",
-      label: "Is Disabled",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-    {
-      value: "isSelected",
-      label: "Is Selected / Checked",
-      needsSelector: true,
-      needsValue: false,
-      needsAttribute: false,
-    },
-  ];
-
-// Assertions available per action type
-const ASSERTIONS_BY_ACTION: Record<ActionType, AssertionType[]> = {
-  navigate: [
-    "urlContains",
-    "urlEquals",
-    "titleContains",
-    "titleEquals",
-    "elementDisplayed",
-    "elementExists",
-  ],
-  click: [
-    "elementDisplayed",
-    "elementNotDisplayed",
-    "elementExists",
-    "textContains",
-    "textEquals",
-    "urlContains",
-    "hasClass",
-    "isEnabled",
-    "isDisabled",
-  ],
-  type: [
-    "valueEquals",
-    "valueContains",
-    "elementDisplayed",
-    "hasClass",
-    "isEnabled",
-    "textContains",
-  ],
-  clear: ["valueEquals", "elementDisplayed"],
-  select: ["valueEquals", "isSelected", "textEquals", "elementDisplayed"],
-  scroll: ["elementDisplayed", "elementInViewport", "elementExists"],
-  swipe: ["elementDisplayed", "elementNotDisplayed", "elementExists"],
-  wait: ["elementDisplayed", "elementExists", "elementClickable"],
-  waitForElement: ["elementDisplayed", "elementExists", "elementClickable"],
-  pressKey: [
-    "elementDisplayed",
-    "valueContains",
-    "textContains",
-    "urlContains",
-  ],
-  longPress: ["elementDisplayed", "textContains", "hasClass", "elementExists"],
-  doubleClick: [
-    "elementDisplayed",
-    "textContains",
-    "hasClass",
-    "elementExists",
-  ],
-  hover: ["elementDisplayed", "hasClass", "hasAttribute", "textContains"],
-  dragDrop: ["elementDisplayed", "hasClass", "elementExists"],
-  back: ["urlContains", "elementDisplayed", "titleContains"],
-  refresh: ["elementDisplayed", "elementExists"],
-};
-
-// Key options for pressKey action
-const KEY_OPTIONS = [
-  { value: "Enter", label: "Enter" },
-  { value: "Tab", label: "Tab" },
-  { value: "Escape", label: "Escape" },
-  { value: "Backspace", label: "Backspace" },
-  { value: "Delete", label: "Delete" },
-  { value: "ArrowUp", label: "Arrow Up" },
-  { value: "ArrowDown", label: "Arrow Down" },
-  { value: "ArrowLeft", label: "Arrow Left" },
-  { value: "ArrowRight", label: "Arrow Right" },
-  { value: "Space", label: "Space" },
-];
-
 // Sortable Action Item Component
 interface SortableStepItemProps {
   step: TestStep;
@@ -355,6 +131,19 @@ interface SortableStepItemProps {
   isHighlighted: boolean;
   getStepColor: (type: ActionType) => string;
   getStepLabel: (type: ActionType) => string;
+  actionDefinitions: {
+    value: ActionType;
+    label: string;
+    platform: "both" | "web" | "mobile";
+  }[];
+  assertionsByAction: Record<ActionType, AssertionType[]>;
+  assertionDefinitions: {
+    value: AssertionType;
+    label: string;
+    needsSelector: boolean;
+    needsValue: boolean;
+    needsAttribute: boolean;
+  }[];
   handleUpdateStep: (id: string, updates: Partial<TestStep>) => void;
   handleRemoveStep: (id: string) => void;
   handleDuplicateStep: (id: string) => void;
@@ -381,6 +170,9 @@ function SortableStepItem({
   isHighlighted,
   getStepColor,
   getStepLabel,
+  actionDefinitions,
+  assertionsByAction,
+  assertionDefinitions,
   handleUpdateStep,
   handleRemoveStep,
   handleDuplicateStep,
@@ -429,7 +221,9 @@ function SortableStepItem({
               value={step.actionType}
               onChange={(e) => {
                 const newType = e.target.value as ActionType;
-                const defaultAssertionType = ASSERTIONS_BY_ACTION[newType][0];
+                const availableAssertions = assertionsByAction[newType] || [];
+                const defaultAssertionType =
+                  availableAssertions[0] || ("elementDisplayed" as AssertionType);
 
                 // Reset all step-specific fields when changing type
                 handleUpdateStep(step.id, {
@@ -449,7 +243,7 @@ function SortableStepItem({
               }}
               className={inputClass}
             >
-              {ACTION_DEFINITIONS.map((actionDef) => (
+              {actionDefinitions.map((actionDef) => (
                 <option key={actionDef.value} value={actionDef.value}>
                   {actionDef.label}
                   {actionDef.platform !== "both"
@@ -516,8 +310,8 @@ function SortableStepItem({
         {(step.assertions || []).length > 0 && (
           <div className="space-y-2 mb-3">
             {(step.assertions || []).map((assertion) => {
-              const availableAssertions = ASSERTIONS_BY_ACTION[step.actionType];
-              const filteredDefs = ASSERTION_DEFINITIONS.filter((a) =>
+              const availableAssertions = assertionsByAction[step.actionType] || [];
+              const filteredDefs = assertionDefinitions.filter((a) =>
                 availableAssertions.includes(a.value)
               );
 
@@ -638,6 +432,33 @@ export function TestCaseForm({
 
   const [steps, setSteps] = useState<TestStep[]>([]);
 
+  // Metadata for actions, assertions, and key options provided by backend
+  const [stepMetadata, setStepMetadata] = useState<TestStepMetadataResponse | null>(
+    null
+  );
+
+  // Derived helpers from metadata
+  const actionDefinitions = (stepMetadata?.actions ?? []).map((a) => ({
+    value: a.value as ActionType,
+    label: a.label,
+    platform: a.platform as "both" | "web" | "mobile",
+  }));
+
+  const assertionDefinitions = (stepMetadata?.assertions ?? []).map((a) => ({
+    value: a.value as AssertionType,
+    label: a.label,
+    needsSelector: a.needsSelector,
+    needsValue: a.needsValue,
+    needsAttribute: a.needsAttribute,
+  }));
+
+  const assertionsByAction = (stepMetadata?.assertionsByAction ?? {}) as Record<
+    ActionType,
+    AssertionType[]
+  >;
+
+  const keyOptions = stepMetadata?.keyOptions ?? [];
+
   // Update form when loadedTestCase changes (loaded from API)
   useEffect(() => {
     if (loadedTestCase) {
@@ -686,6 +507,20 @@ export function TestCaseForm({
   });
 
   const isEditing = !!testCaseId;
+
+  // Fetch test step metadata (actions/assertions/options) on mount
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const data = await testCaseService.getTestStepMetadata();
+        setStepMetadata(data);
+      } catch (error) {
+        console.error("Failed to load test step metadata:", error);
+      }
+    };
+
+    fetchMetadata();
+  }, []);
 
   // Keyboard shortcut: Ctrl+S to save
   useEffect(() => {
@@ -928,7 +763,9 @@ export function TestCaseForm({
 
   const handleAddStep = () => {
     const actionType: ActionType = "click";
-    const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
+    const availableAssertions = assertionsByAction[actionType] || [];
+    const defaultAssertionType =
+      availableAssertions[0] || ("elementDisplayed" as AssertionType);
     const newStepId = Date.now().toString();
     const newAction: TestStep = {
       id: newStepId,
@@ -946,7 +783,7 @@ export function TestCaseForm({
     const step = steps.find((s) => s.id === stepId);
     if (!step) return;
 
-    const availableAssertions = ASSERTIONS_BY_ACTION[step.actionType];
+    const availableAssertions = assertionsByAction[step.actionType] || [];
     const newAssertion: Assertion = {
       id: Date.now().toString(),
       assertionType: availableAssertions[0],
@@ -1062,7 +899,9 @@ export function TestCaseForm({
     if (stepIndex === -1) return;
 
     const actionType: ActionType = "click";
-    const defaultAssertionType = ASSERTIONS_BY_ACTION[actionType][0];
+    const availableAssertions = assertionsByAction[actionType] || [];
+    const defaultAssertionType =
+      availableAssertions[0] || ("elementDisplayed" as AssertionType);
     const newStepId = Date.now().toString();
     const newStep: TestStep = {
       id: newStepId,
@@ -1347,9 +1186,9 @@ export function TestCaseForm({
             }
             className={`w-full ${inputClass}`}
           >
-            {KEY_OPTIONS.map((key) => (
-              <option key={key.value} value={key.value}>
-                {key.label}
+            {keyOptions.map((keyOption) => (
+              <option key={keyOption.value} value={keyOption.value}>
+                {keyOption.label}
               </option>
             ))}
           </select>
@@ -1397,7 +1236,7 @@ export function TestCaseForm({
   };
 
   const renderAssertionFields = (step: TestStep, assertion: Assertion) => {
-    const assertionDef = ASSERTION_DEFINITIONS.find(
+    const assertionDef = assertionDefinitions.find(
       (a) => a.value === assertion.assertionType
     );
     if (!assertionDef) return null;
@@ -1483,11 +1322,11 @@ export function TestCaseForm({
   };
 
   const getStepLabel = (type: ActionType) => {
-    return ACTION_DEFINITIONS.find((a) => a.value === type)?.label || type;
+    return actionDefinitions.find((a) => a.value === type)?.label || type;
   };
 
   // Show loading state when fetching test case
-  if (isLoadingTestCase) {
+  if (isLoadingTestCase || !stepMetadata) {
     return (
       <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -1787,6 +1626,9 @@ export function TestCaseForm({
                       isHighlighted={highlightedStepId === step.id}
                       getStepColor={getStepColor}
                       getStepLabel={getStepLabel}
+                      actionDefinitions={actionDefinitions}
+                      assertionsByAction={assertionsByAction}
+                      assertionDefinitions={assertionDefinitions}
                       handleUpdateStep={handleUpdateStep}
                       handleRemoveStep={handleRemoveStep}
                       handleDuplicateStep={handleDuplicateStep}

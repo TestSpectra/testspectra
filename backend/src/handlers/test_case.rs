@@ -6,6 +6,7 @@ use axum::{
 };
 use sqlx::PgPool;
 use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 
 use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
@@ -17,6 +18,367 @@ pub struct TestCaseState {
     pub db: PgPool,
     pub jwt: JwtService,
     pub ws_manager: WsManager,
+}
+
+// Centralized definitions for actions, assertions, and key options used in test steps.
+
+#[derive(Debug, Serialize)]
+struct ActionDefinition {
+    value: &'static str,
+    label: &'static str,
+    platform: &'static str, // "both" | "web" | "mobile"
+    icon: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+struct AssertionDefinition {
+    value: &'static str,
+    label: &'static str,
+    #[serde(rename = "needsSelector")]
+    needs_selector: bool,
+    #[serde(rename = "needsValue")]
+    needs_value: bool,
+    #[serde(rename = "needsAttribute")]
+    needs_attribute: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct KeyOption {
+    value: &'static str,
+    label: &'static str,
+}
+
+// These are the canonical action definitions (mirrors frontend ACTION_DEFINITIONS)
+static ACTION_DEFINITIONS: &[ActionDefinition] = &[
+    ActionDefinition { value: "navigate", label: "Navigate to URL", platform: "both", icon: "🌐" },
+    ActionDefinition { value: "click", label: "Click / Tap", platform: "both", icon: "👆" },
+    ActionDefinition { value: "type", label: "Type Text", platform: "both", icon: "⌨️" },
+    ActionDefinition { value: "clear", label: "Clear Input", platform: "both", icon: "🧹" },
+    ActionDefinition { value: "select", label: "Select Option", platform: "both", icon: "📋" },
+    ActionDefinition { value: "scroll", label: "Scroll", platform: "both", icon: "📜" },
+    ActionDefinition { value: "swipe", label: "Swipe", platform: "mobile", icon: "👉" },
+    ActionDefinition { value: "wait", label: "Wait (Duration)", platform: "both", icon: "⏱️" },
+    ActionDefinition { value: "waitForElement", label: "Wait for Element", platform: "both", icon: "⏳" },
+    ActionDefinition { value: "pressKey", label: "Press Key", platform: "both", icon: "⌨️" },
+    ActionDefinition { value: "longPress", label: "Long Press / Hold", platform: "both", icon: "👆⏱️" },
+    ActionDefinition { value: "doubleClick", label: "Double Click / Tap", platform: "both", icon: "👆👆" },
+    ActionDefinition { value: "hover", label: "Hover", platform: "web", icon: "🖱️" },
+    ActionDefinition { value: "dragDrop", label: "Drag and Drop", platform: "both", icon: "↔️" },
+    ActionDefinition { value: "back", label: "Go Back", platform: "both", icon: "◀️" },
+    ActionDefinition { value: "refresh", label: "Refresh Page", platform: "web", icon: "🔄" },
+];
+
+// Canonical assertion definitions (mirrors frontend ASSERTION_DEFINITIONS)
+static ASSERTION_DEFINITIONS: &[AssertionDefinition] = &[
+    AssertionDefinition {
+        value: "elementDisplayed",
+        label: "Element is Visible",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "elementNotDisplayed",
+        label: "Element is Hidden",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "elementExists",
+        label: "Element Exists",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "elementClickable",
+        label: "Element is Clickable",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "elementInViewport",
+        label: "Element in Viewport",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "textEquals",
+        label: "Text Equals",
+        needs_selector: true,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "textContains",
+        label: "Text Contains",
+        needs_selector: true,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "valueEquals",
+        label: "Value Equals",
+        needs_selector: true,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "valueContains",
+        label: "Value Contains",
+        needs_selector: true,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "urlEquals",
+        label: "URL Equals",
+        needs_selector: false,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "urlContains",
+        label: "URL Contains",
+        needs_selector: false,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "titleEquals",
+        label: "Title Equals",
+        needs_selector: false,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "titleContains",
+        label: "Title Contains",
+        needs_selector: false,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "hasClass",
+        label: "Has CSS Class",
+        needs_selector: true,
+        needs_value: true,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "hasAttribute",
+        label: "Has Attribute",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: true,
+    },
+    AssertionDefinition {
+        value: "isEnabled",
+        label: "Is Enabled",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "isDisabled",
+        label: "Is Disabled",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+    AssertionDefinition {
+        value: "isSelected",
+        label: "Is Selected / Checked",
+        needs_selector: true,
+        needs_value: false,
+        needs_attribute: false,
+    },
+];
+
+// Key options for the pressKey action (mirrors KEY_OPTIONS)
+static KEY_OPTIONS: &[KeyOption] = &[
+    KeyOption { value: "Enter", label: "Enter" },
+    KeyOption { value: "Tab", label: "Tab" },
+    KeyOption { value: "Escape", label: "Escape" },
+    KeyOption { value: "Backspace", label: "Backspace" },
+    KeyOption { value: "Delete", label: "Delete" },
+    KeyOption { value: "ArrowUp", label: "Arrow Up" },
+    KeyOption { value: "ArrowDown", label: "Arrow Down" },
+    KeyOption { value: "ArrowLeft", label: "Arrow Left" },
+    KeyOption { value: "ArrowRight", label: "Arrow Right" },
+    KeyOption { value: "Space", label: "Space" },
+];
+
+fn is_valid_action_type(action_type: &str) -> bool {
+    ACTION_DEFINITIONS
+        .iter()
+        .any(|def| def.value.eq_ignore_ascii_case(action_type))
+}
+
+fn is_valid_assertion_type(assertion_type: &str) -> bool {
+    ASSERTION_DEFINITIONS
+        .iter()
+        .any(|def| def.value == assertion_type)
+}
+
+fn get_assertion_definition(assertion_type: &str) -> Option<&'static AssertionDefinition> {
+    ASSERTION_DEFINITIONS
+        .iter()
+        .find(|def| def.value == assertion_type)
+}
+
+fn allowed_assertions_for_action(action_type: &str) -> &'static [&'static str] {
+    match action_type {
+        "navigate" => &["urlContains", "urlEquals", "titleContains", "titleEquals", "elementDisplayed", "elementExists"],
+        "click" => &["elementDisplayed", "elementNotDisplayed", "elementExists", "textContains", "textEquals", "urlContains", "hasClass", "isEnabled", "isDisabled"],
+        "type" => &["valueEquals", "valueContains", "elementDisplayed", "hasClass", "isEnabled", "textContains"],
+        "clear" => &["valueEquals", "elementDisplayed"],
+        "select" => &["valueEquals", "isSelected", "textEquals", "elementDisplayed"],
+        "scroll" => &["elementDisplayed", "elementInViewport", "elementExists"],
+        "swipe" => &["elementDisplayed", "elementNotDisplayed", "elementExists"],
+        "wait" => &["elementDisplayed", "elementExists", "elementClickable"],
+        "waitForElement" => &["elementDisplayed", "elementExists", "elementClickable"],
+        "pressKey" => &["elementDisplayed", "valueContains", "textContains", "urlContains"],
+        "longPress" => &["elementDisplayed", "textContains", "hasClass", "elementExists"],
+        "doubleClick" => &["elementDisplayed", "textContains", "hasClass", "elementExists"],
+        "hover" => &["elementDisplayed", "hasClass", "hasAttribute", "textContains"],
+        "dragDrop" => &["elementDisplayed", "hasClass", "elementExists"],
+        "back" => &["urlContains", "elementDisplayed", "titleContains"],
+        "refresh" => &["elementDisplayed", "elementExists"],
+        _ => &[],
+    }
+}
+
+fn is_valid_key_option(key: &str) -> bool {
+    KEY_OPTIONS.iter().any(|opt| opt.value == key)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IncomingAssertion {
+    #[serde(rename = "assertionType")]
+    assertion_type: String,
+    selector: Option<String>,
+    #[serde(rename = "expectedValue")]
+    expected_value: Option<String>,
+    #[serde(rename = "attributeName")]
+    attribute_name: Option<String>,
+    #[serde(rename = "attributeValue")]
+    attribute_value: Option<String>,
+}
+
+// Validate a single test step against the canonical definitions and
+// return cleaned action_params and assertions JSON values to be stored.
+fn validate_and_prepare_step(step: &CreateTestStepRequest) -> Result<(serde_json::Value, serde_json::Value), AppError> {
+    let action_type = step.action_type.as_str();
+
+    if !is_valid_action_type(action_type) {
+        return Err(AppError::BadRequest(format!("Invalid action type: {}", action_type)));
+    }
+
+    // Validate and clean action params using existing logic
+    let raw_params = step
+        .action_params
+        .clone()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let action_params = cleanup_action_params(action_type, &raw_params);
+
+    // Validate assertions
+    let assertions_value = step
+        .assertions
+        .clone()
+        .unwrap_or_else(|| serde_json::json!([]));
+
+    if !assertions_value.is_array() {
+        return Err(AppError::BadRequest("Assertions must be an array".to_string()));
+    }
+
+    let allowed_for_action = allowed_assertions_for_action(action_type);
+
+    for item in assertions_value.as_array().unwrap() {
+        let assertion: IncomingAssertion = serde_json::from_value(item.clone()).map_err(|_| {
+            AppError::BadRequest("Invalid assertion format".to_string())
+        })?;
+
+        if !is_valid_assertion_type(&assertion.assertion_type) {
+            return Err(AppError::BadRequest(format!(
+                "Invalid assertion type: {}",
+                assertion.assertion_type
+            )));
+        }
+
+        if !allowed_for_action
+            .iter()
+            .any(|allowed| *allowed == assertion.assertion_type)
+        {
+            return Err(AppError::BadRequest(format!(
+                "Assertion '{}' is not allowed for action '{}'",
+                assertion.assertion_type, action_type
+            )));
+        }
+
+        if let Some(def) = get_assertion_definition(&assertion.assertion_type) {
+            if def.needs_selector
+                && assertion
+                    .selector
+                    .as_ref()
+                    .map(|s| s.trim().is_empty())
+                    .unwrap_or(true)
+            {
+                return Err(AppError::BadRequest(format!(
+                    "Assertion '{}' requires a selector",
+                    assertion.assertion_type
+                )));
+            }
+
+            if def.needs_value
+                && assertion
+                    .expected_value
+                    .as_ref()
+                    .map(|s| s.trim().is_empty())
+                    .unwrap_or(true)
+            {
+                return Err(AppError::BadRequest(format!(
+                    "Assertion '{}' requires an expectedValue",
+                    assertion.assertion_type
+                )));
+            }
+
+            if def.needs_attribute
+                && assertion
+                    .attribute_name
+                    .as_ref()
+                    .map(|s| s.trim().is_empty())
+                    .unwrap_or(true)
+            {
+                return Err(AppError::BadRequest(format!(
+                    "Assertion '{}' requires an attributeName",
+                    assertion.assertion_type
+                )));
+            }
+        }
+    }
+
+    // Additional validation for specific actions
+    if action_type == "pressKey" {
+        if let Some(key_val) = action_params.get("key").and_then(|v| v.as_str()) {
+            if !is_valid_key_option(key_val) {
+                return Err(AppError::BadRequest(format!(
+                    "Invalid key '{}' for pressKey action",
+                    key_val
+                )));
+            }
+        } else {
+            return Err(AppError::BadRequest(
+                "pressKey action requires a 'key' parameter".to_string(),
+            ));
+        }
+    }
+
+    Ok((action_params, assertions_value))
 }
 
 pub fn test_case_routes(state: TestCaseState) -> Router {
@@ -31,7 +393,63 @@ pub fn test_case_routes(state: TestCaseState) -> Router {
         .route("/test-cases/:id/duplicate", post(duplicate_test_case))
         .route("/test-cases/reorder", put(reorder_test_case))
         .route("/test-cases/rebalance-order", post(rebalance_execution_order))
+        .route("/test-steps/metadata", get(get_test_step_metadata))
         .with_state(state)
+}
+
+// Endpoint to expose canonical action/assertion/key definitions to the frontend
+async fn get_test_step_metadata(
+    State(state): State<TestCaseState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // Reuse the same auth as other test case endpoints
+    verify_token(&state, &headers)?;
+
+    let actions: Vec<serde_json::Value> = ACTION_DEFINITIONS
+        .iter()
+        .map(|a| {
+            serde_json::json!({
+                "value": a.value,
+                "label": a.label,
+                "platform": a.platform,
+                "icon": a.icon,
+            })
+        })
+        .collect();
+
+    let assertions: Vec<serde_json::Value> = ASSERTION_DEFINITIONS
+        .iter()
+        .map(|a| {
+            serde_json::json!({
+                "value": a.value,
+                "label": a.label,
+                "needsSelector": a.needs_selector,
+                "needsValue": a.needs_value,
+                "needsAttribute": a.needs_attribute,
+            })
+        })
+        .collect();
+
+    let mut assertions_by_action = serde_json::Map::new();
+    for action in ACTION_DEFINITIONS {
+        let allowed = allowed_assertions_for_action(action.value);
+        assertions_by_action.insert(
+            action.value.to_string(),
+            serde_json::json!(allowed),
+        );
+    }
+
+    let key_options: Vec<serde_json::Value> = KEY_OPTIONS
+        .iter()
+        .map(|k| serde_json::json!({ "value": k.value, "label": k.label }))
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "actions": actions,
+        "assertions": assertions,
+        "assertionsByAction": assertions_by_action,
+        "keyOptions": key_options,
+    })))
 }
 
 async fn list_test_cases(
@@ -273,13 +691,10 @@ async fn create_test_case(
     if let Some(step_data) = payload.steps {
         for (order, step) in step_data.iter().enumerate() {
             let step_id = Uuid::new_v4();
-            
-            // Clean up action_params to only include relevant fields
-            let raw_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
-            let action_params = cleanup_action_params(&step.action_type, &raw_params);
-            
-            let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
-            
+
+            // Validate and normalize according to backend definitions
+            let (action_params, assertions) = validate_and_prepare_step(step)?;
+
             let inserted: TestStep = sqlx::query_as(
                 r#"INSERT INTO test_steps 
                    (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
@@ -396,13 +811,10 @@ async fn update_test_case(
         let mut new_steps = Vec::new();
         for (order, step) in step_data.iter().enumerate() {
             let step_id = Uuid::new_v4();
-            
-            // Clean up action_params to only include relevant fields
-            let raw_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
-            let action_params = cleanup_action_params(&step.action_type, &raw_params);
-            
-            let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
-            
+
+            // Validate and normalize according to backend definitions
+            let (action_params, assertions) = validate_and_prepare_step(step)?;
+
             let inserted: TestStep = sqlx::query_as(
                 r#"INSERT INTO test_steps 
                    (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
@@ -561,13 +973,10 @@ async fn update_test_steps(
     let mut steps = Vec::new();
     for (order, step) in payload.steps.iter().enumerate() {
         let step_id = Uuid::new_v4();
-        
-        // Clean up action_params to only include relevant fields
-        let raw_params = step.action_params.clone().unwrap_or(serde_json::json!({}));
-        let action_params = cleanup_action_params(&step.action_type, &raw_params);
-        
-        let assertions = step.assertions.clone().unwrap_or(serde_json::json!([]));
-        
+
+        // Validate and normalize according to backend definitions
+        let (action_params, assertions) = validate_and_prepare_step(step)?;
+
         let inserted: TestStep = sqlx::query_as(
             r#"INSERT INTO test_steps 
                (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)

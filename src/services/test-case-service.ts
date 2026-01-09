@@ -14,6 +14,34 @@ export interface TestStep {
   customExpectedResult?: string | null;
 }
 
+// Metadata for test steps (actions/assertions/options) provided by backend
+export interface ActionDefinition {
+  value: string;
+  label: string;
+  platform: string; // "both" | "web" | "mobile"
+  icon?: string;
+}
+
+export interface AssertionDefinition {
+  value: string;
+  label: string;
+  needsSelector: boolean;
+  needsValue: boolean;
+  needsAttribute: boolean;
+}
+
+export interface KeyOption {
+  value: string;
+  label: string;
+}
+
+export interface TestStepMetadataResponse {
+  actions: ActionDefinition[];
+  assertions: AssertionDefinition[];
+  assertionsByAction: Record<string, string[]>;
+  keyOptions: KeyOption[];
+}
+
 export type ReviewStatus = "pending" | "pending_revision" | "approved" | "needs_revision";
 
 export interface TestCase {
@@ -163,6 +191,27 @@ class TestCaseService {
         .json()
         .catch(() => ({ error: "Failed to fetch test cases" }));
       throw new Error(error.error || "Failed to fetch test cases");
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Fetch canonical metadata for test steps (actions, assertions, key options).
+   * This allows the frontend to avoid hardcoding these values.
+   */
+  async getTestStepMetadata(): Promise<TestStepMetadataResponse> {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-steps/metadata`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Failed to fetch test step metadata" }));
+      throw new Error(error.error || "Failed to fetch test step metadata");
     }
 
     return response.json();
