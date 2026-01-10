@@ -230,7 +230,13 @@ fn cleanup_action_params(action_type: &str, params: &serde_json::Value) -> serde
 pub(crate) fn validate_and_prepare_step(
     step: &CreateTestStepRequest,
 ) -> Result<(serde_json::Value, serde_json::Value), AppError> {
-    let action_type = step.action_type.as_str();
+    // For shared_reference steps, action fields should be None
+    if matches!(step.step_type, StepType::SharedReference) {
+        return Ok((serde_json::json!({}), serde_json::json!([])));
+    }
+
+    let action_type = step.action_type.as_ref()
+        .ok_or_else(|| AppError::BadRequest("action_type is required for regular steps".to_string()))?;
 
     if !is_valid_action_type(action_type) {
         return Err(AppError::BadRequest(format!(

@@ -244,9 +244,14 @@ pub struct CreateTestStepRequest {
     #[serde(default)]
     pub step_type: StepType,
     pub shared_step_id: Option<Uuid>, // For shared_reference steps
-    pub action_type: String,
+    // Action fields - optional for shared_reference steps
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub action_params: Option<JsonValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub assertions: Option<JsonValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_expected_result: Option<String>,
 }
 
