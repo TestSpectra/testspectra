@@ -18,12 +18,11 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   Copy,
   GripVertical,
-  Package,
   PackagePlus,
   Plus,
   PlusCircle,
   Trash2,
-  X,
+  X
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -41,6 +40,7 @@ import {
   TestStepMetadataResponse,
 } from "../services/test-case-service";
 import "../styles/drag-handle.css";
+import { SharedStepTitle } from "./SharedStepDetail";
 import { ConfirmDialog } from "./SimpleDialog";
 import { TestStepsDisplay } from "./TestStepsDisplay";
 import { Badge } from "./ui/badge";
@@ -245,20 +245,7 @@ function SortableStepItem({
 
         {isSharedStep ? (
           // Render shared step display
-          <div className="flex flex-col gap-3 grow">
-            <div className="flex items-center gap-2 pt-1.5">
-              <Package className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-400">
-                {step.sharedStepName}
-              </span>
-            </div>
-
-            {step.sharedStepDescription && (
-              <p className="text-xs text-slate-400">
-                {step.sharedStepDescription}
-              </p>
-            )}
-          </div>
+          <SharedStepTitle name={step.sharedStepName} description={step.sharedStepDescription} />
         ) : (
           // Render regular step input fields
           RegularStepActionTypeFields(step as RegularTestStep)

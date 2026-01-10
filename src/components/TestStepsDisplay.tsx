@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { testCaseService, TestStep } from "../services/test-case-service";
+import { SharedStepTitle } from "./SharedStepDetail";
 
 interface TestStepsDisplayProps {
   steps: TestStep[];
@@ -133,18 +134,10 @@ export function TestStepsDisplay({ steps }: TestStepsDisplayProps) {
             )}
 
             {step.stepType === "shared_reference" && (
-              <div className="space-y-2">
-                <p className="text-sm text-blue-400 font-medium">
-                  Shared Step: {step.sharedStepName}
-                </p>
-                {step.sharedStepDescription && (
-                  <p className="text-xs text-slate-500">
-                    {step.sharedStepDescription}
-                  </p>
-                )}
+              <div className="space-y-3">
+                <SharedStepTitle name={step.sharedStepName} description={step.sharedStepDescription} />
                 {step.steps && step.steps.length > 0 && (
                   <div className="pl-4 border-l-2 border-blue-500/30">
-                    <p className="text-xs text-blue-400 mb-1">Steps:</p>
                     <TestStepsDisplay steps={step.steps} />
                   </div>
                 )}

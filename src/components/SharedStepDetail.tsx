@@ -1,7 +1,9 @@
-import { Edit, RefreshCw, Trash2 } from "lucide-react";
+import { TestCase } from "@/services/test-case-service";
+import { Edit, Package, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  SharedStep,
   sharedStepService,
   type SharedStepDetail,
 } from "../services/shared-step-service";
@@ -9,13 +11,31 @@ import { BackButton } from "./BackButton";
 import { ConfirmDialog } from "./SimpleDialog";
 import { TestCaseDisplay } from "./TestCaseDisplay";
 import { Button } from "./ui/button";
-import { TestCase } from "@/services/test-case-service";
 
 interface SharedStepDetailProps {
   sharedStepId: string;
   onBack: () => void;
   onEdit: (sharedStepId: string) => void;
   onDelete: (id: string) => void;
+}
+
+export function SharedStepTitle({ name, description }: Partial<SharedStep>) {
+  return (
+    <div className="flex flex-col gap-3 grow">
+      <div className="flex items-center gap-2 pt-1.5">
+        <Package className="w-4 h-4 text-purple-400" />
+        <span className="text-sm font-medium text-purple-400">
+          {name}
+        </span>
+      </div>
+
+      {description && (
+        <p className="text-xs text-slate-400">
+          {description}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function SharedStepDetail({
