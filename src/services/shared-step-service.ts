@@ -3,8 +3,8 @@
  * Manages shared step CRUD operations via backend API
  */
 
-import { authService } from "./auth-service";
 import { getApiUrl } from "../lib/config";
+import { authService } from "./auth-service";
 
 export interface SharedStep {
     id: string;
@@ -127,7 +127,9 @@ class SharedStepService {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to delete shared step: ${response.statusText}`);
+            const body = await response.json();
+            const errorMessage = body.error || 'Failed to delete shared step';
+            throw new Error(errorMessage);
         }
     }
 

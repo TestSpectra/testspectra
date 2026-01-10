@@ -4,16 +4,14 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Edit,
-  Eye,
   Loader2,
   Plus,
-  RefreshCw,
   Search,
-  Share2,
   Trash2,
   User
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { getTimeAgo } from "../lib/utils";
 import { SharedStep, sharedStepService } from "../services/shared-step-service";
 import { ConfirmDialog } from "./SimpleDialog";
@@ -44,7 +42,8 @@ export function SharedStepsList({
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [sharedStepToDelete, setSharedStepToDelete] = useState<SharedStep | null>(null);
+  const [sharedStepToDelete, setSharedStepToDelete] =
+    useState<SharedStep | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Debounce search query
@@ -72,7 +71,9 @@ export function SharedStepsList({
       setSharedStepsList(response.sharedSteps);
       setTotalCount(response.pagination.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch shared steps");
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch shared steps"
+      );
       setSharedStepsList([]);
       setTotalCount(0);
     } finally {
@@ -100,9 +101,10 @@ export function SharedStepsList({
       setDeleteDialogOpen(false);
       setSharedStepToDelete(null);
       await fetchSharedSteps(); // Refresh list
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete shared step:", err);
-      // You might want to show a toast notification here
+      // Show error toast with backend message
+      toast.error(err?.message || "Gagal menghapus shared step");
     } finally {
       setIsDeleting(false);
     }
@@ -125,11 +127,13 @@ export function SharedStepsList({
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="mb-2 text-2xl font-bold text-white">Shared Steps</h1>
-          <p className="text-slate-400">Create and manage reusable test step sequences</p>
+          <p className="text-slate-400">
+            Create and manage reusable test step sequences
+          </p>
         </div>
         <Button
           onClick={onCreateSharedStep}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+          className="bg-green-600 hover:bg-green-700 text-white"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Shared Step
@@ -175,14 +179,18 @@ export function SharedStepsList({
           <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="w-8 h-8 text-slate-600" />
           </div>
-          <h3 className="text-lg font-medium text-white mb-2">No shared steps found</h3>
+          <h3 className="text-lg font-medium text-white mb-2">
+            No shared steps found
+          </h3>
           <p className="text-slate-400 mb-4">
-            {debouncedSearch ? "Try adjusting your search terms" : "Get started by creating your first shared step"}
+            {debouncedSearch
+              ? "Try adjusting your search terms"
+              : "Get started by creating your first shared step"}
           </p>
           {!debouncedSearch && (
             <Button
               onClick={onCreateSharedStep}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Shared Step
@@ -200,28 +208,18 @@ export function SharedStepsList({
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center shrink-0">
-                    <Share2 className="w-6 h-6 text-blue-400" />
-                  </div>
                   <div>
-                    <h3 className="text-lg font-medium text-white mb-1">{sharedStep.name}</h3>
+                    <h3 className="text-lg font-medium text-white mb-1">
+                      {sharedStep.name}
+                    </h3>
                     {sharedStep.description && (
-                      <p className="text-slate-400 text-sm line-clamp-2">{sharedStep.description}</p>
+                      <p className="text-slate-400 text-sm line-clamp-2">
+                        {sharedStep.description}
+                      </p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      onViewDetail(sharedStep.id);
-                    }}
-                    className="text-slate-400 hover:text-white hover:bg-slate-700"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -269,7 +267,9 @@ export function SharedStepsList({
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 bg-slate-900 rounded-xl border border-slate-800 p-4">
           <div className="text-sm text-slate-400">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} shared steps
+            Showing {(currentPage - 1) * pageSize + 1} to{" "}
+            {Math.min(currentPage * pageSize, totalCount)} of {totalCount}{" "}
+            shared steps
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -320,10 +320,10 @@ export function SharedStepsList({
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteDialogOpen}
-        title="Delete Shared Step"
-        message={`Are you sure you want to delete "${sharedStepToDelete?.name}"? This action cannot be undone and will remove the shared step from all test cases that reference it.`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        title="Hapus Shared Step"
+        message={`Apakah Anda yakin ingin menghapus "${sharedStepToDelete?.name}"? Tindakan ini hanya dapat dilakukan jika tidak ada test case yang saat ini menggunakan shared step ini. Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
         isLoading={isDeleting}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteDialogOpen(false)}

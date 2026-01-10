@@ -1,14 +1,14 @@
-import { Edit, RefreshCw, Trash2, Copy } from "lucide-react";
+import { Edit, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   sharedStepService,
   type SharedStepDetail,
 } from "../services/shared-step-service";
 import { BackButton } from "./BackButton";
-import { Button } from "./ui/button";
-import { TestCaseDisplay } from "./TestCaseDisplay";
 import { ConfirmDialog } from "./SimpleDialog";
-import { toast } from "sonner";
+import { TestCaseDisplay } from "./TestCaseDisplay";
+import { Button } from "./ui/button";
 
 interface SharedStepDetailProps {
   sharedStepId: string;
@@ -55,9 +55,9 @@ export function SharedStepDetail({
       toast.success("Shared step deleted successfully");
       onDelete(sharedStep.id);
       onBack();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete shared step:", err);
-      toast.error("Failed to delete shared step");
+      toast.error(err.message || "Failed to delete shared step");
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);
@@ -150,10 +150,10 @@ export function SharedStepDetail({
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Delete Shared Step"
-        message={`Are you sure you want to delete "${sharedStep.name}"? This action cannot be undone and will remove the shared step from all test cases that reference it.`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        title="Hapus Shared Step"
+        message={`Apakah Anda yakin ingin menghapus "${sharedStep.name}"? Tindakan ini hanya dapat dilakukan jika tidak ada test case yang saat ini menggunakan shared step ini. Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
         isLoading={isDeleting}
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}
