@@ -132,6 +132,7 @@ struct IncomingAssertion {
     #[serde(rename = "attributeName")]
     attribute_name: Option<String>,
     #[serde(rename = "attributeValue")]
+    #[allow(dead_code)]
     attribute_value: Option<String>,
 }
 
@@ -348,6 +349,70 @@ pub(crate) fn validate_and_prepare_step(
     Ok((action_params, assertions_value))
 }
 
+pub async fn insert_test_steps_for_case(
+    db: &PgPool,
+    test_case_id: Uuid,
+    step_data: Option<Vec<CreateTestStepRequest>>,
+) -> Result<Vec<TestStep>, AppError> {
+    let mut steps = Vec::new();
+    if let Some(step_data) = step_data {
+        for (order, step) in step_data.iter().enumerate() {
+            let step_id = Uuid::new_v4();
+
+            match step.step_type {
+                StepType::Regular => {
+                    // Regular step - validate and insert
+                    let (action_params, assertions) = validate_and_prepare_step(step)?;
+
+                    let inserted: TestStep = sqlx::query_as(
+                        r#"INSERT INTO test_steps 
+                               (id, test_case_id, step_order, step_type, action_type, action_params, assertions, custom_expected_result)
+                               VALUES ($1, $2, $3, 'regular', $4, $5, $6, $7)
+                               RETURNING *"#
+                    )
+                    .bind(step_id)
+                    .bind(test_case_id)
+                    .bind((order + 1) as i32)  // Ensure ordering starts from 1
+                    .bind(&step.action_type)
+                    .bind(&action_params)
+                    .bind(&assertions)
+                    .bind(&step.custom_expected_result)
+                    .fetch_one(db)
+                    .await?;
+                    steps.push(inserted);
+                }
+                StepType::SharedReference => {
+                    // Shared step reference - insert reference row.
+                    // We still need a non-null action_type to satisfy NOT NULL constraint,
+                    // but its value is not used because actions come from the shared definition.
+                    if let Some(ref shared_id) = step.shared_step_id {
+                        let inserted: TestStep = sqlx::query_as(
+                            r#"INSERT INTO test_steps 
+                                   (id, test_case_id, step_order, step_type, shared_step_id, action_type)
+                                   VALUES ($1, $2, $3, 'shared_reference', $4, 'shared_reference')
+                                   RETURNING *"#
+                        )
+                        .bind(step_id)
+                        .bind(test_case_id)
+                        .bind((order + 1) as i32)
+                        .bind(shared_id)
+                        .fetch_one(db)
+                        .await?;
+                        steps.push(inserted);
+                    }
+                }
+                StepType::SharedDefinition => {
+                    // Should not be in test case creation
+                    return Err(AppError::BadRequest(
+                        "Shared definition steps cannot be directly added to test cases".to_string(),
+                    ));
+                }
+            }
+        }
+    }
+    Ok(steps)
+}
+
 // Endpoint to expose canonical action/assertion/key definitions to the frontend
 pub async fn get_test_step_metadata(
     State(state): State<TestStepState>,
@@ -444,30 +509,7 @@ pub async fn update_test_steps(
         .await?;
 
     // Insert new steps with proper ordering (use array index for step_order)
-    let mut steps = Vec::new();
-    for (order, step) in payload.steps.iter().enumerate() {
-        let step_id = Uuid::new_v4();
-
-        // Validate and normalize according to backend definitions
-        let (action_params, assertions) = validate_and_prepare_step(step)?;
-
-        let inserted: TestStep = sqlx::query_as(
-            r#"INSERT INTO test_steps 
-               (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               RETURNING *"#
-        )
-        .bind(step_id)
-        .bind(test_case.id)
-        .bind((order + 1) as i32)  // Always use array index + 1 for ordering
-        .bind(&step.action_type)
-        .bind(&action_params)
-        .bind(&assertions)
-        .bind(&step.custom_expected_result)
-        .fetch_one(&state.db)
-        .await?;
-        steps.push(inserted);
-    }
+    let _ = insert_test_steps_for_case(&state.db, test_case.id, Some(payload.steps)).await?;
 
     // Update test case timestamp
     sqlx::query("UPDATE test_cases SET updated_at = NOW() WHERE id = $1")

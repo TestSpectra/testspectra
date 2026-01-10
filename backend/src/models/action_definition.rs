@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use serde_json::Value as JsonValue;
 use sqlx::FromRow;
 use uuid::Uuid;

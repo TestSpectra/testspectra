@@ -18,6 +18,7 @@ use crate::websocket::{WsManager, WsMessage};
 pub struct NotificationState {
     pub db: PgPool,
     pub jwt: JwtService,
+    #[allow(dead_code)]
     pub ws_manager: WsManager,
 }
 

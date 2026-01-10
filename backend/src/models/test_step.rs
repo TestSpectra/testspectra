@@ -223,7 +223,7 @@ pub struct TestStep {
     pub shared_step_id: Option<Uuid>, // Can be NULL for regular steps
     pub step_order: i32,
     pub step_type: StepType,
-    pub action_type: String,
+    pub action_type: Option<String>,
     pub action_params: JsonValue,
     pub assertions: JsonValue,
     pub custom_expected_result: Option<String>, // Rich text HTML

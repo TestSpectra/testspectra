@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
-use crate::handlers::test_step::validate_and_prepare_step;
+use crate::handlers::test_step::insert_test_steps_for_case;
 use crate::models::test_case::*;
 use crate::models::test_step::{TestStep, StepType};
 use crate::websocket::WsManager;
@@ -310,7 +310,7 @@ async fn get_test_case(
                     id: step.id.to_string(),
                     step_type: "regular".to_string(),
                     step_order: step.step_order,
-                    action_type: Some(step.action_type),
+                    action_type: step.action_type,
                     action_params: Some(step.action_params),
                     assertions: Some(step.assertions),
                     custom_expected_result: step.custom_expected_result,
@@ -353,7 +353,7 @@ async fn get_test_case(
                             id: s.id.to_string(),
                             step_type: "regular".to_string(), // Definition steps are regular within shared step
                             step_order: s.step_order,
-                            action_type: Some(s.action_type),
+                            action_type: s.action_type,
                             action_params: Some(s.action_params),
                             assertions: Some(s.assertions),
                             custom_expected_result: s.custom_expected_result,
@@ -452,62 +452,7 @@ async fn create_test_case(
     .await?;
 
     // Insert steps if provided
-    let mut steps = Vec::new();
-    if let Some(step_data) = payload.steps {
-        for (order, step) in step_data.iter().enumerate() {
-            let step_id = Uuid::new_v4();
-
-            match step.step_type {
-                StepType::Regular => {
-                    // Regular step - validate and insert
-                    let (action_params, assertions) = validate_and_prepare_step(step)?;
-
-                    let inserted: TestStep = sqlx::query_as(
-                        r#"INSERT INTO test_steps 
-                               (id, test_case_id, step_order, step_type, action_type, action_params, assertions, custom_expected_result)
-                               VALUES ($1, $2, $3, 'regular', $4, $5, $6, $7)
-                               RETURNING *"#
-                    )
-                    .bind(step_id)
-                    .bind(id)
-                    .bind((order + 1) as i32)  // Ensure ordering starts from 1
-                    .bind(&step.action_type)
-                    .bind(&action_params)
-                    .bind(&assertions)
-                    .bind(&step.custom_expected_result)
-                    .fetch_one(&state.db)
-                    .await?;
-                    steps.push(inserted);
-                }
-                StepType::SharedReference => {
-                    // Shared step reference - insert reference row.
-                    // We still need a non-null action_type to satisfy NOT NULL constraint,
-                    // but its value is not used because actions come from the shared definition.
-                    if let Some(ref shared_id) = step.shared_step_id {
-                        let inserted: TestStep = sqlx::query_as(
-                            r#"INSERT INTO test_steps 
-                                   (id, test_case_id, step_order, step_type, shared_step_id, action_type)
-                                   VALUES ($1, $2, $3, 'shared_reference', $4, 'shared_reference')
-                                   RETURNING *"#
-                        )
-                        .bind(step_id)
-                        .bind(id)
-                        .bind((order + 1) as i32)
-                        .bind(shared_id)
-                        .fetch_one(&state.db)
-                        .await?;
-                        steps.push(inserted);
-                    }
-                }
-                StepType::SharedDefinition => {
-                    // Should not be in test case creation
-                    return Err(AppError::BadRequest(
-                        "Shared definition steps cannot be directly added to test cases".to_string(),
-                    ));
-                }
-            }
-        }
-    }
+    let _ = insert_test_steps_for_case(&state.db, id, payload.steps).await?;
 
     let creator_name: Option<(String,)> = sqlx::query_as("SELECT name FROM users WHERE id = $1")
         .bind(user_uuid)
@@ -592,7 +537,7 @@ async fn update_test_case(
     .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
 
     // Update steps if provided - this replaces all existing steps
-    let _steps = if let Some(step_data) = payload.steps {
+    if let Some(step_data) = payload.steps {
         // Delete existing steps
         sqlx::query("DELETE FROM test_steps WHERE test_case_id = $1")
             .bind(test_case.id)
@@ -600,66 +545,8 @@ async fn update_test_case(
             .await?;
 
         // Insert new steps with proper ordering
-        let mut new_steps = Vec::new();
-        for (order, step) in step_data.iter().enumerate() {
-            let step_id = Uuid::new_v4();
-
-            match step.step_type {
-                StepType::Regular => {
-                    // Regular step - validate and insert
-                    let (action_params, assertions) = validate_and_prepare_step(step)?;
-
-                    let inserted: TestStep = sqlx::query_as(
-                        r#"INSERT INTO test_steps 
-                               (id, test_case_id, step_order, step_type, action_type, action_params, assertions, custom_expected_result)
-                               VALUES ($1, $2, $3, 'regular', $4, $5, $6, $7)
-                               RETURNING *"#
-                    )
-                    .bind(step_id)
-                    .bind(test_case.id)
-                    .bind((order + 1) as i32)
-                    .bind(&step.action_type)
-                    .bind(&action_params)
-                    .bind(&assertions)
-                    .bind(&step.custom_expected_result)
-                    .fetch_one(&state.db)
-                    .await?;
-                    new_steps.push(inserted);
-                }
-                StepType::SharedReference => {
-                    // Shared step reference - insert reference row.
-                    if let Some(ref shared_id) = step.shared_step_id {
-                        let inserted: TestStep = sqlx::query_as(
-                            r#"INSERT INTO test_steps 
-                                   (id, test_case_id, step_order, step_type, shared_step_id, action_type)
-                                   VALUES ($1, $2, $3, 'shared_reference', $4, 'shared_reference')
-                                   RETURNING *"#
-                        )
-                        .bind(step_id)
-                        .bind(test_case.id)
-                        .bind((order + 1) as i32)
-                        .bind(shared_id)
-                        .fetch_one(&state.db)
-                        .await?;
-                        new_steps.push(inserted);
-                    }
-                }
-                StepType::SharedDefinition => {
-                    // Should not be in test case update
-                    return Err(AppError::BadRequest(
-                        "Shared definition steps cannot be directly added to test cases".to_string(),
-                    ));
-                }
-            }
-        }
-        new_steps
-    } else {
-        // Fetch existing steps
-        sqlx::query_as("SELECT * FROM test_steps WHERE test_case_id = $1 ORDER BY step_order")
-            .bind(test_case.id)
-            .fetch_all(&state.db)
-            .await?
-    };
+        let _ = insert_test_steps_for_case(&state.db, test_case.id, Some(step_data)).await?;
+    }
 
     let creator_name: Option<(String,)> = sqlx::query_as("SELECT name FROM users WHERE id = $1")
         .bind(test_case.created_by)
