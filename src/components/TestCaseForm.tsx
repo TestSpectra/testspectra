@@ -13,6 +13,7 @@ import { TestCaseMetadata } from "./TestCaseMetadata";
 import { TestStepsEditor } from "./TestStepsEditor";
 import { Button } from "./ui/button";
 import { RichTextEditor } from "./ui/rich-text-editor";
+import { BackButton } from "./BackButton";
 
 interface TestSuite {
   id: string;
@@ -315,12 +316,7 @@ export function TestCaseForm({
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <button
-            onClick={onCancel}
-            className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <BackButton onClick={onCancel} />
           <div>
             <h1 className="mb-2">
               {isEditing ? "Edit Test Case" : "Create New Test Case"}
