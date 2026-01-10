@@ -526,8 +526,8 @@ function AddSharedStepDialog({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 bg-slate-900 sticky top-0 z-10">
           <h3 className="text-lg font-medium text-slate-100">
             Add Shared Step
           </h3>
@@ -539,7 +539,7 @@ function AddSharedStepDialog({
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div>
             <label className="block text-sm text-slate-400 mb-2">
               Select Shared Step
@@ -583,24 +583,24 @@ function AddSharedStepDialog({
               />
             </div>
           )}
+        </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAdd}
-              disabled={!selectedSharedStep || isLoadingSharedStep}
-              className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
-            >
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Add Shared Step
-            </Button>
-          </div>
+        <div className="flex justify-end gap-3 p-6 bg-slate-900 sticky bottom-0 z-10">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAdd}
+            disabled={!selectedSharedStep || isLoadingSharedStep}
+            className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
+          >
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Add Shared Step
+          </Button>
         </div>
       </div>
     </div>
