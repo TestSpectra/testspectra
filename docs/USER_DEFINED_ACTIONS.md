@@ -317,11 +317,6 @@ When fetching test step metadata, include shared steps:
     {
       "id": "uuid",
       "name": "Login Flow",
-      "description": "Standard authentication flow",
-      "stepCount": 5,
-      "createdBy": "Ahmad R.",
-      "createdAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T00:00:00Z"
     }
   ],
   "keyOptions": [...]

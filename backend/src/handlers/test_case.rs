@@ -11,7 +11,7 @@ use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
 use crate::handlers::test_step::validate_and_prepare_step;
 use crate::models::test_case::*;
-use crate::models::test_step::TestStep;
+use crate::models::test_step::{TestStep, StepType};
 use crate::websocket::WsManager;
 
 #[derive(Clone)]
@@ -300,14 +300,98 @@ async fn get_test_case(
             .fetch_all(&state.db)
             .await?;
 
+    // Build nested response structure
+    let mut nested_steps: Vec<NestedTestStepResponse> = Vec::new();
+    for step in steps {
+        match step.step_type {
+            StepType::Regular => {
+                // Regular step - add directly
+                nested_steps.push(NestedTestStepResponse {
+                    id: step.id.to_string(),
+                    step_type: "regular".to_string(),
+                    step_order: step.step_order,
+                    action_type: Some(step.action_type),
+                    action_params: Some(step.action_params),
+                    assertions: Some(step.assertions),
+                    custom_expected_result: step.custom_expected_result,
+                    shared_step_id: None,
+                    shared_step_name: None,
+                    steps: None,
+                });
+            }
+            StepType::SharedReference => {
+                // Shared step reference - fetch definition steps and create nested structure
+                if let Some(ref shared_id) = step.shared_step_id {
+                    // Fetch shared step metadata
+                    let shared_step: Option<(String,)> = sqlx::query_as(
+                        "SELECT name FROM shared_steps WHERE id = $1"
+                    )
+                    .bind(shared_id)
+                    .fetch_optional(&state.db)
+                    .await?;
+
+                    // Fetch definition steps
+                    let shared_steps: Vec<TestStep> = sqlx::query_as(
+                        r#"
+                        SELECT *
+                        FROM test_steps
+                        WHERE shared_step_id = $1 
+                          AND test_case_id IS NULL 
+                          AND step_type = 'shared_definition'
+                        ORDER BY step_order
+                        "#,
+                    )
+                    .bind(shared_id)
+                    .fetch_all(&state.db)
+                    .await?;
+
+                    // Convert shared definition steps to nested format
+                    let nested_shared_steps: Vec<NestedTestStepResponse> = shared_steps
+                        .into_iter()
+                        .map(|s| NestedTestStepResponse {
+                            id: s.id.to_string(),
+                            step_type: "regular".to_string(), // Definition steps are regular within shared step
+                            step_order: s.step_order,
+                            action_type: Some(s.action_type),
+                            action_params: Some(s.action_params),
+                            assertions: Some(s.assertions),
+                            custom_expected_result: s.custom_expected_result,
+                            shared_step_id: None,
+                            shared_step_name: None,
+                            steps: None,
+                        })
+                        .collect();
+
+                    // Add shared step reference with nested steps
+                    nested_steps.push(NestedTestStepResponse {
+                        id: step.id.to_string(),
+                        step_type: "shared".to_string(),
+                        step_order: step.step_order,
+                        action_type: None,
+                        action_params: None,
+                        assertions: None,
+                        custom_expected_result: None,
+                        shared_step_id: Some(shared_id.to_string()),
+                        shared_step_name: shared_step.map(|(name,)| name),
+                        steps: Some(nested_shared_steps),
+                    });
+                }
+            }
+            StepType::SharedDefinition => {
+                // Should not appear in test case steps, skip
+                continue;
+            }
+        }
+    }
+
     let creator_name: Option<(String,)> = sqlx::query_as("SELECT name FROM users WHERE id = $1")
         .bind(test_case.created_by)
         .fetch_optional(&state.db)
         .await?;
 
-    Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
+    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
         test_case,
-        steps,
+        steps: nested_steps,
         created_by_name: creator_name.map(|(n,)| n),
     })))
 }
@@ -365,25 +449,55 @@ async fn create_test_case(
         for (order, step) in step_data.iter().enumerate() {
             let step_id = Uuid::new_v4();
 
-            // Validate and normalize according to backend definitions
-            let (action_params, assertions) = validate_and_prepare_step(step)?;
+            match step.step_type {
+                StepType::Regular => {
+                    // Regular step - validate and insert
+                    let (action_params, assertions) = validate_and_prepare_step(step)?;
 
-            let inserted: TestStep = sqlx::query_as(
-                r#"INSERT INTO test_steps 
-                   (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7)
-                   RETURNING *"#
-            )
-            .bind(step_id)
-            .bind(id)
-            .bind((order + 1) as i32)  // Ensure ordering starts from 1
-            .bind(&step.action_type)
-            .bind(&action_params)
-            .bind(&assertions)
-            .bind(&step.custom_expected_result)
-            .fetch_one(&state.db)
-            .await?;
-            steps.push(inserted);
+                    let inserted: TestStep = sqlx::query_as(
+                        r#"INSERT INTO test_steps 
+                               (id, test_case_id, step_order, step_type, action_type, action_params, assertions, custom_expected_result)
+                               VALUES ($1, $2, $3, 'regular', $4, $5, $6, $7)
+                               RETURNING *"#
+                    )
+                    .bind(step_id)
+                    .bind(id)
+                    .bind((order + 1) as i32)  // Ensure ordering starts from 1
+                    .bind(&step.action_type)
+                    .bind(&action_params)
+                    .bind(&assertions)
+                    .bind(&step.custom_expected_result)
+                    .fetch_one(&state.db)
+                    .await?;
+                    steps.push(inserted);
+                }
+                StepType::SharedReference => {
+                    // Shared step reference - insert reference row.
+                    // We still need a non-null action_type to satisfy NOT NULL constraint,
+                    // but its value is not used because actions come from the shared definition.
+                    if let Some(ref shared_id) = step.shared_step_id {
+                        let inserted: TestStep = sqlx::query_as(
+                            r#"INSERT INTO test_steps 
+                                   (id, test_case_id, step_order, step_type, shared_step_id, action_type)
+                                   VALUES ($1, $2, $3, 'shared_reference', $4, 'shared_reference')
+                                   RETURNING *"#
+                        )
+                        .bind(step_id)
+                        .bind(id)
+                        .bind((order + 1) as i32)
+                        .bind(shared_id)
+                        .fetch_one(&state.db)
+                        .await?;
+                        steps.push(inserted);
+                    }
+                }
+                StepType::SharedDefinition => {
+                    // Should not be in test case creation
+                    return Err(AppError::BadRequest(
+                        "Shared definition steps cannot be directly added to test cases".to_string(),
+                    ));
+                }
+            }
         }
     }
 
@@ -408,9 +522,9 @@ async fn create_test_case(
         }
     }
 
-    Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
+    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
         test_case,
-        steps,
+        steps: Vec::new(), // Empty nested steps for create response
         created_by_name: creator_name.map(|(n,)| n),
     })))
 }
@@ -472,7 +586,7 @@ async fn update_test_case(
     .ok_or_else(|| AppError::NotFound("Test case not found".to_string()))?;
 
     // Update steps if provided - this replaces all existing steps
-    let steps = if let Some(step_data) = payload.steps {
+    let _steps = if let Some(step_data) = payload.steps {
         // Delete existing steps
         sqlx::query("DELETE FROM test_steps WHERE test_case_id = $1")
             .bind(test_case.id)
@@ -484,25 +598,53 @@ async fn update_test_case(
         for (order, step) in step_data.iter().enumerate() {
             let step_id = Uuid::new_v4();
 
-            // Validate and normalize according to backend definitions
-            let (action_params, assertions) = validate_and_prepare_step(step)?;
+            match step.step_type {
+                StepType::Regular => {
+                    // Regular step - validate and insert
+                    let (action_params, assertions) = validate_and_prepare_step(step)?;
 
-            let inserted: TestStep = sqlx::query_as(
-                r#"INSERT INTO test_steps 
-                   (id, test_case_id, step_order, action_type, action_params, assertions, custom_expected_result)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7)
-                   RETURNING *"#
-            )
-            .bind(step_id)
-            .bind(test_case.id)
-            .bind((order + 1) as i32)
-            .bind(&step.action_type)
-            .bind(&action_params)
-            .bind(&assertions)
-            .bind(&step.custom_expected_result)
-            .fetch_one(&state.db)
-            .await?;
-            new_steps.push(inserted);
+                    let inserted: TestStep = sqlx::query_as(
+                        r#"INSERT INTO test_steps 
+                               (id, test_case_id, step_order, step_type, action_type, action_params, assertions, custom_expected_result)
+                               VALUES ($1, $2, $3, 'regular', $4, $5, $6, $7)
+                               RETURNING *"#
+                    )
+                    .bind(step_id)
+                    .bind(test_case.id)
+                    .bind((order + 1) as i32)
+                    .bind(&step.action_type)
+                    .bind(&action_params)
+                    .bind(&assertions)
+                    .bind(&step.custom_expected_result)
+                    .fetch_one(&state.db)
+                    .await?;
+                    new_steps.push(inserted);
+                }
+                StepType::SharedReference => {
+                    // Shared step reference - insert reference row.
+                    if let Some(ref shared_id) = step.shared_step_id {
+                        let inserted: TestStep = sqlx::query_as(
+                            r#"INSERT INTO test_steps 
+                                   (id, test_case_id, step_order, step_type, shared_step_id, action_type)
+                                   VALUES ($1, $2, $3, 'shared_reference', $4, 'shared_reference')
+                                   RETURNING *"#
+                        )
+                        .bind(step_id)
+                        .bind(test_case.id)
+                        .bind((order + 1) as i32)
+                        .bind(shared_id)
+                        .fetch_one(&state.db)
+                        .await?;
+                        new_steps.push(inserted);
+                    }
+                }
+                StepType::SharedDefinition => {
+                    // Should not be in test case update
+                    return Err(AppError::BadRequest(
+                        "Shared definition steps cannot be directly added to test cases".to_string(),
+                    ));
+                }
+            }
         }
         new_steps
     } else {
@@ -518,9 +660,9 @@ async fn update_test_case(
         .fetch_optional(&state.db)
         .await?;
 
-    Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
+    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
         test_case,
-        steps,
+        steps: Vec::new(), // Empty nested steps for update response
         created_by_name: creator_name.map(|(n,)| n),
     })))
 }
@@ -696,9 +838,9 @@ async fn duplicate_test_case(
         .fetch_optional(&state.db)
         .await?;
 
-    Ok(Json(TestCaseResponse::from_with_steps(TestCaseWithSteps {
+    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
         test_case: new_test_case,
-        steps: new_steps,
+        steps: Vec::new(), // Empty nested steps for duplicate response
         created_by_name: creator_name.map(|(n,)| n),
     })))
 }

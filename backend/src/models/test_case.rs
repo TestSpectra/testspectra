@@ -4,7 +4,7 @@ use serde_json::Value as JsonValue;
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::models::test_step::{TestStep, CreateTestStepRequest};
+use crate::models::test_step::CreateTestStepRequest;
 
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct TestCase {
@@ -35,7 +35,7 @@ pub struct TestCase {
 pub struct TestCaseWithSteps {
     #[serde(flatten)]
     pub test_case: TestCase,
-    pub steps: Vec<TestStep>,
+    pub steps: Vec<NestedTestStepResponse>, // Changed to nested response
     pub created_by_name: Option<String>,
 }
 
@@ -75,7 +75,7 @@ pub struct TestCaseResponse {
     pub post_condition: Option<String>,
     pub tags: Vec<String>,
     pub execution_order: f64,
-    pub steps: Vec<TestStepResponse>,
+    pub steps: Vec<NestedTestStepResponse>, // Changed to nested response
     pub created_by_id: String,
     pub created_by_name: Option<String>,
     pub created_at: String,
@@ -94,8 +94,32 @@ pub struct TestStepResponse {
     pub custom_expected_result: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NestedTestStepResponse {
+    pub id: String,
+    pub step_type: String, // "regular" or "shared"
+    pub step_order: i32,
+    // For regular steps - always present
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_params: Option<JsonValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assertions: Option<JsonValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_expected_result: Option<String>,
+    // For shared steps
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared_step_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared_step_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub steps: Option<Vec<NestedTestStepResponse>>, // Nested steps for shared references
+}
+
 impl TestCaseResponse {
-    pub fn from_with_steps(tc: TestCaseWithSteps) -> Self {
+    pub fn from_with_nested_steps(tc: TestCaseWithSteps) -> Self {
         Self {
             id: tc.test_case.case_id.clone(),
             title: tc.test_case.title,
@@ -112,14 +136,7 @@ impl TestCaseResponse {
             post_condition: tc.test_case.post_condition,
             tags: tc.test_case.tags,
             execution_order: tc.test_case.execution_order,
-            steps: tc.steps.into_iter().map(|s| TestStepResponse {
-                id: s.id.to_string(),
-                step_order: s.step_order,
-                action_type: s.action_type,
-                action_params: s.action_params,
-                assertions: s.assertions,
-                custom_expected_result: s.custom_expected_result,
-            }).collect(),
+            steps: tc.steps,
             created_by_id: tc.test_case.created_by.to_string(),
             created_by_name: tc.created_by_name,
             created_at: tc.test_case.created_at.to_rfc3339(),

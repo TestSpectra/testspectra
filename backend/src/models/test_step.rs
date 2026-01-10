@@ -219,7 +219,8 @@ impl Default for StepType {
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct TestStep {
     pub id: Uuid,
-    pub test_case_id: Uuid,
+    pub test_case_id: Option<Uuid>, // Can be NULL for shared step definitions
+    pub shared_step_id: Option<Uuid>, // Can be NULL for regular steps
     pub step_order: i32,
     pub step_type: StepType,
     pub action_type: String,
@@ -242,6 +243,7 @@ pub struct CreateTestStepRequest {
     /// - 'shared_reference': reference from test case to shared step (action fields should be null/empty)
     #[serde(default)]
     pub step_type: StepType,
+    pub shared_step_id: Option<Uuid>, // For shared_reference steps
     pub action_type: String,
     pub action_params: Option<JsonValue>,
     pub assertions: Option<JsonValue>,
