@@ -29,7 +29,10 @@ import {
   SharedStepDetail,
   sharedStepService,
 } from "../services/shared-step-service";
-import { TestStepMetadataResponse } from "../services/test-case-service";
+import {
+  TestStep,
+  TestStepMetadataResponse,
+} from "../services/test-case-service";
 import "../styles/drag-handle.css";
 import { ConfirmDialog } from "./SimpleDialog";
 import { TestStepsDisplay } from "./TestStepsDisplay";
@@ -96,7 +99,7 @@ export interface ActionParams {
   duration?: string;
 }
 
-export interface TestStep {
+export interface TestStepWithoutOrder {
   id: string;
   actionType: ActionType;
   actionParams: ActionParams;
@@ -107,7 +110,7 @@ export interface TestStep {
 }
 
 interface SortableStepItemProps {
-  step: TestStep;
+  step: TestStepWithoutOrder;
   index: number;
   stepsLength: number;
   inputClass: string;
@@ -127,7 +130,10 @@ interface SortableStepItemProps {
     needsValue: boolean;
     needsAttribute: boolean;
   }[];
-  handleUpdateStep: (id: string, updates: Partial<TestStep>) => void;
+  handleUpdateStep: (
+    id: string,
+    updates: Partial<TestStepWithoutOrder>
+  ) => void;
   handleRemoveStep: (id: string) => void;
   handleDuplicateStep: (id: string) => void;
   handleInsertStepBelow: (id: string) => void;
@@ -138,9 +144,9 @@ interface SortableStepItemProps {
     updates: Partial<Assertion>
   ) => void;
   handleRemoveAssertion: (stepId: string, assertionId: string) => void;
-  renderStepFields: (step: TestStep) => React.ReactNode;
+  renderStepFields: (step: TestStepWithoutOrder) => React.ReactNode;
   renderAssertionFields: (
-    step: TestStep,
+    step: TestStepWithoutOrder,
     assertion: Assertion
   ) => React.ReactNode;
 }
@@ -195,6 +201,7 @@ function SortableStepItem({
       .sort((a, b) => a.stepOrder - b.stepOrder)
       .map((step, index) => ({
         id: `shared-${sharedStep.id}-${step.id || index}`,
+        stepOrder: step.stepOrder,
         actionType: step.actionType as ActionType,
         actionParams: step.actionParams || {},
         customExpectedResult: step.customExpectedResult || "",
@@ -226,29 +233,22 @@ function SortableStepItem({
 
         {isSharedStep ? (
           // Render shared step display
-          <div className="space-y-3 grow">
-            <div className="flex items-center gap-2">
-              <Package className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-400">
-                {step.sharedStepDetail?.name}
-              </span>
-              <Badge variant="secondary" className="text-xs">
-                {step.sharedStepDetail?.stepCount} steps
-              </Badge>
-            </div>
+          <>
+            <div className="flex flex-col gap-3 grow">
+              <div className="flex items-center gap-2 pt-1.5">
+                <Package className="w-4 h-4 text-purple-400" />
+                <span className="text-sm font-medium text-purple-400">
+                  {step.sharedStepDetail?.name}
+                </span>
+              </div>
 
-            {step.sharedStepDetail?.description && (
-              <p className="text-xs text-slate-400">
-                {step.sharedStepDetail.description}
-              </p>
-            )}
-
-            <div className="border-l-2 border-purple-500/30 pl-3">
-              <TestStepsDisplay
-                steps={convertSharedStepToTestSteps(step.sharedStepDetail!)}
-              />
+              {step.sharedStepDetail?.description && (
+                <p className="text-xs text-slate-400">
+                  {step.sharedStepDetail.description}
+                </p>
+              )}
             </div>
-          </div>
+          </>
         ) : (
           // Render regular step input fields
           <>
@@ -296,35 +296,44 @@ function SortableStepItem({
               </div>
               {renderStepFields(step)}
             </div>
-            <div className="flex items-center gap-1 mt-1">
-              <button
-                onClick={() => handleDuplicateStep(step.id)}
-                className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
-                title="Duplicate Step"
-                tabIndex={1000 + index}
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleInsertStepBelow(step.id)}
-                className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
-                title="Add Step Below"
-                tabIndex={1000 + index}
-              >
-                <PlusCircle className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleRemoveStep(step.id)}
-                className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-                title="Delete Step"
-                tabIndex={1000 + index}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
           </>
         )}
+
+        <div className="flex items-center gap-1 mt-1">
+          <button
+            onClick={() => handleDuplicateStep(step.id)}
+            className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+            title="Duplicate Step"
+            tabIndex={1000 + index}
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleInsertStepBelow(step.id)}
+            className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
+            title="Add Step Below"
+            tabIndex={1000 + index}
+          >
+            <PlusCircle className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleRemoveStep(step.id)}
+            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+            title="Delete Step"
+            tabIndex={1000 + index}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
+
+      {isSharedStep && (
+        <div className="border-l-2 ml-9 mt-4 border-purple-500/30 pl-3">
+          <TestStepsDisplay
+            steps={convertSharedStepToTestSteps(step.sharedStepDetail!)}
+          />
+        </div>
+      )}
 
       {/* Assertions */}
       {!isSharedStep && (
@@ -480,6 +489,7 @@ function AddSharedStepDialog({
       .sort((a, b) => a.stepOrder - b.stepOrder)
       .map((step, index) => ({
         id: `shared-${sharedStep.id}-${step.id || index}`,
+        stepOrder: step.stepOrder,
         actionType: step.actionType as ActionType,
         actionParams: step.actionParams || {},
         customExpectedResult: step.customExpectedResult || "",
@@ -578,8 +588,8 @@ function AddSharedStepDialog({
 }
 
 interface TestStepsEditorProps {
-  steps: TestStep[];
-  onStepsChange: (steps: TestStep[]) => void;
+  steps: TestStepWithoutOrder[];
+  onStepsChange: (steps: TestStepWithoutOrder[]) => void;
   stepMetadata: TestStepMetadataResponse;
   allowAddSharedStep?: boolean;
 }
@@ -626,7 +636,7 @@ export function TestStepsEditor({
   const keyOptions = stepMetadata?.keyOptions ?? [];
 
   const handleAddSharedStep = (sharedStep: SharedStepDetail) => {
-    const newStep: TestStep = {
+    const newStep: TestStepWithoutOrder = {
       id: `shared-step-${sharedStep.id}-${Date.now()}`,
       actionType: "navigate", // placeholder, won't be used for shared steps
       actionParams: {},
@@ -706,7 +716,10 @@ export function TestStepsEditor({
   const inputClass =
     "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-colors duration-150";
 
-  const handleUpdateStep = (id: string, updates: Partial<TestStep>) => {
+  const handleUpdateStep = (
+    id: string,
+    updates: Partial<TestStepWithoutOrder>
+  ) => {
     onStepsChange(
       steps.map((step) => (step.id === id ? { ...step, ...updates } : step))
     );
@@ -735,7 +748,7 @@ export function TestStepsEditor({
     const defaultAssertionType =
       availableAssertions[0] || ("elementDisplayed" as AssertionType);
     const newStepId = Date.now().toString();
-    const newStep: TestStep = {
+    const newStep: TestStepWithoutOrder = {
       id: newStepId,
       actionType,
       actionParams: {},
@@ -788,7 +801,7 @@ export function TestStepsEditor({
     handleUpdateStep(stepId, { assertions: updatedAssertions });
   };
 
-  const stepHasData = (step: TestStep): boolean => {
+  const stepHasData = (step: TestStepWithoutOrder): boolean => {
     if (step.actionParams && Object.keys(step.actionParams).length > 0) {
       const hasFilledParam = Object.values(step.actionParams).some(
         (val) => val !== undefined && val !== null && val !== ""
@@ -839,7 +852,7 @@ export function TestStepsEditor({
 
     const stepToDuplicate = steps[stepIndex];
     const newStepId = Date.now().toString();
-    const duplicatedStep: TestStep = {
+    const duplicatedStep: TestStepWithoutOrder = {
       ...stepToDuplicate,
       id: newStepId,
       assertions: (stepToDuplicate.assertions || []).map((a) => ({
@@ -863,7 +876,7 @@ export function TestStepsEditor({
     const defaultAssertionType =
       availableAssertions[0] || ("elementDisplayed" as AssertionType);
     const newStepId = Date.now().toString();
-    const newStep: TestStep = {
+    const newStep: TestStepWithoutOrder = {
       id: newStepId,
       actionType,
       actionParams: {},
@@ -913,7 +926,7 @@ export function TestStepsEditor({
     return actionDefinitions.find((a) => a.value === type)?.label || type;
   };
 
-  const renderStepFields = (step: TestStep) => {
+  const renderStepFields = (step: TestStepWithoutOrder) => {
     switch (step.actionType) {
       case "navigate":
         return (
@@ -1169,7 +1182,10 @@ export function TestStepsEditor({
     }
   };
 
-  const renderAssertionFields = (step: TestStep, assertion: Assertion) => {
+  const renderAssertionFields = (
+    step: TestStepWithoutOrder,
+    assertion: Assertion
+  ) => {
     const assertionDef = assertionDefinitions.find(
       (a) => a.value === assertion.assertionType
     );
