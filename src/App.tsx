@@ -17,6 +17,7 @@ import { ManualTestResultForm } from "./components/ManualTestResultForm";
 import { RunsHistory } from "./components/RunsHistory";
 import { SharedStepDetail } from "./components/SharedStepDetail";
 import { SharedStepsList } from "./components/SharedStepsList";
+import { SharedStepForm } from "./components/SharedStepForm";
 import { TestCaseDetail } from "./components/TestCaseDetail";
 import { TestCaseForm } from "./components/TestCaseForm";
 import { TestCaseReview } from "./components/TestCaseReview";
@@ -484,16 +485,26 @@ function AppContent() {
             }
           />
 
-          {/* <Route path="/shared-steps/new" element={<SharedStepForm
-          onSave={handleSaveSharedStep}
-          onCancel={() => navigate(-1)}
-        />} />
+          <Route
+            path="/shared-steps/new"
+            element={
+              <SharedStepForm
+                onSave={handleSaveSharedStep}
+                onCancel={() => navigate(-1)}
+              />
+            }
+          />
 
-        <Route path="/shared-steps/edit" element={<SharedStepForm
-          sharedStepId={selectedSharedStepId}
-          onSave={handleSaveSharedStep}
-          onCancel={() => navigate(-1)}
-        />} /> */}
+          <Route
+            path="/shared-steps/edit"
+            element={
+              <SharedStepForm
+                sharedStepId={selectedSharedStepId}
+                onSave={handleSaveSharedStep}
+                onCancel={() => navigate(-1)}
+              />
+            }
+          />
 
           <Route
             path="/shared-steps/detail"
