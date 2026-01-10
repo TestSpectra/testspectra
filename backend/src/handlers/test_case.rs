@@ -422,8 +422,8 @@ async fn create_test_case(
     let test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status, submitted_for_review_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending', NOW())
+            last_status, pre_condition, post_condition, tags, created_by, execution_order, review_status, submitted_for_review_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, 'pending', NOW())
            RETURNING *"#
     )
     .bind(id)
@@ -434,7 +434,6 @@ async fn create_test_case(
     .bind(&payload.priority)
     .bind(&payload.case_type)
     .bind(&payload.automation)
-    .bind(&payload.expected_outcome)
     .bind(&payload.pre_condition)
     .bind(&payload.post_condition)
     .bind(&payload.tags.unwrap_or_default())
@@ -560,13 +559,12 @@ async fn update_test_case(
            priority = COALESCE($4, priority),
            case_type = COALESCE($5, case_type),
            automation = COALESCE($6, automation),
-           expected_outcome = COALESCE($7, expected_outcome),
-           pre_condition = COALESCE($8, pre_condition),
-           post_condition = COALESCE($9, post_condition),
-           tags = COALESCE($10, tags),
-           review_status = $11,
+           pre_condition = COALESCE($7, pre_condition),
+           post_condition = COALESCE($8, post_condition),
+           tags = COALESCE($9, tags),
+           review_status = $10,
            updated_at = NOW()
-           WHERE case_id = $12
+           WHERE case_id = $11
            RETURNING *"#,
     )
     .bind(&payload.title)
@@ -575,11 +573,10 @@ async fn update_test_case(
     .bind(&payload.priority)
     .bind(&payload.case_type)
     .bind(&payload.automation)
-    .bind(&payload.expected_outcome)
     .bind(&payload.pre_condition)
     .bind(&payload.post_condition)
     .bind(&payload.tags)
-    .bind(new_review_status)
+    .bind(&new_review_status)
     .bind(&case_id)
     .fetch_optional(&state.db)
     .await?
@@ -790,8 +787,8 @@ async fn duplicate_test_case(
     let new_test_case: TestCase = sqlx::query_as(
         r#"INSERT INTO test_cases 
            (id, case_id, title, description, suite, priority, case_type, automation, 
-            last_status, expected_outcome, pre_condition, post_condition, tags, created_by, execution_order, review_status, submitted_for_review_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, $14, 'pending', NOW())
+            last_status, pre_condition, post_condition, tags, created_by, execution_order, review_status, submitted_for_review_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $13, 'pending', NOW())
            RETURNING *"#
     )
     .bind(new_id)
@@ -802,7 +799,6 @@ async fn duplicate_test_case(
     .bind(&original.priority)
     .bind(&original.case_type)
     .bind(&original.automation)
-    .bind(&original.expected_outcome)
     .bind(&original.pre_condition)
     .bind(&original.post_condition)
     .bind(&original.tags)
