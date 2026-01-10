@@ -122,7 +122,6 @@ export function QuickCreateDialog({ isOpen, onClose, onSave, onSaveAndEdit }: Qu
       pageLoadAvg: '-',
       lastRun: 'Belum dijalankan',
       steps: [], // Empty steps - harus diisi via edit
-      expectedOutcome: '' // Empty - harus diisi via edit
     };
 
     if (shouldEdit) {
@@ -177,7 +176,7 @@ export function QuickCreateDialog({ isOpen, onClose, onSave, onSaveAndEdit }: Qu
         <div className="p-6 space-y-5">
           {/* Info Alert */}
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm text-blue-300">
                 Quick create hanya untuk informasi dasar. Detail implementasi (steps, expected outcome) harus diisi melalui halaman <strong>Edit Test Case</strong>.

@@ -7,6 +7,7 @@ import { authService } from "./auth-service";
 import { getApiUrl } from "../lib/config";
 
 export interface TestStep {
+  id: string,
   stepOrder: number;
   actionType: string;
   actionParams: any;

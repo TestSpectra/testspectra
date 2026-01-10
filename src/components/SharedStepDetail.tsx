@@ -9,6 +9,7 @@ import { BackButton } from "./BackButton";
 import { ConfirmDialog } from "./SimpleDialog";
 import { TestCaseDisplay } from "./TestCaseDisplay";
 import { Button } from "./ui/button";
+import { TestCase } from "@/services/test-case-service";
 
 interface SharedStepDetailProps {
   sharedStepId: string;
@@ -98,12 +99,11 @@ export function SharedStepDetail({
     customExpectedResult: step.customExpectedResult,
   }));
 
-  const displayTestCase = {
+  const displayTestCase: Partial<TestCase> = {
     description: sharedStep.description,
     preCondition: null,
     postCondition: null,
     steps: displaySteps,
-    expectedOutcome: undefined,
     tags: [],
   };
 

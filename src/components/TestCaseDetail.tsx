@@ -1,24 +1,15 @@
-import { CheckCircle2, ClipboardCheck, Clock, Edit, Play, Trash2, TrendingUp, XCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Clock, Edit, Play, RefreshCw, Trash2, TrendingUp, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { testCaseService } from '../services/test-case-service';
+import { toast } from 'sonner';
 import { reviewService } from '../services/review-service';
+import { TestCase, testCaseService } from '../services/test-case-service';
 import { BackButton } from './BackButton';
 import { ReviewHistory } from './ReviewHistory';
-import { Button } from './ui/button';
-import { TestCaseHeader } from './TestCaseHeader';
-import { TestCaseDisplay } from './TestCaseDisplay';
-import { TestCaseMetadata } from './TestCaseMetadata';
 import { ConfirmDialog } from './SimpleDialog';
-import { toast } from 'sonner';
-
-interface TestStep {
-  id?: string;
-  stepOrder: number;
-  actionType: string;
-  actionParams: any;
-  assertions: any[];
-  customExpectedResult?: string | null;
-}
+import { TestCaseDisplay } from './TestCaseDisplay';
+import { TestCaseHeader } from './TestCaseHeader';
+import { TestCaseMetadata } from './TestCaseMetadata';
+import { Button } from './ui/button';
 
 interface ExecutionHistory {
   id: string;
@@ -28,28 +19,6 @@ interface ExecutionHistory {
   executor: string;
   environment: string;
   pageLoadTime?: string;
-}
-
-interface TestCase {
-  id: string;
-  title: string;
-  suite: string;
-  priority: string;
-  caseType: string;
-  automation: string;
-  lastStatus: 'passed' | 'failed' | 'pending';
-  pageLoadAvg?: string;
-  lastRun?: string;
-  description?: string;
-  preCondition: string | null;
-  postCondition: string | null;
-  steps?: TestStep[];
-  expectedOutcome?: string;
-  tags?: string[];
-  createdByName?: string;
-  reviewStatus: 'pending' | 'pending_revision' | 'approved' | 'needs_revision';
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 interface TestCaseDetailProps {

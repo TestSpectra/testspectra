@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
-import { testCaseService } from '../services/test-case-service';
+import { TestCase, testCaseService } from '../services/test-case-service';
 import { reviewService } from '../services/review-service';
 import { TestCaseHeader } from './TestCaseHeader';
 import { TestCaseDisplay } from './TestCaseDisplay';
@@ -16,25 +16,6 @@ interface TestStep {
   actionParams: any;
   assertions: any[];
   customExpectedResult?: string | null;
-}
-
-interface TestCase {
-  id: string;
-  title: string;
-  suite: string;
-  priority: string;
-  caseType: string;
-  automation: string;
-  description?: string;
-  preCondition: string | null;
-  postCondition: string | null;
-  steps?: TestStep[];
-  expectedOutcome?: string;
-  tags?: string[];
-  createdByName?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  reviewStatus?: 'pending' | 'pending_revision' | 'approved' | 'needs_revision';
 }
 
 interface TestCaseReviewProps {

@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
-  sharedStepService,
   SharedStepDetail,
+  sharedStepService,
 } from "../services/shared-step-service";
 import { TestStepMetadataResponse } from "../services/test-case-service";
 import "../styles/drag-handle.css";
@@ -102,6 +102,8 @@ export interface TestStep {
   actionParams: ActionParams;
   assertions: Assertion[];
   customExpectedResult?: string;
+  sharedStepId?: string; // Add this to identify shared steps
+  sharedStepDetail?: SharedStepDetail; // Store full detail for shared steps
 }
 
 interface SortableStepItemProps {
@@ -179,6 +181,32 @@ function SortableStepItem({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Check if this is a shared step
+  const isSharedStep = !!step.sharedStepId && step.sharedStepDetail;
+
+  // Convert shared step to display format
+  const convertSharedStepToTestSteps = (
+    sharedStep: SharedStepDetail
+  ): TestStep[] => {
+    if (!sharedStep.steps || sharedStep.steps.length === 0) return [];
+
+    return sharedStep.steps
+      .slice()
+      .sort((a, b) => a.stepOrder - b.stepOrder)
+      .map((step, index) => ({
+        id: `shared-${sharedStep.id}-${step.id || index}`,
+        actionType: step.actionType as ActionType,
+        actionParams: step.actionParams || {},
+        customExpectedResult: step.customExpectedResult || "",
+        assertions: (step.assertions || []).map(
+          (assertion: any, idx: number) => ({
+            ...assertion,
+            id: `shared-${sharedStep.id}-${step.id || index}-assertion-${idx}`,
+          })
+        ),
+      }));
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -195,153 +223,188 @@ function SortableStepItem({
             <GripVertical size={18} />
           </div>
         </div>
-        <div className="flex-1 space-y-3">
-          <div className="flex items-center gap-3">
-            <select
-              value={step.actionType}
-              onChange={(e) => {
-                const newType = e.target.value as ActionType;
-                const availableAssertions = assertionsByAction[newType] || [];
-                const defaultAssertionType =
-                  availableAssertions[0] ||
-                  ("elementDisplayed" as AssertionType);
 
-                handleUpdateStep(step.id, {
-                  actionType: newType,
-                  actionParams: {},
-                  assertions: [
-                    {
-                      id: Date.now().toString(),
-                      assertionType: defaultAssertionType,
-                    },
-                  ],
-                  customExpectedResult: step.customExpectedResult,
-                });
-              }}
-              className={inputClass}
-            >
-              {actionDefinitions.map((actionDef) => (
-                <option key={actionDef.value} value={actionDef.value}>
-                  {actionDef.label}
-                  {actionDef.platform !== "both"
-                    ? ` (${actionDef.platform})`
-                    : ""}
-                </option>
-              ))}
-            </select>
-            <Badge
-              variant="outline"
-              className={`${getStepColor(step.actionType)} border shrink-0`}
-            >
-              {getStepLabel(step.actionType)}
-            </Badge>
+        {isSharedStep ? (
+          // Render shared step display
+          <div className="space-y-3 grow">
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-medium text-purple-400">
+                {step.sharedStepDetail?.name}
+              </span>
+              <Badge variant="secondary" className="text-xs">
+                {step.sharedStepDetail?.stepCount} steps
+              </Badge>
+            </div>
+
+            {step.sharedStepDetail?.description && (
+              <p className="text-xs text-slate-400">
+                {step.sharedStepDetail.description}
+              </p>
+            )}
+
+            <div className="border-l-2 border-purple-500/30 pl-3">
+              <TestStepsDisplay
+                steps={convertSharedStepToTestSteps(step.sharedStepDetail!)}
+              />
+            </div>
           </div>
-          {renderStepFields(step)}
-        </div>
-        <div className="flex items-center gap-1 mt-1">
-          <button
-            onClick={() => handleDuplicateStep(step.id)}
-            className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
-            title="Duplicate Step"
-            tabIndex={1000 + index}
-          >
-            <Copy className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleInsertStepBelow(step.id)}
-            className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
-            title="Add Step Below"
-            tabIndex={1000 + index}
-          >
-            <PlusCircle className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleRemoveStep(step.id)}
-            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-            title="Delete Step"
-            tabIndex={1000 + index}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+        ) : (
+          // Render regular step input fields
+          <>
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-3">
+                <select
+                  value={step.actionType}
+                  onChange={(e) => {
+                    const newType = e.target.value as ActionType;
+                    const availableAssertions =
+                      assertionsByAction[newType] || [];
+                    const defaultAssertionType =
+                      availableAssertions[0] ||
+                      ("elementDisplayed" as AssertionType);
 
-      <div className="mt-4 ml-9 border-t border-slate-700/50 pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <label className="text-xs font-medium text-slate-400">
-            Expected Result (Assertions){" "}
-            <span className="font-normal text-slate-500">- opsional</span>
-          </label>
-          <button
-            type="button"
-            onClick={() => handleAddAssertion(step.id)}
-            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-          >
-            <Plus size={12} />
-            Add Assertion
-          </button>
-        </div>
-
-        {(step.assertions || []).length > 0 && (
-          <div className="space-y-2 mb-3">
-            {(step.assertions || []).map((assertion) => {
-              const availableAssertions =
-                assertionsByAction[step.actionType] || [];
-              const filteredDefs = assertionDefinitions.filter((a) =>
-                availableAssertions.includes(a.value)
-              );
-
-              return (
-                <div
-                  key={assertion.id}
-                  className="flex items-center gap-2 bg-slate-700/30 p-2 rounded-lg"
+                    handleUpdateStep(step.id, {
+                      actionType: newType,
+                      actionParams: {},
+                      assertions: [
+                        {
+                          id: Date.now().toString(),
+                          assertionType: defaultAssertionType,
+                        },
+                      ],
+                      customExpectedResult: step.customExpectedResult,
+                    });
+                  }}
+                  className={inputClass}
                 >
-                  <select
-                    value={assertion.assertionType}
-                    onChange={(e) =>
-                      handleUpdateAssertion(step.id, assertion.id || "", {
-                        assertionType: e.target.value as AssertionType,
-                      })
-                    }
-                    className={`${inputClass} text-sm min-w-40`}
-                  >
-                    {filteredDefs.map((assertDef) => (
-                      <option key={assertDef.value} value={assertDef.value}>
-                        {assertDef.label}
-                      </option>
-                    ))}
-                  </select>
-                  {renderAssertionFields(step, assertion)}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleRemoveAssertion(step.id, assertion.id || "")
-                    }
-                    className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                  {actionDefinitions.map((actionDef) => (
+                    <option key={actionDef.value} value={actionDef.value}>
+                      {actionDef.label}
+                      {actionDef.platform !== "both"
+                        ? ` (${actionDef.platform})`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+                <Badge
+                  variant="outline"
+                  className={`${getStepColor(step.actionType)} border shrink-0`}
+                >
+                  {getStepLabel(step.actionType)}
+                </Badge>
+              </div>
+              {renderStepFields(step)}
+            </div>
+            <div className="flex items-center gap-1 mt-1">
+              <button
+                onClick={() => handleDuplicateStep(step.id)}
+                className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
+                title="Duplicate Step"
+                tabIndex={1000 + index}
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleInsertStepBelow(step.id)}
+                className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
+                title="Add Step Below"
+                tabIndex={1000 + index}
+              >
+                <PlusCircle className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleRemoveStep(step.id)}
+                className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                title="Delete Step"
+                tabIndex={1000 + index}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </>
         )}
-
-        <div>
-          <label className="text-xs text-slate-500 mb-2 block">
-            Custom Assertion (opsional)
-          </label>
-          <RichTextEditor
-            value={step.customExpectedResult || ""}
-            onChange={(value) =>
-              handleUpdateStep(step.id, {
-                customExpectedResult: value,
-              })
-            }
-            placeholder="Assertion tambahan yang tidak tercakup di atas..."
-          />
-        </div>
       </div>
+
+      {/* Assertions */}
+      {!isSharedStep && (
+        <div className="mt-4 ml-9 border-t border-slate-700/50 pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-xs font-medium text-slate-400">
+              Expected Result (Assertions){" "}
+              <span className="font-normal text-slate-500">- opsional</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => handleAddAssertion(step.id)}
+              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+            >
+              <Plus size={12} />
+              Add Assertion
+            </button>
+          </div>
+
+          {(step.assertions || []).length > 0 && (
+            <div className="space-y-2 mb-3">
+              {(step.assertions || []).map((assertion) => {
+                const availableAssertions =
+                  assertionsByAction[step.actionType] || [];
+                const filteredDefs = assertionDefinitions.filter((a) =>
+                  availableAssertions.includes(a.value)
+                );
+
+                return (
+                  <div
+                    key={assertion.id}
+                    className="flex items-center gap-2 bg-slate-700/30 p-2 rounded-lg"
+                  >
+                    <select
+                      value={assertion.assertionType}
+                      onChange={(e) =>
+                        handleUpdateAssertion(step.id, assertion.id || "", {
+                          assertionType: e.target.value as AssertionType,
+                        })
+                      }
+                      className={`${inputClass} text-sm min-w-40`}
+                    >
+                      {filteredDefs.map((assertDef) => (
+                        <option key={assertDef.value} value={assertDef.value}>
+                          {assertDef.label}
+                        </option>
+                      ))}
+                    </select>
+                    {renderAssertionFields(step, assertion)}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleRemoveAssertion(step.id, assertion.id || "")
+                      }
+                      className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs text-slate-500 mb-2 block">
+              Custom Assertion (opsional)
+            </label>
+            <RichTextEditor
+              value={step.customExpectedResult || ""}
+              onChange={(value) =>
+                handleUpdateStep(step.id, {
+                  customExpectedResult: value,
+                })
+              }
+              placeholder="Assertion tambahan yang tidak tercakup di atas..."
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -350,6 +413,168 @@ function SortableStepItem({
 interface SharedStepOption {
   id: string;
   name: string;
+}
+
+// Add Shared Step Dialog
+interface AddSharedStepDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (sharedStep: SharedStepDetail) => void;
+  sharedStepsOptions: SharedStepOption[];
+}
+
+// Add Shared Step Dialog Component
+function AddSharedStepDialog({
+  isOpen,
+  onClose,
+  onAdd,
+  sharedStepsOptions,
+}: AddSharedStepDialogProps) {
+  const [selectedSharedStepId, setSelectedSharedStepId] = useState<string>("");
+  const [selectedSharedStep, setSelectedSharedStep] =
+    useState<SharedStepDetail | null>(null);
+  const [isLoadingSharedStep, setIsLoadingSharedStep] = useState(false);
+
+  const inputClass =
+    "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-colors duration-150";
+
+  // Load selected shared step details when selected
+  useEffect(() => {
+    if (selectedSharedStepId) {
+      const loadSharedStepDetail = async () => {
+        try {
+          setIsLoadingSharedStep(true);
+          const data = await sharedStepService.getSharedStep(
+            selectedSharedStepId
+          );
+          setSelectedSharedStep(data);
+        } catch (error) {
+          console.error("Failed to load shared step detail:", error);
+          setSelectedSharedStep(null);
+        } finally {
+          setIsLoadingSharedStep(false);
+        }
+      };
+      loadSharedStepDetail();
+    } else {
+      setSelectedSharedStep(null);
+    }
+  }, [selectedSharedStepId]);
+
+  const handleAdd = () => {
+    if (selectedSharedStep) {
+      onAdd(selectedSharedStep);
+      setSelectedSharedStepId("");
+      setSelectedSharedStep(null);
+      onClose();
+    }
+  };
+
+  const convertSharedStepToTestSteps = (
+    sharedStep: SharedStepDetail
+  ): TestStep[] => {
+    if (!sharedStep.steps || sharedStep.steps.length === 0) return [];
+
+    return sharedStep.steps
+      .slice()
+      .sort((a, b) => a.stepOrder - b.stepOrder)
+      .map((step, index) => ({
+        id: `shared-${sharedStep.id}-${step.id || index}`,
+        actionType: step.actionType as ActionType,
+        actionParams: step.actionParams || {},
+        customExpectedResult: step.customExpectedResult || "",
+        assertions: (step.assertions || []).map(
+          (assertion: any, idx: number) => ({
+            ...assertion,
+            id: `shared-${sharedStep.id}-${step.id || index}-assertion-${idx}`,
+          })
+        ),
+      }));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-medium text-slate-100">
+            Add Shared Step
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">
+              Select Shared Step
+            </label>
+            <select
+              value={selectedSharedStepId}
+              onChange={(e) => setSelectedSharedStepId(e.target.value)}
+              disabled={isLoadingSharedStep}
+              className={`w-full ${inputClass} text-sm`}
+            >
+              <option value="">
+                {isLoadingSharedStep ? "Loading..." : "Select a shared step..."}
+              </option>
+              {sharedStepsOptions.map((sharedStep) => (
+                <option key={sharedStep.id} value={sharedStep.id}>
+                  {sharedStep.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedSharedStep && (
+            <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
+              <div className="mb-3">
+                <h4 className="text-sm font-medium text-slate-200 mb-1">
+                  {selectedSharedStep.name}
+                </h4>
+                {selectedSharedStep.description && (
+                  <p className="text-xs text-slate-400">
+                    {selectedSharedStep.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="text-xs text-slate-500 mb-2">
+                Preview ({selectedSharedStep.stepCount} steps):
+              </div>
+
+              <TestStepsDisplay
+                steps={convertSharedStepToTestSteps(selectedSharedStep)}
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAdd}
+              disabled={!selectedSharedStep || isLoadingSharedStep}
+              className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
+            >
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Add Shared Step
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface TestStepsEditorProps {
@@ -372,11 +597,9 @@ export function TestStepsEditor({
   const highlightTimeoutRef = useRef<number | null>(null);
   const [stepToDelete, setStepToDelete] = useState<string | null>(null);
 
-  // Shared step state
-  const [selectedSharedStepId, setSelectedSharedStepId] = useState<string>("");
-  const [selectedSharedStep, setSelectedSharedStep] =
-    useState<SharedStepDetail | null>(null);
-  const [isLoadingSharedStep, setIsLoadingSharedStep] = useState(false);
+  // Add Shared Step Dialog state
+  const [isAddSharedStepDialogOpen, setIsAddSharedStepDialogOpen] =
+    useState(false);
 
   // Get shared steps options from metadata
   const sharedStepsOptions: SharedStepOption[] = stepMetadata.sharedSteps || [];
@@ -402,60 +625,17 @@ export function TestStepsEditor({
 
   const keyOptions = stepMetadata?.keyOptions ?? [];
 
-  // Load selected shared step details when selected
-  useEffect(() => {
-    if (selectedSharedStepId) {
-      const loadSharedStepDetail = async () => {
-        try {
-          setIsLoadingSharedStep(true);
-          const data = await sharedStepService.getSharedStep(
-            selectedSharedStepId
-          );
-          setSelectedSharedStep(data);
-        } catch (error) {
-          console.error("Failed to load shared step detail:", error);
-          setSelectedSharedStep(null);
-        } finally {
-          setIsLoadingSharedStep(false);
-        }
-      };
-      loadSharedStepDetail();
-    } else {
-      setSelectedSharedStep(null);
-    }
-  }, [selectedSharedStepId]);
+  const handleAddSharedStep = (sharedStep: SharedStepDetail) => {
+    const newStep: TestStep = {
+      id: `shared-step-${sharedStep.id}-${Date.now()}`,
+      actionType: "navigate", // placeholder, won't be used for shared steps
+      actionParams: {},
+      assertions: [],
+      sharedStepId: sharedStep.id,
+      sharedStepDetail: sharedStep,
+    };
 
-  const convertSharedStepToTestSteps = (
-    sharedStep: SharedStepDetail
-  ): TestStep[] => {
-    if (!sharedStep.steps || sharedStep.steps.length === 0) return [];
-
-    return sharedStep.steps
-      .slice()
-      .sort((a, b) => a.stepOrder - b.stepOrder)
-      .map((step, index) => ({
-        id: `shared-${sharedStep.id}-${step.id || index}`,
-        actionType: step.actionType as ActionType,
-        actionParams: step.actionParams || {},
-        customExpectedResult: step.customExpectedResult || "",
-        assertions: (step.assertions || []).map(
-          (assertion: any, idx: number) => ({
-            ...assertion,
-            id: `shared-${sharedStep.id}-${step.id || index}-assertion-${idx}`,
-          })
-        ),
-      }));
-  };
-
-  const handleAddSharedStep = () => {
-    if (!selectedSharedStep) return;
-
-    const newSteps = convertSharedStepToTestSteps(selectedSharedStep);
-    onStepsChange([...steps, ...newSteps]);
-
-    // Reset selection
-    setSelectedSharedStepId("");
-    setSelectedSharedStep(null);
+    onStepsChange([...steps, newStep]);
   };
 
   const sensors = useSensors(
@@ -1110,64 +1290,22 @@ export function TestStepsEditor({
       </Button>
 
       {allowAddSharedStep && (
-        <div className="mt-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <Package className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-slate-400">Add Shared Step</span>
-          </div>
-
-          <div className="flex gap-2">
-            <select
-              value={selectedSharedStepId}
-              onChange={(e) => setSelectedSharedStepId(e.target.value)}
-              disabled={isLoadingSharedStep}
-              className={`flex-1 ${inputClass} text-sm`}
-            >
-              <option value="">
-                {isLoadingSharedStep ? "Loading..." : "Select a shared step..."}
-              </option>
-              {sharedStepsOptions.map((sharedStep) => (
-                <option key={sharedStep.id} value={sharedStep.id}>
-                  {sharedStep.name}
-                </option>
-              ))}
-            </select>
-
-            {selectedSharedStep && (
-              <Button
-                onClick={handleAddSharedStep}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Add
-              </Button>
-            )}
-          </div>
-
-          {selectedSharedStep && (
-            <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
-              <div className="mb-3">
-                <h4 className="text-sm font-medium text-slate-200 mb-1">
-                  {selectedSharedStep.name}
-                </h4>
-                {selectedSharedStep.description && (
-                  <p className="text-xs text-slate-400">
-                    {selectedSharedStep.description}
-                  </p>
-                )}
-              </div>
-
-              <div className="text-xs text-slate-500 mb-2">
-                Preview ({selectedSharedStep.stepCount} steps):
-              </div>
-
-              <TestStepsDisplay
-                steps={convertSharedStepToTestSteps(selectedSharedStep)}
-              />
-            </div>
-          )}
-        </div>
+        <Button
+          onClick={() => setIsAddSharedStepDialogOpen(true)}
+          variant="outline"
+          className="w-full mt-2 border-purple-600 border-dashed bg-transparent text-purple-400 hover:bg-purple-900/20 hover:text-purple-300 hover:border-purple-500"
+        >
+          <Package className="w-4 h-4 mr-2" />
+          Add Shared Step
+        </Button>
       )}
+
+      <AddSharedStepDialog
+        isOpen={isAddSharedStepDialogOpen}
+        onClose={() => setIsAddSharedStepDialogOpen(false)}
+        onAdd={handleAddSharedStep}
+        sharedStepsOptions={sharedStepsOptions}
+      />
 
       <ConfirmDialog
         isOpen={!!stepToDelete}

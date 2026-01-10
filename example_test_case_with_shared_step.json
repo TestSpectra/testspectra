@@ -5,7 +5,6 @@
     "priority": "high",
     "caseType": "functional",
     "automation": "automated",
-    "expectedOutcome": "User should be able to login successfully",
     "preCondition": "User exists in system",
     "postCondition": "User is logged in",
     "tags": [

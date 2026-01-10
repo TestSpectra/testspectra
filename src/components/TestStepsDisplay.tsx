@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { testCaseService } from "../services/test-case-service";
-import { TestStep } from "./TestStepsEditor";
+import { testCaseService, TestStep } from "../services/test-case-service";
 
 interface TestStepsDisplayProps {
   steps: TestStep[];

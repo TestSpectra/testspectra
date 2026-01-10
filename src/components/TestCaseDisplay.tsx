@@ -1,15 +1,9 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { TestStepsDisplay } from "./TestStepsDisplay";
-import { TestStep } from "./TestStepsEditor";
+import { TestCase, TestStep } from "@/services/test-case-service";
 
 interface TestCaseDisplayProps {
-  testCase: {
-    description?: string;
-    preCondition: string | null;
-    postCondition: string | null;
-    steps?: TestStep[];
-    tags?: string[];
-  };
+  testCase: Partial<TestCase>;
 }
 
 export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
