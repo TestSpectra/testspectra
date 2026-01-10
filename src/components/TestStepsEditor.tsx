@@ -19,6 +19,7 @@ import {
   Copy,
   GripVertical,
   Package,
+  PackagePlus,
   Plus,
   PlusCircle,
   Trash2,
@@ -137,6 +138,7 @@ interface SortableStepItemProps {
   handleRemoveStep: (id: string) => void;
   handleDuplicateStep: (id: string) => void;
   handleInsertStepBelow: (id: string) => void;
+  handleInsertSharedStepBelow: (id: string) => void;
   handleAddAssertion: (stepId: string) => void;
   handleUpdateAssertion: (
     stepId: string,
@@ -149,6 +151,7 @@ interface SortableStepItemProps {
     step: TestStepWithoutOrder,
     assertion: Assertion
   ) => React.ReactNode;
+  allowAddSharedStep?: boolean;
 }
 
 function SortableStepItem({
@@ -166,11 +169,13 @@ function SortableStepItem({
   handleRemoveStep,
   handleDuplicateStep,
   handleInsertStepBelow,
+  handleInsertSharedStepBelow,
   handleAddAssertion,
   handleUpdateAssertion,
   handleRemoveAssertion,
   renderStepFields,
   renderAssertionFields,
+  allowAddSharedStep,
 }: SortableStepItemProps) {
   const {
     attributes,
@@ -219,9 +224,8 @@ function SortableStepItem({
       ref={setNodeRef}
       style={style}
       data-step-id={step.id}
-      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${
-        isDragging ? "ring-2 ring-blue-500" : ""
-      } ${isHighlighted ? "step-card-highlighted" : ""}`}
+      className={`bg-slate-800/50 p-4 rounded-lg transition-colors ${isDragging ? "ring-2 ring-blue-500" : ""
+        } ${isHighlighted ? "step-card-highlighted" : ""}`}
     >
       <div className="flex items-start gap-3">
         <div className="drag-handle-container" {...attributes} {...listeners}>
@@ -316,6 +320,16 @@ function SortableStepItem({
           >
             <PlusCircle className="w-4 h-4" />
           </button>
+          {allowAddSharedStep && (
+            <button
+              onClick={() => handleInsertSharedStepBelow(step.id)}
+              className="p-2 text-slate-400 hover:text-purple-400 hover:bg-slate-700 rounded-lg transition-colors"
+              title="Add Shared Step Below"
+              tabIndex={1000 + index}
+            >
+              <PackagePlus className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => handleRemoveStep(step.id)}
             className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
@@ -610,6 +624,9 @@ export function TestStepsEditor({
   // Add Shared Step Dialog state
   const [isAddSharedStepDialogOpen, setIsAddSharedStepDialogOpen] =
     useState(false);
+  const [insertSharedStepIndex, setInsertSharedStepIndex] = useState<
+    number | null
+  >(null);
 
   // Get shared steps options from metadata
   const sharedStepsOptions: SharedStepOption[] = stepMetadata.sharedSteps || [];
@@ -641,11 +658,24 @@ export function TestStepsEditor({
       actionType: "navigate", // placeholder, won't be used for shared steps
       actionParams: {},
       assertions: [],
+      customExpectedResult: "",
       sharedStepId: sharedStep.id,
       sharedStepDetail: sharedStep,
     };
 
-    onStepsChange([...steps, newStep]);
+    if (insertSharedStepIndex !== null) {
+      const updatedSteps = [
+        ...steps.slice(0, insertSharedStepIndex),
+        newStep,
+        ...steps.slice(insertSharedStepIndex),
+      ];
+      onStepsChange(updatedSteps);
+      setInsertSharedStepIndex(null); // Reset the index
+    } else {
+      // Fallback to adding at the end if no specific index is set
+      onStepsChange([...steps, newStep]);
+    }
+    newStepIdRef.current = newStep.id;
   };
 
   const sensors = useSensors(
@@ -734,9 +764,9 @@ export function TestStepsEditor({
       steps.map((step) =>
         step.id === id
           ? {
-              ...step,
-              actionParams: { ...step.actionParams, [paramKey]: value },
-            }
+            ...step,
+            actionParams: { ...step.actionParams, [paramKey]: value },
+          }
           : step
       )
     );
@@ -889,6 +919,14 @@ export function TestStepsEditor({
     newSteps.splice(stepIndex + 1, 0, newStep);
     newStepIdRef.current = newStepId;
     onStepsChange(newSteps);
+  };
+
+  const handleInsertSharedStepBelow = (id: string) => {
+    const index = steps.findIndex((step) => step.id === id);
+    if (index !== -1) {
+      setInsertSharedStepIndex(index + 1);
+      setIsAddSharedStepDialogOpen(true);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -1290,6 +1328,8 @@ export function TestStepsEditor({
                 handleRemoveAssertion={handleRemoveAssertion}
                 renderStepFields={renderStepFields}
                 renderAssertionFields={renderAssertionFields}
+                allowAddSharedStep={allowAddSharedStep}
+                handleInsertSharedStepBelow={handleInsertSharedStepBelow}
               />
             ))}
           </div>
@@ -1306,22 +1346,27 @@ export function TestStepsEditor({
       </Button>
 
       {allowAddSharedStep && (
-        <Button
-          onClick={() => setIsAddSharedStepDialogOpen(true)}
-          variant="outline"
-          className="w-full mt-2 border-purple-600 border-dashed bg-transparent text-purple-400 hover:bg-purple-900/20 hover:text-purple-300 hover:border-purple-500"
-        >
-          <Package className="w-4 h-4 mr-2" />
-          Add Shared Step
-        </Button>
-      )}
+        <>
+          <Button
+            onClick={() => setIsAddSharedStepDialogOpen(true)}
+            variant="outline"
+            className="w-full mt-2 border-purple-600 border-dashed bg-transparent text-purple-400 hover:bg-purple-900/20 hover:text-purple-300 hover:border-purple-500"
+          >
+            <PackagePlus className="w-4 h-4 mr-2" />
+            Add Shared Step
+          </Button>
 
-      <AddSharedStepDialog
-        isOpen={isAddSharedStepDialogOpen}
-        onClose={() => setIsAddSharedStepDialogOpen(false)}
-        onAdd={handleAddSharedStep}
-        sharedStepsOptions={sharedStepsOptions}
-      />
+          <AddSharedStepDialog
+            isOpen={isAddSharedStepDialogOpen}
+            onClose={() => {
+              setIsAddSharedStepDialogOpen(false);
+              setInsertSharedStepIndex(null); // Reset the index when dialog is closed
+            }}
+            onAdd={handleAddSharedStep}
+            sharedStepsOptions={sharedStepsOptions}
+          />
+        </>
+      )}
 
       <ConfirmDialog
         isOpen={!!stepToDelete}

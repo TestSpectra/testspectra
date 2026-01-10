@@ -1,7 +1,5 @@
 import {
-  CheckCircle2,
   ChevronDown,
-  Clock,
   FileCheck,
   FolderTree,
   GitBranch,
@@ -10,12 +8,11 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  Package,
   Settings,
-  Share2,
   UserCircle,
   Users,
-  Wrench,
-  XCircle
+  Wrench
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWebSocket } from "../contexts/WebSocketContext";
@@ -113,7 +110,7 @@ export function Sidebar({
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "test-cases", label: "Test Cases", icon: FileCheck },
     { id: "test-suites", label: "Test Suites", icon: FolderTree },
-    { id: "shared-steps", label: "Shared Steps", icon: Share2 },
+    { id: "shared-steps", label: "Shared Steps", icon: Package },
     { id: "review-queue", label: "Review Queue", icon: MessageSquare, requiresPermission: "review_approve_test_cases", badge: pendingReviewCount },
     { id: "runs-history", label: "Runs History", icon: History },
     { id: "configuration", label: "Configuration", icon: Settings },
