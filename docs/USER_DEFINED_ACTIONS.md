@@ -6,14 +6,14 @@ Shared Steps allow users to create reusable collections of test steps that can b
 
 ## Benefits
 
-- **Reusability**: Create once, use everywhere
-- **Maintainability**: Update shared steps in one place, changes reflect across all test cases
-- **Consistency**: Ensure standard procedures are followed consistently
-- **Efficiency**: Quickly add common workflows to test cases
+- **Reusability**: Create once, reuse as a template when building test cases
+- **Maintainability**: Shared steps live in a central library that can be updated for future usage
+- **Consistency**: Ensure standard procedures are followed consistently across newly created test cases
+- **Efficiency**: Quickly add common workflows to test cases without re-authoring individual steps
 
 ## Database Schema (New Migration Needed)
 
-We need to create a new `shared_steps` table with the following schema:
+We need to create a new `shared_steps` table with the following schema and update `test_steps` accordingly:
 
 ```sql
 CREATE TABLE shared_steps (
@@ -54,47 +54,52 @@ CREATE INDEX idx_test_steps_shared_step_id ON test_steps(shared_step_id);
   "id": "uuid-here",
   "name": "Login Flow",
   "description": "Standard login flow with email and password",
-  "created_by": "user-uuid",
-  "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-01T00:00:00Z"
+  "createdBy": "user-uuid",
+  "createdAt": "2024-01-01T00:00:00Z",
+  "updatedAt": "2024-01-01T00:00:00Z"
 }
 ```
 
 ### Shared Step Implementation Data
 
-When a shared step is created, individual `test_steps` records are created that belong ONLY to the shared step:
+When a shared step is created, individual `test_steps` records are created that belong **only** to the shared step (no `test_case_id`):
 
 ```sql
--- Create shared step definition
+-- Create shared step definition (metadata)
 INSERT INTO shared_steps (id, name, description, created_by)
 VALUES ('shared-uuid', 'Login Flow', 'Standard login flow', 'user-uuid');
 
 -- Create individual steps that belong to this shared step (NO test_case_id)
-INSERT INTO test_steps (shared_step_id, step_order, action_type, action_params, assertions)
+INSERT INTO test_steps (shared_step_id, step_order, step_type, action_type, action_params, assertions)
 VALUES 
-  ('shared-uuid', 1, 'navigate', '{"url": "https://example.com/login"}', '[{"assertionType": "urlContains", "expectedValue": "/login"}]'),
-  ('shared-uuid', 2, 'type', '{"selector": "#email", "text": "user@example.com"}', '[]'),
-  ('shared-uuid', 3, 'type', '{"selector": "#password", "text": "password123"}', '[]'),
-  ('shared-uuid', 4, 'click', '{"selector": "#submit"}', '[]'),
-  ('shared-uuid', 5, 'waitForElement', '{"selector": "#dashboard", "timeout": 10000}', '[{"assertionType": "elementVisible", "selector": "#dashboard"}]');
+  ('shared-uuid', 1, 'regular', 'navigate', '{"url": "https://example.com/login"}', '[{"assertionType": "urlContains", "expectedValue": "/login"}]'),
+  ('shared-uuid', 2, 'regular', 'type', '{"selector": "#email", "text": "user@example.com"}', '[]'),
+  ('shared-uuid', 3, 'regular', 'type', '{"selector": "#password", "text": "password123"}', '[]'),
+  ('shared-uuid', 4, 'regular', 'click', '{"selector": "#submit"}', '[]'),
+  ('shared-uuid', 5, 'regular', 'waitForElement', '{"selector": "#dashboard", "timeout": 10000}', '[{"assertionType": "elementVisible", "selector": "#dashboard"}]');
 ```
 
 ### Usage in Test Case
 
-When adding a shared step to a test case, create a single reference record:
+Using shared steps in a test case is **optional**.
 
-```sql
--- Regular step
-INSERT INTO test_steps (test_case_id, step_order, step_type, action_type, action_params, assertions)
-VALUES ('test-case-uuid', 1, 'regular', 'navigate', '{"url": "https://app.example.com"}', '[]');
+Ketika user menambahkan shared step ke sebuah test case:
 
--- Reference to shared step (single record, no duplicate data)
-INSERT INTO test_steps (test_case_id, step_order, step_type, shared_step_id)
-VALUES ('test-case-uuid', 2, 'shared', 'shared-step-uuid');
-```
+1. Frontend menyimpan **referensi** ke shared step pada posisi step tertentu (misalnya melalui `stepType = "shared"` dan `sharedStepId` di data langkah test case yang dikirim/diterima API).
+2. Tidak ada baris `test_steps` tambahan yang disalin khusus untuk test case tersebut – sumber kebenaran urutan shared step tetap di kombinasi `shared_steps` + `test_steps` yang memiliki `shared_step_id`.
+3. Untuk tampilan, frontend akan **expand** shared step menjadi struktur `steps` yang nested dengan cara mengambil data langkah terkini dari definisi shared step.
+4. Karena yang disimpan adalah referensi, setiap perubahan pada shared step definition akan otomatis tercermin saat test case dibuka atau dieksekusi lagi.
 
-**API Response with JOIN:**
-When fetching test case steps, API will resolve shared step data:
+**API Response (camelCase, nested tree di frontend saja):**
+Backend dapat mengembalikan:
+
+- Daftar flat langkah test case reguler (yang terikat ke `test_case_id`)
+- Daftar shared step metadata dan langkah-langkah definisinya
+- Informasi referensi di struktur langkah test case (misalnya `stepType = "shared"`, `sharedStepId`)
+
+Frontend yang kemudian menyusun semuanya menjadi tree `steps` yang nested untuk keperluan UI.
+
+Example nested structure on the frontend:
 
 ```json
 {
@@ -107,41 +112,36 @@ When fetching test case steps, API will resolve shared step data:
       "assertions": []
     },
     {
-      "id": "step-2", 
+      "id": "virtual-step-login-flow",
       "stepType": "shared",
       "sharedStepId": "shared-step-uuid",
       "sharedStepName": "Login Flow",
-      "sharedSteps": [  // Nested steps from shared step definition
+      "steps": [
         {
+          "id": "shared-1",
+          "stepType": "regular",
           "actionType": "navigate",
           "actionParams": { "url": "https://example.com/login" },
           "assertions": [{"assertionType": "urlContains", "expectedValue": "/login"}]
         },
         {
+          "id": "shared-2",
+          "stepType": "regular",
           "actionType": "type",
           "actionParams": { "selector": "#email", "text": "user@example.com" },
           "assertions": []
-        },
-        {
-          "actionType": "type",
-          "actionParams": { "selector": "#password", "text": "password123" },
-          "assertions": []
-        },
-        {
-          "actionType": "click",
-          "actionParams": { "selector": "#submit" },
-          "assertions": []
-        },
-        {
-          "actionType": "waitForElement",
-          "actionParams": { "selector": "#dashboard", "timeout": 10000 },
-          "assertions": [{"assertionType": "elementVisible", "selector": "#dashboard"}]
         }
+        // ... more nested steps
       ]
     }
   ]
 }
 ```
+
+> NOTE: The nested `steps` property is a **frontend-expanded hierarchy**. In the database:
+> - Test case steps: `test_case_id IS NOT NULL` and `shared_step_id IS NULL`
+> - Shared step definition steps: `test_case_id IS NULL` and `shared_step_id IS NOT NULL`
+> - There is **no** row that has both `test_case_id` and `shared_step_id` populated.
 
 ## Implementation Steps
 
@@ -158,7 +158,7 @@ When fetching test case steps, API will resolve shared step data:
    - `POST /api/shared-steps` - Create new shared step
    - `GET /api/shared-steps/:id` - Get single shared step
    - `PUT /api/shared-steps/:id` - Update shared step
-   - `DELETE /api/shared-steps/:id` - Delete shared step
+   - `DELETE /api/shared-steps/:id` - Delete shared step (blocked if still has definition steps)
 
 3. **Update Action Definitions API**
    - Add shared steps to the metadata response
@@ -193,16 +193,6 @@ When fetching test case steps, API will resolve shared step data:
    - Quick actions: duplicate, edit, delete, use in test case
    - Show usage statistics (how many test cases use each shared step)
 
-### Test Runner Integration
-
-1. **Expand Shared Steps**
-   - Before running test, expand all shared steps into individual test steps
-   - Maintain step numbering and hierarchy for reporting
-
-2. **Reporting**
-   - Show expanded steps in test execution report
-   - Group steps by original shared step for clarity
-   - Link back to shared step definition for debugging
 
 ## API Response Changes
 
@@ -229,34 +219,22 @@ When fetching test step metadata, include shared steps:
 
 ## Test Case Data Structure Changes
 
-The `test_steps` table will be extended to support shared steps:
+The `test_steps` table is extended to support **either** test case steps **or** shared step definition steps, but never both at once.
 
-**Current test_steps table:**
-```sql
-CREATE TABLE test_steps (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    test_case_id UUID NOT NULL REFERENCES test_cases(id) ON DELETE CASCADE,
-    step_order INT NOT NULL,
-    action_type VARCHAR(100) NOT NULL,
-    action_params JSONB NOT NULL DEFAULT '{}',
-    assertions JSONB NOT NULL DEFAULT '[]',
-    custom_expected_result TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+**Relevant columns after migration:**
 
-**After migration:**
-```sql
-ALTER TABLE test_steps 
-ADD COLUMN IF NOT EXISTS step_type VARCHAR(20) NOT NULL DEFAULT 'regular',
-ADD COLUMN IF NOT EXISTS shared_step_id UUID REFERENCES shared_steps(id);
-```
+- `test_case_id UUID NULL` – set **only** for test case steps
+- `shared_step_id UUID NULL` – set **only** for shared step definition steps
+- `step_type VARCHAR(20) NOT NULL DEFAULT 'regular'` – for now only the value `"regular"` is used
+
+> Invariant: there is **no** row where both `test_case_id` and `shared_step_id` are non-NULL.
 
 **Data Examples:**
-- **Regular step**: `step_type='regular', test_case_id='uuid', shared_step_id=NULL, action_type='navigate'`
-- **Shared step definition**: `step_type='regular', test_case_id=NULL, shared_step_id='uuid', action_type='navigate'`
-- **Shared step reference**: `step_type='shared', test_case_id='uuid', shared_step_id='uuid', action_type=NULL`
+- **Regular test case step**  
+  `step_type='regular', test_case_id='uuid', shared_step_id=NULL, action_type='navigate'`
+
+- **Shared step definition step**  
+  `step_type='regular', test_case_id=NULL, shared_step_id='uuid', action_type='navigate'`
 
 ## UI/UX Considerations
 
@@ -321,11 +299,7 @@ ADD COLUMN IF NOT EXISTS shared_step_id UUID REFERENCES shared_steps(id);
   - Display shared steps using TestCaseDisplay style
   - Collapsed by default, expandable UI
 
-- **Phase 4**: Test runner integration (1-2 days)
-  - Shared step expansion logic
-  - Enhanced error reporting
-
-**Total Estimated Time: 6-10 days**
+**Total Estimated Time: 5-8 days**
 
 ## Related Files
 
