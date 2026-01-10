@@ -43,7 +43,118 @@ ADD COLUMN IF NOT EXISTS shared_step_id UUID REFERENCES shared_steps(id);
 
 -- Index for shared step lookups
 CREATE INDEX idx_test_steps_shared_step_id ON test_steps(shared_step_id);
+
+-- Add CHECK constraint for valid step_type values
+ALTER TABLE test_steps
+ADD CONSTRAINT test_steps_step_type_check
+CHECK (step_type IN ('regular', 'shared_definition', 'shared_reference'));
 ```
+
+### Step Type Values
+
+- **`regular`**: Step milik test case (default).
+- **`shared_definition`**: Step definisi milik shared step (test_case_id IS NULL, shared_step_id IS NOT NULL).
+- **`shared_reference`**: Baris referensi dari test case ke shared step (test_case_id IS NOT NULL, shared_step_id IS NOT NULL, action fields NULL).
+
+## Relationship & Invariants
+
+### Table Relationships
+
+```
++----------------+       +----------------------+
+|  shared_steps  |       |     test_steps      |
++----------------+       +----------------------+
+| id (PK)        |◀─────| shared_step_id (FK) |
+| name (UNIQUE)  |       | test_case_id (FK)   |
+| description    |       | step_type            |
+| created_by     |       | step_order           |
+| created_at     |       | action_type          |
+| updated_at     |       | action_params        |
++----------------+       | assertions           |
+        │               | custom_expected_res  |
+        │               +----------------------+
+        │                         ▲
+        │                         │
+        │                         │
+        │               +----------------------+
+        └───────────────|     test_cases      |
+                        +----------------------+
+                        | id (PK)            |
+                        | title               |
+                        | suite               |
+                        | ...                 |
+                        +----------------------+
+```
+
+### Core Invariants
+
+1. **A test step belongs to exactly one owner:**
+   - **Test case** (`test_case_id IS NOT NULL`, `shared_step_id IS NULL`, `step_type = 'regular'`)
+   - **Shared step** (`test_case_id IS NULL`, `shared_step_id IS NOT NULL`, `step_type = 'shared_definition'`)
+
+2. **Shared step can be referenced by many test cases** via rows in `test_steps` where:
+   - `test_case_id IS NOT NULL` (the referencing test case)
+   - `shared_step_id IS NOT NULL` (the referenced shared step)
+   - `step_type = 'shared_reference'`
+   - `action_type`, `action_params`, `assertions` are **NULL/empty** because the definition lives in the shared step.
+
+3. **Test step can belong to only one test case** (`test_case_id` is not nullable when referencing a test case).
+
+4. **Shared step names must be unique** across the system.
+
+### Example Data
+
+#### Shared Step Definition (steps owned by shared step)
+
+```sql
+-- shared_steps
+INSERT INTO shared_steps (id, name, description, created_by)
+VALUES ('ss-111', 'Login Flow', 'Standard login', 'user-001');
+
+-- test_steps owned by shared step (definition steps)
+INSERT INTO test_steps (shared_step_id, test_case_id, step_type, step_order, action_type, action_params, assertions)
+VALUES
+  ('ss-111', NULL, 'shared_definition', 1, 'navigate', '{"url":"https://example.com/login"}', '[]'),
+  ('ss-111', NULL, 'shared_definition', 2, 'type',    '{"selector":"#email","text":"user@example.com"}', '[]'),
+  ('ss-111', NULL, 'shared_definition', 3, 'click',   '{"selector":"#submit"}', '[]');
+```
+
+#### Test Case with Regular Steps (no shared steps)
+
+```sql
+-- test_cases
+INSERT INTO test_cases (id, title, suite, ...)
+VALUES ('tc-222', 'Direct Test', 'E2E', ...);
+
+-- test_steps owned by test case (regular steps)
+INSERT INTO test_steps (test_case_id, shared_step_id, step_type, step_order, action_type, action_params, assertions)
+VALUES
+  ('tc-222', NULL, 'regular', 1, 'navigate', '{"url":"https://example.com"}', '[]'),
+  ('tc-222', NULL, 'regular', 2, 'type',    '{"selector":"#search","text":"query"}', '[]');
+```
+
+#### Test Case Referencing a Shared Step
+
+```sql
+-- test_cases
+INSERT INTO test_cases (id, title, suite, ...)
+VALUES ('tc-333', 'Test with Shared Step', 'E2E', ...);
+
+-- test_steps mixing regular and shared step references
+INSERT INTO test_steps (test_case_id, shared_step_id, step_type, step_order, action_type, action_params, assertions)
+VALUES
+  ('tc-333', NULL, 'regular', 1, 'navigate', '{"url":"https://example.com"}', '[]'),               -- regular step
+  ('tc-333', 'ss-111', 'shared_reference', 2, NULL, NULL, NULL),                                  -- shared step reference
+  ('tc-333', NULL, 'regular', 3, 'click', '{"selector":"#logout"}', '[]');                        -- regular step
+```
+
+### Backend Implications
+
+- **GET /api/test-cases/:id** → backend must expand shared step references by fetching definition steps (`test_steps WHERE shared_step_id = X AND test_case_id IS NULL AND step_type = 'shared_definition'`) and return a nested structure to the frontend.
+- **POST/PUT test cases** → frontend can send mixed steps:
+  - Regular steps (`shared_step_id` null)
+  - Shared step references (`shared_step_id` set, `action_type` null/empty)
+- **DELETE shared step** → block if any `test_steps` rows reference it with `test_case_id IS NOT NULL` (i.e., used by test cases). If allowed, cascade delete its definition steps (`shared_definition`) first, then the shared step.
 
 ## Data Structure
 
@@ -227,14 +338,14 @@ The `test_steps` table is extended to support **either** test case steps **or** 
 - `shared_step_id UUID NULL` – set **only** for shared step definition steps
 - `step_type VARCHAR(20) NOT NULL DEFAULT 'regular'` – for now only the value `"regular"` is used
 
-> Invariant: there is **no** row where both `test_case_id` and `shared_step_id` are non-NULL.
-
 **Data Examples:**
 - **Regular test case step**  
   `step_type='regular', test_case_id='uuid', shared_step_id=NULL, action_type='navigate'`
 
 - **Shared step definition step**  
   `step_type='regular', test_case_id=NULL, shared_step_id='uuid', action_type='navigate'`
+
+- **Shared step reference**: `step_type='shared', test_case_id='uuid', shared_step_id='uuid', action_type=NULL`
 
 ## UI/UX Considerations
 

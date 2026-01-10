@@ -196,11 +196,32 @@ pub static KEY_OPTIONS: &[KeyOption] = &[
     KeyOption { value: "Space", label: "Space" },
 ];
 
+#[derive(Debug, Clone, Deserialize, Serialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR")]
+pub enum StepType {
+    #[serde(rename = "regular")]
+    #[sqlx(rename = "regular")]
+    Regular,
+    #[serde(rename = "shared_definition")]
+    #[sqlx(rename = "shared_definition")]
+    SharedDefinition,
+    #[serde(rename = "shared_reference")]
+    #[sqlx(rename = "shared_reference")]
+    SharedReference,
+}
+
+impl Default for StepType {
+    fn default() -> Self {
+        StepType::Regular
+    }
+}
+
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct TestStep {
     pub id: Uuid,
     pub test_case_id: Uuid,
     pub step_order: i32,
+    pub step_type: StepType,
     pub action_type: String,
     pub action_params: JsonValue,
     pub assertions: JsonValue,
@@ -213,7 +234,14 @@ pub struct TestStep {
 #[serde(rename_all = "camelCase")]
 pub struct CreateTestStepRequest {
     pub id: Option<String>,  // Optional: for preserving frontend IDs
+    #[serde(alias = "step_order")]
     pub step_order: i32,
+    /// Step type determines ownership:
+    /// - 'regular': owned by a test case (default)
+    /// - 'shared_definition': owned by a shared step (definition)
+    /// - 'shared_reference': reference from test case to shared step (action fields should be null/empty)
+    #[serde(default)]
+    pub step_type: StepType,
     pub action_type: String,
     pub action_params: Option<JsonValue>,
     pub assertions: Option<JsonValue>,

@@ -7,6 +7,7 @@ pub mod version;
 pub mod review;
 pub mod notification;
 pub mod websocket;
+pub mod shared_step;
 
 pub use user::user_routes;
 pub use test_case::test_case_routes;
@@ -17,3 +18,4 @@ pub use version::get_version;
 pub use review::review_routes;
 pub use notification::notification_routes;
 pub use websocket::{ws_handler, WebSocketState};
+pub use shared_step::{shared_step_routes, SharedStepState};

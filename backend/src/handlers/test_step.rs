@@ -11,6 +11,7 @@ use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
 use crate::models::test_case::{TestCase, TestCaseResponse, TestCaseWithSteps};
 use crate::models::test_step::*;
+use crate::models::shared_step::{SharedStepSummary, SharedStepWithCountRow};
 use sqlx::PgPool;
 
 fn is_valid_action_type(action_type: &str) -> bool {
@@ -386,10 +387,37 @@ pub async fn get_test_step_metadata(
         .map(|k| serde_json::json!({ "value": k.value, "label": k.label }))
         .collect();
 
+    // Fetch shared steps summary for metadata response
+    let rows: Vec<SharedStepWithCountRow> = sqlx::query_as(
+        r#"
+        SELECT s.id,
+               s.name,
+               s.description,
+               u.name AS created_by_name,
+               s.created_at,
+               s.updated_at,
+               COALESCE(COUNT(t.id), 0) AS step_count
+        FROM shared_steps s
+        LEFT JOIN users u ON s.created_by = u.id
+        LEFT JOIN test_steps t
+               ON t.shared_step_id = s.id
+              AND t.test_case_id IS NULL
+              AND t.step_type = 'shared_definition'
+        GROUP BY s.id, s.name, s.description, u.name, s.created_at, s.updated_at
+        ORDER BY s.created_at DESC
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    let shared_steps: Vec<SharedStepSummary> =
+        rows.into_iter().map(SharedStepSummary::from).collect();
+
     Ok(Json(serde_json::json!({
         "actions": actions,
         "assertions": assertions,
         "assertionsByAction": assertions_by_action,
+        "sharedSteps": shared_steps,
         "keyOptions": key_options,
     })))
 }
