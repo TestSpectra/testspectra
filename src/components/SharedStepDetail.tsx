@@ -1,0 +1,163 @@
+import { Edit, RefreshCw, Trash2, Copy } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  sharedStepService,
+  type SharedStepDetail,
+} from "../services/shared-step-service";
+import { BackButton } from "./BackButton";
+import { Button } from "./ui/button";
+import { TestCaseDisplay } from "./TestCaseDisplay";
+import { ConfirmDialog } from "./SimpleDialog";
+import { toast } from "sonner";
+
+interface SharedStepDetailProps {
+  sharedStepId: string;
+  onBack: () => void;
+  onEdit: (sharedStepId: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export function SharedStepDetail({
+  sharedStepId,
+  onBack,
+  onEdit,
+  onDelete,
+}: SharedStepDetailProps) {
+  const [sharedStep, setSharedStep] = useState<SharedStepDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const fetchSharedStep = async () => {
+      try {
+        setIsLoading(true);
+        const data = await sharedStepService.getSharedStep(sharedStepId);
+        setSharedStep(data);
+      } catch (err) {
+        console.error("Failed to load shared step:", err);
+        setError("Failed to load shared step");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSharedStep();
+  }, [sharedStepId]);
+
+  const handleDelete = async () => {
+    if (!sharedStep) return;
+
+    setIsDeleting(true);
+    try {
+      await sharedStepService.deleteSharedStep(sharedStep.id);
+      toast.success("Shared step deleted successfully");
+      onDelete(sharedStep.id);
+      onBack();
+    } catch (err) {
+      console.error("Failed to delete shared step:", err);
+      toast.error("Failed to delete shared step");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 min-h-screen">
+        <div className="text-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-slate-400">Loading shared step...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !sharedStep) {
+    return (
+      <div className="p-8 min-h-screen">
+        <div className="text-center py-12">
+          <p className="text-red-400 mb-4">
+            {error || "Shared step not found"}
+          </p>
+          <BackButton onClick={onBack} />
+        </div>
+      </div>
+    );
+  }
+
+  // Convert shared step steps to test case format for display
+  const displaySteps = sharedStep.steps.map((step, index) => ({
+    id: step.id,
+    stepOrder: index + 1,
+    actionType: step.actionType,
+    actionParams: step.actionParams,
+    assertions: step.assertions,
+    customExpectedResult: step.customExpectedResult,
+  }));
+
+  const displayTestCase = {
+    description: sharedStep.description,
+    preCondition: null,
+    postCondition: null,
+    steps: displaySteps,
+    expectedOutcome: undefined,
+    tags: [],
+  };
+
+  return (
+    <div className="p-8 min-h-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <BackButton onClick={onBack} />
+          <div>
+            <h1 className="mb-2 text-2xl font-bold text-white">
+              {sharedStep.name}
+            </h1>
+            <p className="text-slate-400">Shared Step</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(sharedStep.id)}
+            className="text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete
+          </Button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto">
+        <TestCaseDisplay testCase={displayTestCase} />
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Shared Step"
+        message={`Are you sure you want to delete "${sharedStep.name}"? This action cannot be undone and will remove the shared step from all test cases that reference it.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    </div>
+  );
+}

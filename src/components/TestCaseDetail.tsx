@@ -1,7 +1,8 @@
-import { ArrowLeft, CheckCircle2, ClipboardCheck, Clock, Edit, Play, Trash2, TrendingUp, XCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Clock, Edit, Play, Trash2, TrendingUp, XCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { testCaseService } from '../services/test-case-service';
 import { reviewService } from '../services/review-service';
+import { BackButton } from './BackButton';
 import { ReviewHistory } from './ReviewHistory';
 import { Button } from './ui/button';
 import { TestCaseHeader } from './TestCaseHeader';
@@ -146,10 +147,7 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
       <div className="p-8 bg-slate-950 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 mb-4">{error || 'Test case not found'}</p>
-          <Button onClick={onBack} variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Go Back
-          </Button>
+          <BackButton onClick={onBack} />
         </div>
       </div>
     );
@@ -203,17 +201,11 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
   };
 
   return (
-    <div className="p-8 bg-slate-950 min-h-screen">
+    <div className="p-8 min-h-screen">
       {/* Header with Back Button */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </button>
+          <BackButton onClick={onBack} />
           <div className="border-l border-slate-700 h-8"></div>
           <TestCaseHeader testCase={testCase} />
         </div>

@@ -11,6 +11,7 @@ import {
   LogOut,
   MessageSquare,
   Settings,
+  Share2,
   UserCircle,
   Users,
   Wrench,
@@ -24,6 +25,7 @@ type View =
   | "dashboard"
   | "test-cases"
   | "test-suites"
+  | "shared-steps"
   | "review-queue"
   | "runs-history"
   | "configuration"
@@ -111,6 +113,7 @@ export function Sidebar({
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "test-cases", label: "Test Cases", icon: FileCheck },
     { id: "test-suites", label: "Test Suites", icon: FolderTree },
+    { id: "shared-steps", label: "Shared Steps", icon: Share2 },
     { id: "review-queue", label: "Review Queue", icon: MessageSquare, requiresPermission: "review_approve_test_cases", badge: pendingReviewCount },
     { id: "runs-history", label: "Runs History", icon: History },
     { id: "configuration", label: "Configuration", icon: Settings },

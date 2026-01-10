@@ -17,7 +17,6 @@ interface TestCaseDisplayProps {
     preCondition: string | null;
     postCondition: string | null;
     steps?: TestStep[];
-    expectedOutcome?: string;
     tags?: string[];
   };
 }
@@ -201,21 +200,6 @@ export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
             className="text-slate-300 leading-relaxed prose prose-sm prose-invert max-w-none p-4 bg-green-950/20 border border-green-800/30 rounded-lg"
             dangerouslySetInnerHTML={{ __html: testCase.postCondition }}
           />
-        </div>
-      )}
-
-      {/* Expected Outcome */}
-      {testCase.expectedOutcome && (
-        <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-          <h2 className="mb-4 flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-green-400" />
-            Expected Outcome
-          </h2>
-          <div className="p-4 bg-green-950/20 border border-green-800/30 rounded-lg">
-            <p className="text-slate-300 leading-relaxed">
-              {testCase.expectedOutcome}
-            </p>
-          </div>
         </div>
       )}
     </div>
