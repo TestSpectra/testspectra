@@ -10,11 +10,7 @@ import {
 } from "../services/test-case-service";
 import { getApiUrl } from "../lib/config";
 import { TestCaseMetadata } from "./TestCaseMetadata";
-import {
-  TestStepsEditor,
-  TestStep,
-  ActionType,
-} from "./TestStepsEditor";
+import { TestStepsEditor, TestStep, ActionType } from "./TestStepsEditor";
 
 interface TestSuite {
   id: string;
@@ -624,7 +620,8 @@ export function TestCaseForm({
           <TestStepsEditor
             steps={steps}
             onStepsChange={setSteps}
-            stepMetadata={stepMetadata}
+            stepMetadata={stepMetadata as TestStepMetadataResponse}
+            allowAddSharedStep={true}
           />
         </div>
 
@@ -720,7 +717,6 @@ export function TestCaseForm({
           )}
         </div>
       </div>
-
     </div>
   );
 }

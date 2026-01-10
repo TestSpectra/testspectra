@@ -40,6 +40,10 @@ export interface TestStepMetadataResponse {
   assertions: AssertionDefinition[];
   assertionsByAction: Record<string, string[]>;
   keyOptions: KeyOption[];
+  sharedSteps: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export type ReviewStatus = "pending" | "pending_revision" | "approved" | "needs_revision";

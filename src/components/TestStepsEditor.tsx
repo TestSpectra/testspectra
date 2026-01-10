@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import {
   DndContext,
-  closestCenter,
   DragEndEvent,
   KeyboardSensor,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -16,13 +15,27 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, Trash2, GripVertical, Copy, PlusCircle, X } from "lucide-react";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { ConfirmDialog } from "./SimpleDialog";
-import { RichTextEditor } from "./ui/rich-text-editor";
+import {
+  Copy,
+  GripVertical,
+  Package,
+  Plus,
+  PlusCircle,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  sharedStepService,
+  SharedStepDetail,
+} from "../services/shared-step-service";
 import { TestStepMetadataResponse } from "../services/test-case-service";
 import "../styles/drag-handle.css";
+import { ConfirmDialog } from "./SimpleDialog";
+import { TestStepsDisplay } from "./TestStepsDisplay";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { RichTextEditor } from "./ui/rich-text-editor";
 
 export type ActionType =
   | "navigate"
@@ -333,16 +346,24 @@ function SortableStepItem({
   );
 }
 
+// Shared step option from metadata
+interface SharedStepOption {
+  id: string;
+  name: string;
+}
+
 interface TestStepsEditorProps {
   steps: TestStep[];
   onStepsChange: (steps: TestStep[]) => void;
   stepMetadata: TestStepMetadataResponse;
+  allowAddSharedStep?: boolean;
 }
 
 export function TestStepsEditor({
   steps,
   onStepsChange,
   stepMetadata,
+  allowAddSharedStep = false,
 }: TestStepsEditorProps) {
   const newStepIdRef = useRef<string | null>(null);
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(
@@ -350,6 +371,15 @@ export function TestStepsEditor({
   );
   const highlightTimeoutRef = useRef<number | null>(null);
   const [stepToDelete, setStepToDelete] = useState<string | null>(null);
+
+  // Shared step state
+  const [selectedSharedStepId, setSelectedSharedStepId] = useState<string>("");
+  const [selectedSharedStep, setSelectedSharedStep] =
+    useState<SharedStepDetail | null>(null);
+  const [isLoadingSharedStep, setIsLoadingSharedStep] = useState(false);
+
+  // Get shared steps options from metadata
+  const sharedStepsOptions: SharedStepOption[] = stepMetadata.sharedSteps || [];
 
   const actionDefinitions = (stepMetadata?.actions ?? []).map((a) => ({
     value: a.value as ActionType,
@@ -365,13 +395,68 @@ export function TestStepsEditor({
     needsAttribute: a.needsAttribute,
   }));
 
-  const assertionsByAction =
-    (stepMetadata?.assertionsByAction ?? {}) as Record<
-      ActionType,
-      AssertionType[]
-    >;
+  const assertionsByAction = (stepMetadata?.assertionsByAction ?? {}) as Record<
+    ActionType,
+    AssertionType[]
+  >;
 
   const keyOptions = stepMetadata?.keyOptions ?? [];
+
+  // Load selected shared step details when selected
+  useEffect(() => {
+    if (selectedSharedStepId) {
+      const loadSharedStepDetail = async () => {
+        try {
+          setIsLoadingSharedStep(true);
+          const data = await sharedStepService.getSharedStep(
+            selectedSharedStepId
+          );
+          setSelectedSharedStep(data);
+        } catch (error) {
+          console.error("Failed to load shared step detail:", error);
+          setSelectedSharedStep(null);
+        } finally {
+          setIsLoadingSharedStep(false);
+        }
+      };
+      loadSharedStepDetail();
+    } else {
+      setSelectedSharedStep(null);
+    }
+  }, [selectedSharedStepId]);
+
+  const convertSharedStepToTestSteps = (
+    sharedStep: SharedStepDetail
+  ): TestStep[] => {
+    if (!sharedStep.steps || sharedStep.steps.length === 0) return [];
+
+    return sharedStep.steps
+      .slice()
+      .sort((a, b) => a.stepOrder - b.stepOrder)
+      .map((step, index) => ({
+        id: `shared-${sharedStep.id}-${step.id || index}`,
+        actionType: step.actionType as ActionType,
+        actionParams: step.actionParams || {},
+        customExpectedResult: step.customExpectedResult || "",
+        assertions: (step.assertions || []).map(
+          (assertion: any, idx: number) => ({
+            ...assertion,
+            id: `shared-${sharedStep.id}-${step.id || index}-assertion-${idx}`,
+          })
+        ),
+      }));
+  };
+
+  const handleAddSharedStep = () => {
+    if (!selectedSharedStep) return;
+
+    const newSteps = convertSharedStepToTestSteps(selectedSharedStep);
+    onStepsChange([...steps, ...newSteps]);
+
+    // Reset selection
+    setSelectedSharedStepId("");
+    setSelectedSharedStep(null);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -632,12 +717,10 @@ export function TestStepsEditor({
       scroll: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
       swipe: "bg-pink-500/20 text-pink-400 border-pink-500/30",
       wait: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-      waitForElement:
-        "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      waitForElement: "bg-amber-500/20 text-amber-400 border-amber-500/30",
       pressKey: "bg-lime-500/20 text-lime-400 border-lime-500/30",
       longPress: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-      doubleClick:
-        "bg-violet-500/20 text-violet-400 border-violet-500/30",
+      doubleClick: "bg-violet-500/20 text-violet-400 border-violet-500/30",
       hover: "bg-sky-500/20 text-sky-400 border-sky-500/30",
       dragDrop: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
       back: "bg-gray-500/20 text-gray-400 border-gray-500/30",
@@ -885,11 +968,7 @@ export function TestStepsEditor({
               type="text"
               value={step.actionParams?.targetSelector || ""}
               onChange={(e) =>
-                handleUpdateStepParam(
-                  step.id,
-                  "targetSelector",
-                  e.target.value
-                )
+                handleUpdateStepParam(step.id, "targetSelector", e.target.value)
               }
               placeholder="Target selector"
               className={inputClass}
@@ -1029,6 +1108,66 @@ export function TestStepsEditor({
         <Plus className="w-4 h-4 mr-2" />
         Add Step
       </Button>
+
+      {allowAddSharedStep && (
+        <div className="mt-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-purple-400" />
+            <span className="text-sm text-slate-400">Add Shared Step</span>
+          </div>
+
+          <div className="flex gap-2">
+            <select
+              value={selectedSharedStepId}
+              onChange={(e) => setSelectedSharedStepId(e.target.value)}
+              disabled={isLoadingSharedStep}
+              className={`flex-1 ${inputClass} text-sm`}
+            >
+              <option value="">
+                {isLoadingSharedStep ? "Loading..." : "Select a shared step..."}
+              </option>
+              {sharedStepsOptions.map((sharedStep) => (
+                <option key={sharedStep.id} value={sharedStep.id}>
+                  {sharedStep.name}
+                </option>
+              ))}
+            </select>
+
+            {selectedSharedStep && (
+              <Button
+                onClick={handleAddSharedStep}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add
+              </Button>
+            )}
+          </div>
+
+          {selectedSharedStep && (
+            <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4">
+              <div className="mb-3">
+                <h4 className="text-sm font-medium text-slate-200 mb-1">
+                  {selectedSharedStep.name}
+                </h4>
+                {selectedSharedStep.description && (
+                  <p className="text-xs text-slate-400">
+                    {selectedSharedStep.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="text-xs text-slate-500 mb-2">
+                Preview ({selectedSharedStep.stepCount} steps):
+              </div>
+
+              <TestStepsDisplay
+                steps={convertSharedStepToTestSteps(selectedSharedStep)}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={!!stepToDelete}
