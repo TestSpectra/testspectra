@@ -484,11 +484,17 @@ function AddSharedStepDialog({
     }
   }, [selectedSharedStepId]);
 
+  // Reset states when the dialog is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedSharedStepId("");
+      setSelectedSharedStep(null);
+    }
+  }, [isOpen]);
+
   const handleAdd = () => {
     if (selectedSharedStep) {
       onAdd(selectedSharedStep);
-      setSelectedSharedStepId("");
-      setSelectedSharedStep(null);
       onClose();
     }
   };
@@ -622,11 +628,8 @@ export function TestStepsEditor({
   const [stepToDelete, setStepToDelete] = useState<string | null>(null);
 
   // Add Shared Step Dialog state
-  const [isAddSharedStepDialogOpen, setIsAddSharedStepDialogOpen] =
-    useState(false);
-  const [insertSharedStepIndex, setInsertSharedStepIndex] = useState<
-    number | null
-  >(null);
+  const [isAddSharedStepDialogOpen, setIsAddSharedStepDialogOpen] = useState(false);
+  const [insertSharedStepIndex, setInsertSharedStepIndex] = useState<number | null>(null);
 
   // Get shared steps options from metadata
   const sharedStepsOptions: SharedStepOption[] = stepMetadata.sharedSteps || [];
