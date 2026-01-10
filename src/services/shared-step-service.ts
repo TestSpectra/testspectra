@@ -5,6 +5,7 @@
 
 import { getApiUrl } from "../lib/config";
 import { authService } from "./auth-service";
+import { TestStep, TestStepPayload } from "./test-case-service";
 
 export interface SharedStep {
     id: string;
@@ -17,22 +18,13 @@ export interface SharedStep {
 }
 
 export interface SharedStepDetail extends SharedStep {
-    steps: SharedStepStep[];
-}
-
-export interface SharedStepStep {
-    id: string;
-    stepOrder: number;
-    actionType: string;
-    actionParams: any;
-    assertions: any[];
-    customExpectedResult?: string | null;
+    steps: TestStep[];
 }
 
 export interface SharedStepRequest {
     name: string;
     description?: string;
-    steps: Omit<SharedStepStep, 'id'>[];
+    steps: TestStepPayload[];
 }
 
 export interface SharedStepsListResponse {

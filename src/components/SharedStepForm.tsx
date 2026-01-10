@@ -2,16 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Save, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { RichTextEditor } from "./ui/rich-text-editor";
-import { TestStepsEditor, TestStep, ActionType } from "./TestStepsEditor";
+import { TestStepsEditor } from "./TestStepsEditor";
 import {
   sharedStepService,
   SharedStepDetail,
-  SharedStepStep,
 } from "../services/shared-step-service";
 import {
+  TestStep,
   TestStepMetadataResponse,
   testCaseService,
 } from "../services/test-case-service";
+import { convertStepsForBackend, convertStepsFromBackend } from "@/utils/testCaseUtils";
 
 interface SharedStepFormProps {
   sharedStepId?: string | null;
@@ -24,8 +25,7 @@ export function SharedStepForm({
   onSave,
   onCancel,
 }: SharedStepFormProps) {
-  const [loadedSharedStep, setLoadedSharedStep] =
-    useState<SharedStepDetail | null>(null);
+  const [loadedSharedStep, setLoadedSharedStep] = useState<SharedStepDetail | null>(null);
   const [isLoadingSharedStep, setIsLoadingSharedStep] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -48,36 +48,6 @@ export function SharedStepForm({
 
   const inputClass =
     "bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 input-field-focus transition-colors duration-150";
-
-  const convertStepsFromBackend = (backendSteps: SharedStepStep[]): TestStep[] => {
-    if (!backendSteps || backendSteps.length === 0) {
-      return [];
-    }
-
-    return backendSteps
-      .slice()
-      .sort((a, b) => a.stepOrder - b.stepOrder)
-      .map((step, index) => ({
-        id: step.id || `step-${index}`,
-        actionType: step.actionType as ActionType,
-        actionParams: step.actionParams || {},
-        customExpectedResult: step.customExpectedResult || "",
-        assertions: (step.assertions || []).map((assertion: any, idx: number) => ({
-          ...assertion,
-          id: assertion.id || `assertion-${index}-${idx}`,
-        })),
-      }));
-  };
-
-  const convertStepsForBackend = () => {
-    return steps.map((step, index): Omit<SharedStepStep, "id"> => ({
-      stepOrder: index + 1,
-      actionType: step.actionType,
-      actionParams: step.actionParams || {},
-      assertions: (step.assertions || []).map(({ id, ...assertion }) => assertion),
-      customExpectedResult: step.customExpectedResult || null,
-    }));
-  };
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -156,7 +126,7 @@ export function SharedStepForm({
     setIsSaving(true);
     setSaveError(null);
 
-    const stepsForBackend = convertStepsForBackend();
+    const stepsForBackend = convertStepsForBackend(steps);
 
     try {
       if (isEditing && sharedStepId) {
@@ -260,9 +230,8 @@ export function SharedStepForm({
           }
         >
           <div
-            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${
-              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-            }`}
+            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+              }`}
           >
             {saveError}
           </div>
@@ -278,9 +247,8 @@ export function SharedStepForm({
           }
         >
           <div
-            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${
-              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-            }`}
+            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+              }`}
           >
             <svg
               className="w-5 h-5"

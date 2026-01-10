@@ -31,6 +31,12 @@ import {
   sharedStepService,
 } from "../services/shared-step-service";
 import {
+  ActionParams,
+  ActionType,
+  Assertion,
+  AssertionType,
+  RegularTestStep,
+  SharedTestStep,
   TestStep,
   TestStepMetadataResponse,
 } from "../services/test-case-service";
@@ -41,77 +47,8 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { RichTextEditor } from "./ui/rich-text-editor";
 
-export type ActionType =
-  | "navigate"
-  | "click"
-  | "type"
-  | "clear"
-  | "select"
-  | "scroll"
-  | "swipe"
-  | "wait"
-  | "waitForElement"
-  | "pressKey"
-  | "longPress"
-  | "doubleClick"
-  | "hover"
-  | "dragDrop"
-  | "back"
-  | "refresh";
-
-export type AssertionType =
-  | "elementDisplayed"
-  | "elementNotDisplayed"
-  | "elementExists"
-  | "elementClickable"
-  | "elementInViewport"
-  | "textEquals"
-  | "textContains"
-  | "valueEquals"
-  | "valueContains"
-  | "urlEquals"
-  | "urlContains"
-  | "titleEquals"
-  | "titleContains"
-  | "hasClass"
-  | "hasAttribute"
-  | "isEnabled"
-  | "isDisabled"
-  | "isSelected";
-
-export interface Assertion {
-  id?: string;
-  assertionType: AssertionType;
-  selector?: string;
-  expectedValue?: string;
-  attributeName?: string;
-  attributeValue?: string;
-}
-
-export interface ActionParams {
-  selector?: string;
-  value?: string;
-  text?: string;
-  url?: string;
-  timeout?: string;
-  direction?: "up" | "down" | "left" | "right";
-  targetSelector?: string;
-  key?: string;
-  duration?: string;
-}
-
-export interface TestStepWithoutOrder {
-  id: string;
-  actionType: ActionType;
-  actionParams: ActionParams;
-  assertions: Assertion[];
-  customExpectedResult?: string;
-  sharedStepId?: string; // Add this to identify shared steps
-  sharedStepDetail?: SharedStepDetail; // Store full detail for shared steps
-}
-
 interface SortableStepItemProps {
-  step: TestStepWithoutOrder;
+  step: TestStep;
   index: number;
   stepsLength: number;
   inputClass: string;
@@ -133,7 +70,7 @@ interface SortableStepItemProps {
   }[];
   handleUpdateStep: (
     id: string,
-    updates: Partial<TestStepWithoutOrder>
+    updates: Partial<TestStep>
   ) => void;
   handleRemoveStep: (id: string) => void;
   handleDuplicateStep: (id: string) => void;
@@ -146,13 +83,59 @@ interface SortableStepItemProps {
     updates: Partial<Assertion>
   ) => void;
   handleRemoveAssertion: (stepId: string, assertionId: string) => void;
-  renderStepFields: (step: TestStepWithoutOrder) => React.ReactNode;
+  renderStepFields: (step: RegularTestStep) => React.ReactNode;
   renderAssertionFields: (
-    step: TestStepWithoutOrder,
+    step: TestStep,
     assertion: Assertion
   ) => React.ReactNode;
   allowAddSharedStep?: boolean;
 }
+
+// Convert shared step to display format
+const convertSharedStepToTestSteps = (
+  sharedStep: Partial<SharedStepDetail>
+): TestStep[] => {
+  if (!sharedStep.steps || sharedStep.steps.length === 0) return [];
+
+  return sharedStep.steps
+    .slice()
+    .sort((a, b) => a.stepOrder - b.stepOrder)
+    .map((step, index) => {
+      const baseProps = {
+        id: `shared-${sharedStep.id}-${step.id || index}`,
+        stepOrder: step.stepOrder,
+      };
+
+      if (step.stepType === 'regular') {
+        const regularStep: RegularTestStep = {
+          ...baseProps,
+          stepType: 'regular',
+          actionType: step.actionType,
+          actionParams: step.actionParams || {},
+          assertions: (step.assertions || []).map(
+            (assertion: any, idx: number) => ({
+              ...assertion,
+              id: `${baseProps.id}-assertion-${idx}`,
+            })
+          ),
+          customExpectedResult: step.customExpectedResult || "",
+        };
+
+        return regularStep;
+      } else {
+        const sharedStep: SharedTestStep = {
+          ...baseProps,
+          stepType: 'shared_reference',
+          sharedStepId: step.sharedStepId,
+          sharedStepName: step.sharedStepName,
+          sharedStepDescription: step.sharedStepDescription,
+          steps: step.steps
+        };
+
+        return sharedStep;
+      }
+    });
+};
 
 function SortableStepItem({
   step,
@@ -193,31 +176,56 @@ function SortableStepItem({
   };
 
   // Check if this is a shared step
-  const isSharedStep = !!step.sharedStepId && step.sharedStepDetail;
+  const isSharedStep = step.stepType === 'shared_reference' && !!step.sharedStepId;
 
-  // Convert shared step to display format
-  const convertSharedStepToTestSteps = (
-    sharedStep: SharedStepDetail
-  ): TestStep[] => {
-    if (!sharedStep.steps || sharedStep.steps.length === 0) return [];
+  function RegularStepActionTypeFields(step: RegularTestStep) {
+    return (
+      <div className="flex-1 space-y-3">
+        <div className="flex items-center gap-3">
+          <select
+            value={step.actionType}
+            onChange={(e) => {
+              const newType = e.target.value as ActionType;
+              const availableAssertions =
+                assertionsByAction[newType] || [];
+              const defaultAssertionType =
+                availableAssertions[0] ||
+                ("elementDisplayed" as AssertionType);
 
-    return sharedStep.steps
-      .slice()
-      .sort((a, b) => a.stepOrder - b.stepOrder)
-      .map((step, index) => ({
-        id: `shared-${sharedStep.id}-${step.id || index}`,
-        stepOrder: step.stepOrder,
-        actionType: step.actionType as ActionType,
-        actionParams: step.actionParams || {},
-        customExpectedResult: step.customExpectedResult || "",
-        assertions: (step.assertions || []).map(
-          (assertion: any, idx: number) => ({
-            ...assertion,
-            id: `shared-${sharedStep.id}-${step.id || index}-assertion-${idx}`,
-          })
-        ),
-      }));
-  };
+              handleUpdateStep(step.id, {
+                actionType: newType,
+                actionParams: {},
+                assertions: [
+                  {
+                    id: Date.now().toString(),
+                    assertionType: defaultAssertionType,
+                  },
+                ],
+                customExpectedResult: step.customExpectedResult,
+              });
+            }}
+            className={inputClass}
+          >
+            {actionDefinitions.map((actionDef) => (
+              <option key={actionDef.value} value={actionDef.value}>
+                {actionDef.label}
+                {actionDef.platform !== "both"
+                  ? ` (${actionDef.platform})`
+                  : ""}
+              </option>
+            ))}
+          </select>
+          <Badge
+            variant="outline"
+            className={`${getStepColor(step.actionType)} border shrink-0`}
+          >
+            {getStepLabel(step.actionType)}
+          </Badge>
+        </div>
+        {renderStepFields(step)}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -237,70 +245,23 @@ function SortableStepItem({
 
         {isSharedStep ? (
           // Render shared step display
-          <>
-            <div className="flex flex-col gap-3 grow">
-              <div className="flex items-center gap-2 pt-1.5">
-                <Package className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-400">
-                  {step.sharedStepDetail?.name}
-                </span>
-              </div>
-
-              {step.sharedStepDetail?.description && (
-                <p className="text-xs text-slate-400">
-                  {step.sharedStepDetail.description}
-                </p>
-              )}
+          <div className="flex flex-col gap-3 grow">
+            <div className="flex items-center gap-2 pt-1.5">
+              <Package className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-medium text-purple-400">
+                {step.sharedStepName}
+              </span>
             </div>
-          </>
+
+            {step.sharedStepDescription && (
+              <p className="text-xs text-slate-400">
+                {step.sharedStepDescription}
+              </p>
+            )}
+          </div>
         ) : (
           // Render regular step input fields
-          <>
-            <div className="flex-1 space-y-3">
-              <div className="flex items-center gap-3">
-                <select
-                  value={step.actionType}
-                  onChange={(e) => {
-                    const newType = e.target.value as ActionType;
-                    const availableAssertions =
-                      assertionsByAction[newType] || [];
-                    const defaultAssertionType =
-                      availableAssertions[0] ||
-                      ("elementDisplayed" as AssertionType);
-
-                    handleUpdateStep(step.id, {
-                      actionType: newType,
-                      actionParams: {},
-                      assertions: [
-                        {
-                          id: Date.now().toString(),
-                          assertionType: defaultAssertionType,
-                        },
-                      ],
-                      customExpectedResult: step.customExpectedResult,
-                    });
-                  }}
-                  className={inputClass}
-                >
-                  {actionDefinitions.map((actionDef) => (
-                    <option key={actionDef.value} value={actionDef.value}>
-                      {actionDef.label}
-                      {actionDef.platform !== "both"
-                        ? ` (${actionDef.platform})`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-                <Badge
-                  variant="outline"
-                  className={`${getStepColor(step.actionType)} border shrink-0`}
-                >
-                  {getStepLabel(step.actionType)}
-                </Badge>
-              </div>
-              {renderStepFields(step)}
-            </div>
-          </>
+          RegularStepActionTypeFields(step as RegularTestStep)
         )}
 
         <div className="flex items-center gap-1 mt-1">
@@ -344,13 +305,13 @@ function SortableStepItem({
       {isSharedStep && (
         <div className="border-l-2 ml-9 mt-4 border-purple-500/30 pl-3">
           <TestStepsDisplay
-            steps={convertSharedStepToTestSteps(step.sharedStepDetail!)}
+            steps={convertSharedStepToTestSteps(step)}
           />
         </div>
       )}
 
       {/* Assertions */}
-      {!isSharedStep && (
+      {!isSharedStep && step.stepType === 'regular' && (
         <div className="mt-4 ml-9 border-t border-slate-700/50 pt-4">
           <div className="flex items-center justify-between mb-3">
             <label className="text-xs font-medium text-slate-400">
@@ -499,34 +460,11 @@ function AddSharedStepDialog({
     }
   };
 
-  const convertSharedStepToTestSteps = (
-    sharedStep: SharedStepDetail
-  ): TestStep[] => {
-    if (!sharedStep.steps || sharedStep.steps.length === 0) return [];
-
-    return sharedStep.steps
-      .slice()
-      .sort((a, b) => a.stepOrder - b.stepOrder)
-      .map((step, index) => ({
-        id: `shared-${sharedStep.id}-${step.id || index}`,
-        stepOrder: step.stepOrder,
-        actionType: step.actionType as ActionType,
-        actionParams: step.actionParams || {},
-        customExpectedResult: step.customExpectedResult || "",
-        assertions: (step.assertions || []).map(
-          (assertion: any, idx: number) => ({
-            ...assertion,
-            id: `shared-${sharedStep.id}-${step.id || index}-assertion-${idx}`,
-          })
-        ),
-      }));
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-slate-900 rounded-xl border border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <div className="bg-slate-900 rounded-xl border border-slate-800 w-full max-w-2xl max-h-[80vh] flex flex-col overflow-clip">
         <div className="flex items-center justify-between p-6 bg-slate-900 sticky top-0 z-10">
           <h3 className="text-lg font-medium text-slate-100">
             Add Shared Step
@@ -608,8 +546,8 @@ function AddSharedStepDialog({
 }
 
 interface TestStepsEditorProps {
-  steps: TestStepWithoutOrder[];
-  onStepsChange: (steps: TestStepWithoutOrder[]) => void;
+  steps: TestStep[];
+  onStepsChange: (steps: TestStep[]) => void;
   stepMetadata: TestStepMetadataResponse;
   allowAddSharedStep?: boolean;
 }
@@ -656,14 +594,14 @@ export function TestStepsEditor({
   const keyOptions = stepMetadata?.keyOptions ?? [];
 
   const handleAddSharedStep = (sharedStep: SharedStepDetail) => {
-    const newStep: TestStepWithoutOrder = {
+    const newStep: TestStep = {
       id: `shared-step-${sharedStep.id}-${Date.now()}`,
-      actionType: "navigate", // placeholder, won't be used for shared steps
-      actionParams: {},
-      assertions: [],
-      customExpectedResult: "",
+      stepType: 'shared_reference',
+      stepOrder: insertSharedStepIndex || steps.length,
       sharedStepId: sharedStep.id,
-      sharedStepDetail: sharedStep,
+      sharedStepName: sharedStep.name,
+      sharedStepDescription: sharedStep.description,
+      steps: sharedStep.steps,
     };
 
     if (insertSharedStepIndex !== null) {
@@ -751,10 +689,10 @@ export function TestStepsEditor({
 
   const handleUpdateStep = (
     id: string,
-    updates: Partial<TestStepWithoutOrder>
+    updates: Partial<TestStep>
   ) => {
     onStepsChange(
-      steps.map((step) => (step.id === id ? { ...step, ...updates } : step))
+      steps.map((step) => (step.id === id ? { ...step, ...updates } : step)) as TestStep[]
     );
   };
 
@@ -768,7 +706,7 @@ export function TestStepsEditor({
         step.id === id
           ? {
             ...step,
-            actionParams: { ...step.actionParams, [paramKey]: value },
+            actionParams: { ...(step as RegularTestStep).actionParams, [paramKey]: value },
           }
           : step
       )
@@ -781,8 +719,10 @@ export function TestStepsEditor({
     const defaultAssertionType =
       availableAssertions[0] || ("elementDisplayed" as AssertionType);
     const newStepId = Date.now().toString();
-    const newStep: TestStepWithoutOrder = {
+    const newStep: TestStep = {
       id: newStepId,
+      stepType: 'regular',
+      stepOrder: steps.length,
       actionType,
       actionParams: {},
       assertions: [
@@ -794,7 +734,7 @@ export function TestStepsEditor({
   };
 
   const handleAddAssertion = (stepId: string) => {
-    const step = steps.find((s) => s.id === stepId);
+    const step = steps.find((s) => s.id === stepId) as RegularTestStep | undefined;
     if (!step) return;
 
     const availableAssertions = assertionsByAction[step.actionType] || [];
@@ -813,7 +753,7 @@ export function TestStepsEditor({
     assertionId: string,
     updates: Partial<Assertion>
   ) => {
-    const step = steps.find((s) => s.id === stepId);
+    const step = steps.find((s) => s.id === stepId) as RegularTestStep | undefined;
     if (!step) return;
 
     const updatedAssertions = (step.assertions || []).map((assertion) =>
@@ -824,7 +764,7 @@ export function TestStepsEditor({
   };
 
   const handleRemoveAssertion = (stepId: string, assertionId: string) => {
-    const step = steps.find((s) => s.id === stepId);
+    const step = steps.find((s) => s.id === stepId) as RegularTestStep | undefined;
     if (!step) return;
 
     const updatedAssertions = (step.assertions || []).filter(
@@ -834,7 +774,7 @@ export function TestStepsEditor({
     handleUpdateStep(stepId, { assertions: updatedAssertions });
   };
 
-  const stepHasData = (step: TestStepWithoutOrder): boolean => {
+  const stepHasData = (step: RegularTestStep): boolean => {
     if (step.actionParams && Object.keys(step.actionParams).length > 0) {
       const hasFilledParam = Object.values(step.actionParams).some(
         (val) => val !== undefined && val !== null && val !== ""
@@ -864,7 +804,7 @@ export function TestStepsEditor({
     const step = steps.find((s) => s.id === id);
     if (!step) return;
 
-    if (!stepHasData(step)) {
+    if (!stepHasData(step as RegularTestStep)) {
       onStepsChange(steps.filter((s) => s.id !== id));
       return;
     }
@@ -885,14 +825,17 @@ export function TestStepsEditor({
 
     const stepToDuplicate = steps[stepIndex];
     const newStepId = Date.now().toString();
-    const duplicatedStep: TestStepWithoutOrder = {
+    const duplicatedStep: TestStep = {
       ...stepToDuplicate,
       id: newStepId,
-      assertions: (stepToDuplicate.assertions || []).map((a) => ({
+    };
+
+    if (duplicatedStep.stepType === 'regular') {
+      duplicatedStep.assertions = (duplicatedStep.assertions || []).map((a) => ({
         ...a,
         id: newStepId + "_" + Math.random().toString(36).substr(2, 9),
-      })),
-    };
+      }));
+    }
 
     const newSteps = [...steps];
     newSteps.splice(stepIndex + 1, 0, duplicatedStep);
@@ -909,8 +852,10 @@ export function TestStepsEditor({
     const defaultAssertionType =
       availableAssertions[0] || ("elementDisplayed" as AssertionType);
     const newStepId = Date.now().toString();
-    const newStep: TestStepWithoutOrder = {
+    const newStep: RegularTestStep = {
       id: newStepId,
+      stepType: 'regular',
+      stepOrder: stepIndex + 2,
       actionType,
       actionParams: {},
       assertions: [
@@ -967,7 +912,7 @@ export function TestStepsEditor({
     return actionDefinitions.find((a) => a.value === type)?.label || type;
   };
 
-  const renderStepFields = (step: TestStepWithoutOrder) => {
+  const renderStepFields = (step: RegularTestStep) => {
     switch (step.actionType) {
       case "navigate":
         return (
@@ -1224,7 +1169,7 @@ export function TestStepsEditor({
   };
 
   const renderAssertionFields = (
-    step: TestStepWithoutOrder,
+    step: TestStep,
     assertion: Assertion
   ) => {
     const assertionDef = assertionDefinitions.find(

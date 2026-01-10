@@ -316,6 +316,7 @@ async fn get_test_case(
                     custom_expected_result: step.custom_expected_result,
                     shared_step_id: None,
                     shared_step_name: None,
+                    shared_step_description: None,
                     steps: None,
                 });
             }
@@ -323,8 +324,8 @@ async fn get_test_case(
                 // Shared step reference - fetch definition steps and create nested structure
                 if let Some(ref shared_id) = step.shared_step_id {
                     // Fetch shared step metadata
-                    let shared_step: Option<(String,)> = sqlx::query_as(
-                        "SELECT name FROM shared_steps WHERE id = $1"
+                    let shared_step: Option<(String, Option<String>)> = sqlx::query_as(
+                        "SELECT name, description FROM shared_steps WHERE id = $1"
                     )
                     .bind(shared_id)
                     .fetch_optional(&state.db)
@@ -358,21 +359,29 @@ async fn get_test_case(
                             custom_expected_result: s.custom_expected_result,
                             shared_step_id: None,
                             shared_step_name: None,
+                            shared_step_description: None,
                             steps: None,
                         })
                         .collect();
 
+                    let (shared_step_name, shared_step_description) = if let Some((name, description)) = shared_step {
+                        (Some(name), description)
+                    } else {
+                        (None, None)
+                    };
+
                     // Add shared step reference with nested steps
                     nested_steps.push(NestedTestStepResponse {
                         id: step.id.to_string(),
-                        step_type: "shared".to_string(),
+                        step_type: "shared_reference".to_string(),
                         step_order: step.step_order,
                         action_type: None,
                         action_params: None,
                         assertions: None,
                         custom_expected_result: None,
                         shared_step_id: Some(shared_id.to_string()),
-                        shared_step_name: shared_step.map(|(name,)| name),
+                        shared_step_name,
+                        shared_step_description,
                         steps: Some(nested_shared_steps),
                     });
                 }

@@ -85,6 +85,7 @@ pub struct TestCaseResponse {
 #[serde(rename_all = "camelCase")]
 pub struct TestStepResponse {
     pub id: String,
+    pub step_type: String,
     pub step_order: i32,
     pub action_type: String,
     pub action_params: JsonValue,
@@ -112,6 +113,8 @@ pub struct NestedTestStepResponse {
     pub shared_step_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shared_step_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shared_step_description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub steps: Option<Vec<NestedTestStepResponse>>, // Nested steps for shared references
 }

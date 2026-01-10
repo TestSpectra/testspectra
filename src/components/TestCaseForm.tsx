@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Code, Save, X, Loader2 } from "lucide-react";
-import { Button } from "./ui/button";
-import { RichTextEditor } from "./ui/rich-text-editor";
+import { ArrowLeft, Code, Loader2, Save, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { getApiUrl } from "../lib/config";
 import { authService } from "../services/auth-service";
 import {
   TestCase,
   testCaseService,
-  TestStepMetadataResponse,
+  TestStep,
+  TestStepMetadataResponse
 } from "../services/test-case-service";
-import { getApiUrl } from "../lib/config";
+import { convertStepsForBackend, convertStepsFromBackend } from "../utils/testCaseUtils";
 import { TestCaseMetadata } from "./TestCaseMetadata";
-import { TestStepsEditor, TestStep, ActionType } from "./TestStepsEditor";
+import { TestStepsEditor } from "./TestStepsEditor";
+import { Button } from "./ui/button";
+import { RichTextEditor } from "./ui/rich-text-editor";
 
 interface TestSuite {
   id: string;
@@ -50,26 +52,6 @@ export function TestCaseForm({
 
     fetchTestCase();
   }, [testCaseId]);
-
-  // Convert backend steps to frontend actions format
-  const convertStepsFromBackend = (steps: any[]): TestStep[] => {
-    if (!steps || steps.length === 0) {
-      return [];
-    }
-
-    return steps.map((step, index) => ({
-      id: step.id || `step-${index}`,
-      actionType: step.actionType as ActionType,
-      actionParams: step.actionParams || {},
-      customExpectedResult: step.customExpectedResult || "",
-      assertions: (step.assertions || []).map(
-        (assertion: any, idx: number) => ({
-          ...assertion,
-          id: assertion.id || `assertion-${index}-${idx}`, // Add id for React keys
-        })
-      ),
-    }));
-  };
 
   const [formData, setFormData] = useState({
     id: "",
@@ -226,19 +208,6 @@ export function TestCaseForm({
     }
   };
 
-  // Convert steps to API format (remove frontend-only fields)
-  const convertStepsForBackend = () => {
-    return steps.map((step, index) => ({
-      stepOrder: index + 1,
-      actionType: step.actionType,
-      actionParams: step.actionParams || {},
-      assertions: (step.assertions || []).map(
-        ({ id, ...assertion }) => assertion
-      ), // Remove id field
-      customExpectedResult: step.customExpectedResult || null,
-    }));
-  };
-
   // Handle save test case
   const handleSave = async () => {
     // Validate required fields
@@ -254,7 +223,7 @@ export function TestCaseForm({
     setIsSaving(true);
     setSaveError(null);
 
-    const stepsForBackend = convertStepsForBackend();
+    const stepsForBackend = convertStepsForBackend(steps);
 
     try {
       const apiUrl = await getApiUrl();
@@ -276,32 +245,17 @@ export function TestCaseForm({
         await testCaseService.updateTestSteps(testCaseId, stepsForBackend);
       } else {
         // Create new test case
-        const token = authService.getAccessToken();
-        const response = await fetch(`${apiUrl}/test-cases`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            title: formData.title,
-            suite: formData.suite,
-            priority: formData.priority,
-            caseType: formData.caseType,
-            automation:
-              formData.automationStatus === "automated"
-                ? "Automated"
-                : "Manual",
-            preCondition: formData.preCondition || null,
-            postCondition: formData.postCondition || null,
-            steps: stepsForBackend,
-          }),
+        await testCaseService.createTestCase({
+          title: formData.title,
+          suite: formData.suite,
+          priority: formData.priority,
+          caseType: formData.caseType,
+          automation:
+            formData.automationStatus === "automated" ? "Automated" : "Manual",
+          preCondition: formData.preCondition || undefined,
+          postCondition: formData.postCondition || undefined,
+          steps: stepsForBackend,
         });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to create test case");
-        }
       }
 
       // Success - show success message
@@ -329,13 +283,15 @@ export function TestCaseForm({
     }
   };
 
+
+
   const handleGenerateScript = () => {
     alert(
       "Script skeleton akan dibuat di working directory:\n\n/tests/" +
-        formData.suite.toLowerCase().replace(/\s+/g, "-") +
-        "/" +
-        formData.id.toLowerCase() +
-        ".test.ts"
+      formData.suite.toLowerCase().replace(/\s+/g, "-") +
+      "/" +
+      formData.id.toLowerCase() +
+      ".test.ts"
     );
   };
 
@@ -413,9 +369,8 @@ export function TestCaseForm({
           }
         >
           <div
-            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${
-              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-            }`}
+            className={`p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
+              }`}
           >
             {saveError}
           </div>
@@ -432,9 +387,8 @@ export function TestCaseForm({
           }
         >
           <div
-            className={`p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${
-              !isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"
-            }`}
+            className={
+              `p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2 ${!isMessageInView ? "max-w-md shadow-lg" : "mx-0 mt-4 mb-4"}`}
           >
             <svg
               className="w-5 h-5"

@@ -89,21 +89,11 @@ export function SharedStepDetail({
     );
   }
 
-  // Convert shared step steps to test case format for display
-  const displaySteps = sharedStep.steps.map((step, index) => ({
-    id: step.id,
-    stepOrder: index + 1,
-    actionType: step.actionType,
-    actionParams: step.actionParams,
-    assertions: step.assertions,
-    customExpectedResult: step.customExpectedResult,
-  }));
-
   const displayTestCase: Partial<TestCase> = {
     description: sharedStep.description,
     preCondition: null,
     postCondition: null,
-    steps: displaySteps,
+    steps: sharedStep.steps,
     tags: [],
   };
 

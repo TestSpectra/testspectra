@@ -61,6 +61,7 @@ impl From<SharedStepStepRow> for TestStepResponse {
     fn from(row: SharedStepStepRow) -> Self {
         Self {
             id: row.id.to_string(),
+            step_type: "regular".to_string(),
             step_order: row.step_order,
             action_type: row.action_type,
             action_params: row.action_params,
