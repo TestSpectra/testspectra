@@ -369,12 +369,14 @@ async fn delete_shared_step(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let _user_id = verify_token(&state, &headers)?;
 
+    let mut tx = state.db.begin().await?;
+
     // Block delete if shared step is referenced by any test case steps
     let ref_count: Option<(i64,)> = sqlx::query_as(
         "SELECT COUNT(*)::BIGINT FROM test_steps WHERE shared_step_id = $1 AND test_case_id IS NOT NULL",
     )
     .bind(id)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut *tx)
     .await?;
 
     if let Some((count,)) = ref_count {
@@ -389,17 +391,20 @@ async fn delete_shared_step(
     // Cascade delete definition steps (step_type = 'shared_definition' and test_case_id IS NULL)
     sqlx::query("DELETE FROM test_steps WHERE shared_step_id = $1 AND test_case_id IS NULL AND step_type = 'shared_definition'")
         .bind(id)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
 
     let result = sqlx::query("DELETE FROM shared_steps WHERE id = $1")
         .bind(id)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
 
     if result.rows_affected() == 0 {
+        tx.rollback().await?; // Rollback if no rows were affected for the main shared_steps delete
         return Err(AppError::NotFound("Shared step not found".to_string()));
     }
+
+    tx.commit().await?;
 
     Ok(Json(serde_json::json!({
         "success": true,
