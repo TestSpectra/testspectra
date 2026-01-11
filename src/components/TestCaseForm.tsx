@@ -62,7 +62,7 @@ export function TestCaseForm({
     caseType: "Positive",
     preCondition: "",
     postCondition: "",
-    automationStatus: "manual",
+    automation: "Manual",
     filePath: "",
   });
 
@@ -83,8 +83,7 @@ export function TestCaseForm({
         caseType: loadedTestCase.caseType || "Positive",
         preCondition: loadedTestCase.preCondition || "",
         postCondition: loadedTestCase.postCondition || "",
-        automationStatus:
-          loadedTestCase.automation === "Automated" ? "automated" : "manual",
+        automation: loadedTestCase.automation || "Manual",
         filePath: "",
       });
       setSteps(convertStepsFromBackend(loadedTestCase.steps || []));
@@ -236,8 +235,7 @@ export function TestCaseForm({
           suite: formData.suite,
           priority: formData.priority,
           caseType: formData.caseType,
-          automation:
-            formData.automationStatus === "automated" ? "Automated" : "Manual",
+          automation: formData.automation,
           preCondition: formData.preCondition,
           postCondition: formData.postCondition,
         });
@@ -251,8 +249,7 @@ export function TestCaseForm({
           suite: formData.suite,
           priority: formData.priority,
           caseType: formData.caseType,
-          automation:
-            formData.automationStatus === "automated" ? "Automated" : "Manual",
+          automation: formData.automation,
           preCondition: formData.preCondition || undefined,
           postCondition: formData.postCondition || undefined,
           steps: stepsForBackend,
@@ -283,8 +280,6 @@ export function TestCaseForm({
       setIsSaving(false);
     }
   };
-
-
 
   const handleGenerateScript = () => {
     alert(
@@ -585,12 +580,12 @@ export function TestCaseForm({
                 <input
                   type="radio"
                   name="automation"
-                  value="manual"
-                  checked={formData.automationStatus === "manual"}
+                  value="Manual"
+                  checked={formData.automation === "Manual"}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      automationStatus: e.target.value,
+                      automation: e.target.value,
                     })
                   }
                   className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
@@ -606,12 +601,12 @@ export function TestCaseForm({
                 <input
                   type="radio"
                   name="automation"
-                  value="automated"
-                  checked={formData.automationStatus === "automated"}
+                  value="Automated"
+                  checked={formData.automation === "Automated"}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      automationStatus: e.target.value,
+                      automation: e.target.value,
                     })
                   }
                   className="w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
@@ -619,7 +614,7 @@ export function TestCaseForm({
                 <div>
                   <p className="text-sm text-slate-200">Automated</p>
                   <p className="text-xs text-slate-500">
-                    Dijalankan oleh automation script
+                    Dijalankan secara otomatis oleh sistem
                   </p>
                 </div>
               </label>
@@ -627,7 +622,7 @@ export function TestCaseForm({
           </div>
 
           {/* Automation Details */}
-          {formData.automationStatus === "automated" && (
+          {formData.automation === "Automated" && (
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
               <h2 className="mb-4">Script Generation</h2>
 
