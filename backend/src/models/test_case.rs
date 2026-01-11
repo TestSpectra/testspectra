@@ -13,9 +13,9 @@ pub struct TestCase {
     pub title: String,
     pub description: Option<String>,
     pub suite: String,
-    pub priority: String,
-    pub case_type: String,
-    pub automation: String,
+    pub priority: Priority,
+    pub case_type: CaseType,
+    pub automation: AutomationStatus,
     pub last_status: String,
     pub page_load_avg: Option<String>,
     pub last_run: Option<String>,
@@ -28,6 +28,99 @@ pub struct TestCase {
     pub updated_at: DateTime<Utc>,
     pub review_status: String,
     pub submitted_for_review_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum Priority {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl std::fmt::Display for Priority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Priority::Low => write!(f, "Low"),
+            Priority::Medium => write!(f, "Medium"),
+            Priority::High => write!(f, "High"),
+            Priority::Critical => write!(f, "Critical"),
+        }
+    }
+}
+
+impl std::str::FromStr for Priority {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Low" => Ok(Priority::Low),
+            "Medium" => Ok(Priority::Medium),
+            "High" => Ok(Priority::High),
+            "Critical" => Ok(Priority::Critical),
+            _ => Err(format!("'{}' is not a valid Priority", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum CaseType {
+    Positive,
+    Negative,
+    Edge,
+}
+
+impl std::fmt::Display for CaseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CaseType::Positive => write!(f, "Positive"),
+            CaseType::Negative => write!(f, "Negative"),
+            CaseType::Edge => write!(f, "Edge"),
+        }
+    }
+}
+
+impl std::str::FromStr for CaseType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Positive" => Ok(CaseType::Positive),
+            "Negative" => Ok(CaseType::Negative),
+            "Edge" => Ok(CaseType::Edge),
+            _ => Err(format!("'{}' is not a valid CaseType", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum AutomationStatus {
+    Manual,
+    Automated,
+}
+
+impl std::fmt::Display for AutomationStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AutomationStatus::Manual => write!(f, "Manual"),
+            AutomationStatus::Automated => write!(f, "Automated"),
+        }
+    }
+}
+
+impl std::str::FromStr for AutomationStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Manual" => Ok(AutomationStatus::Manual),
+            "Automated" => Ok(AutomationStatus::Automated),
+            _ => Err(format!("'{}' is not a valid AutomationStatus", s)),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -44,9 +137,9 @@ pub struct TestCaseSummary {
     pub id: String,
     pub title: String,
     pub suite: String,
-    pub priority: String,
-    pub case_type: String,
-    pub automation: String,
+    pub priority: Priority,
+    pub case_type: CaseType,
+    pub automation: AutomationStatus,
     pub last_status: String,
     pub page_load_avg: Option<String>,
     pub last_run: Option<String>,
@@ -126,9 +219,9 @@ impl TestCaseResponse {
             title: tc.test_case.title,
             description: tc.test_case.description,
             suite: tc.test_case.suite,
-            priority: tc.test_case.priority,
-            case_type: tc.test_case.case_type,
-            automation: tc.test_case.automation,
+            priority: tc.test_case.priority.to_string(), // Convert enum to string
+            case_type: tc.test_case.case_type.to_string(), // Convert enum to string
+            automation: tc.test_case.automation.to_string(), // Convert enum to string
             last_status: tc.test_case.last_status,
             page_load_avg: tc.test_case.page_load_avg,
             last_run: tc.test_case.last_run,
@@ -152,9 +245,9 @@ pub struct CreateTestCaseRequest {
     pub title: String,
     pub description: Option<String>,
     pub suite: String,
-    pub priority: String,
-    pub case_type: String,
-    pub automation: String,
+    pub priority: Priority,
+    pub case_type: CaseType,
+    pub automation: AutomationStatus,
     pub pre_condition: Option<String>,
     pub post_condition: Option<String>,
     pub tags: Option<Vec<String>>,
@@ -167,9 +260,9 @@ pub struct UpdateTestCaseRequest {
     pub title: Option<String>,
     pub description: Option<String>,
     pub suite: Option<String>,
-    pub priority: Option<String>,
-    pub case_type: Option<String>,
-    pub automation: Option<String>,
+    pub priority: Option<Priority>,
+    pub case_type: Option<CaseType>,
+    pub automation: Option<AutomationStatus>,
     pub pre_condition: Option<String>,
     pub post_condition: Option<String>,
     pub tags: Option<Vec<String>>,
@@ -219,4 +312,79 @@ pub struct BulkDeleteResponse {
     pub success: bool,
     pub deleted_count: i32,
     pub message: String,
+}
+
+// SQLX Type and Decode implementations for enums
+impl sqlx::Type<sqlx::Postgres> for Priority {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("VARCHAR")
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for Priority {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <String as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        s.parse().map_err(Into::into)
+    }
+}
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Priority {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> sqlx::encode::IsNull {
+        let s = self.to_string();
+        <String as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&s, buf)
+    }
+}
+
+impl sqlx::Type<sqlx::Postgres> for CaseType {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("VARCHAR")
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for CaseType {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <String as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        s.parse().map_err(Into::into)
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for CaseType {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> sqlx::encode::IsNull {
+        let s = self.to_string();
+        <String as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&s, buf)
+    }
+}
+
+impl sqlx::Type<sqlx::Postgres> for AutomationStatus {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("VARCHAR")
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for AutomationStatus {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <String as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        s.parse().map_err(Into::into)
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for AutomationStatus {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> sqlx::encode::IsNull {
+        let s = self.to_string();
+        <String as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&s, buf)
+    }
 }

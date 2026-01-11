@@ -10,8 +10,9 @@ use uuid::Uuid;
 use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
 use crate::handlers::test_step::insert_test_steps_for_case;
-use crate::models::test_case::*;
+use crate::models::test_case::{AutomationStatus, BulkDeleteRequest, BulkDeleteResponse, CaseType, CreateTestCaseRequest, ListTestCasesQuery, ListTestCasesResponse, NestedTestStepResponse, Priority, ReorderRequest, TestCase, TestCaseResponse, TestCaseSummary, TestCaseWithSteps, UpdateTestCaseRequest};
 use crate::models::test_step::{TestStep, StepType};
+
 use crate::websocket::WsManager;
 
 #[derive(Clone)]
@@ -130,9 +131,9 @@ async fn list_test_cases(
                 id: tc.case_id,
                 title: tc.title,
                 suite: tc.suite,
-                priority: tc.priority,
-                case_type: tc.case_type,
-                automation: tc.automation,
+                priority: tc.priority.clone(),
+                case_type: tc.case_type.clone(),
+                automation: tc.automation.clone(),
                 last_status: tc.last_status,
                 page_load_avg: tc.page_load_avg,
                 last_run: tc.last_run,
@@ -156,9 +157,9 @@ struct TestCaseSummaryRow {
     case_id: String,
     title: String,
     suite: String,
-    priority: String,
-    case_type: String,
-    automation: String,
+    priority: Priority,
+    case_type: CaseType,
+    automation: AutomationStatus,
     last_status: String,
     page_load_avg: Option<String>,
     last_run: Option<String>,
@@ -405,6 +406,22 @@ async fn get_test_case(
     })))
 }
 
+async fn validate_suite_exists(db: &PgPool, suite_name: &str) -> Result<(), AppError> {
+    let existing_suites: Vec<(String,)> =
+        sqlx::query_as("SELECT DISTINCT suite FROM test_cases")
+            .fetch_all(db)
+            .await?;
+    let suite_exists = existing_suites.iter().any(|(s,)| s == suite_name);
+
+    if !suite_exists {
+        return Err(AppError::BadRequest(format!(
+            "Suite '{}' does not exist. Please provide an existing suite.",
+            suite_name
+        )));
+    }
+    Ok(())
+}
+
 async fn create_test_case(
     State(state): State<TestCaseState>,
     headers: HeaderMap,
@@ -413,6 +430,8 @@ async fn create_test_case(
     let user_id = verify_token(&state, &headers)?;
     let user_uuid =
         Uuid::parse_str(&user_id).map_err(|_| AppError::Internal("Invalid user ID".to_string()))?;
+
+    validate_suite_exists(&state.db, &payload.suite).await?;
 
     let id = Uuid::new_v4();
 
@@ -489,6 +508,10 @@ async fn update_test_case(
     Json(payload): Json<UpdateTestCaseRequest>,
 ) -> Result<Json<TestCaseResponse>, AppError> {
     verify_token(&state, &headers)?;
+
+    if let Some(ref suite_payload) = payload.suite {
+        validate_suite_exists(&state.db, suite_payload).await?;
+    }
 
     // Get current test case to check review_status
     let current: TestCase = sqlx::query_as("SELECT * FROM test_cases WHERE case_id = $1")

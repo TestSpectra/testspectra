@@ -397,6 +397,21 @@ pub async fn insert_test_steps_for_case(
                     // We still need a non-null action_type to satisfy NOT NULL constraint,
                     // but its value is not used because actions come from the shared definition.
                     if let Some(ref shared_id) = step.shared_step_id {
+                        // Check if the shared_step_id exists in the shared_steps table
+                        let shared_step_exists: bool = sqlx::query_scalar(
+                            r#"SELECT EXISTS(SELECT 1 FROM shared_steps WHERE id = $1)"#
+                        )
+                        .bind(shared_id)
+                        .fetch_one(db)
+                        .await?;
+
+                        if !shared_step_exists {
+                            return Err(AppError::BadRequest(format!(
+                                "Shared step with ID '{}' does not exist.",
+                                shared_id
+                            )));
+                        }
+
                         let inserted: TestStep = sqlx::query_as(
                             r#"INSERT INTO test_steps 
                                    (id, test_case_id, step_order, step_type, shared_step_id, action_type)
