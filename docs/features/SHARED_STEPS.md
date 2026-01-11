@@ -1,4 +1,4 @@
-# Shared Steps - Implementation Plan
+# Shared Steps
 
 ## Overview
 
