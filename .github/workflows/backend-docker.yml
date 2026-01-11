@@ -56,14 +56,12 @@ jobs:
           CLEAN="${RAW#v}"
           echo "VERSION=${CLEAN}" >> $GITHUB_OUTPUT
 
-      - name: Sync backend Cargo.toml version and update Cargo.lock
+      - name: Sync backend Cargo.toml version
         shell: bash
         env:
           VERSION: ${{ steps.normalized_version.outputs.VERSION }}
         run: |
           sed -i 's/^version = ".*"/version = "'"$VERSION"'"/' backend/Cargo.toml
-          cd backend
-          cargo update
 
       - name: Commit and push version bump
         id: commit
@@ -74,7 +72,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add backend/Cargo.toml backend/Cargo.lock
+          git add backend/Cargo.toml
 
           if git diff --staged --quiet; then
             echo "No version changes to commit"
