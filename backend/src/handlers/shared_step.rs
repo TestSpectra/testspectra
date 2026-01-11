@@ -11,11 +11,11 @@ use uuid::Uuid;
 use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
 use crate::handlers::test_step::validate_and_prepare_step;
-use crate::models::test_case::TestStepResponse;
 use crate::models::shared_step::{
     CreateSharedStepRequest, SharedStepDetailResponse, SharedStepStepResponse, SharedStepStepRow,
     SharedStepSummary, SharedStepWithCountRow, UpdateSharedStepRequest,
 };
+use crate::models::test_case::TestStepResponse;
 
 #[derive(Clone)]
 pub struct SharedStepState {
@@ -69,16 +69,16 @@ async fn list_shared_steps(
     // Optional search pattern
     let (where_clause, pattern) = if let Some(ref search) = query.search {
         let pat = format!("%{}%", search);
-        (" WHERE s.name ILIKE $1 OR s.description ILIKE $1", Some(pat))
+        (
+            " WHERE s.name ILIKE $1 OR s.description ILIKE $1",
+            Some(pat),
+        )
     } else {
         ("", None)
     };
 
     // Total number of shared steps matching the filter
-    let count_sql = format!(
-        "SELECT COUNT(*) FROM shared_steps s{}",
-        where_clause
-    );
+    let count_sql = format!("SELECT COUNT(*) FROM shared_steps s{}", where_clause);
 
     let total: i64 = if let Some(ref pat) = pattern {
         sqlx::query_scalar::<_, i64>(&count_sql)
@@ -112,7 +112,11 @@ async fn list_shared_steps(
         ORDER BY s.created_at DESC
         LIMIT {limit} OFFSET {offset}
         "#,
-        where_clause = if pattern.is_some() { " WHERE s.name ILIKE $1 OR s.description ILIKE $1" } else { "" },
+        where_clause = if pattern.is_some() {
+            " WHERE s.name ILIKE $1 OR s.description ILIKE $1"
+        } else {
+            ""
+        },
         limit = limit,
         offset = offset,
     );
@@ -186,10 +190,8 @@ async fn get_shared_step(
     .fetch_all(&state.db)
     .await?;
 
-    let step_responses: Vec<SharedStepStepResponse> = steps
-        .into_iter()
-        .map(TestStepResponse::from)
-        .collect();
+    let step_responses: Vec<SharedStepStepResponse> =
+        steps.into_iter().map(TestStepResponse::from).collect();
 
     let detail = SharedStepDetailResponse {
         id: row.id.to_string(),
@@ -245,7 +247,8 @@ async fn create_shared_step(
     .await?;
 
     for (index, step) in payload.steps.iter().enumerate() {
-        let (action_params, assertions) = validate_and_prepare_step(step)?;
+        let step_identifier = (index + 1).to_string(); // Use 1-based index for identifier
+        let (action_params, assertions) = validate_and_prepare_step(step, &step_identifier)?;
         sqlx::query(
             r#"
             INSERT INTO test_steps (
@@ -331,7 +334,8 @@ async fn update_shared_step(
             .await?;
 
         for (index, step) in steps.iter().enumerate() {
-            let (action_params, assertions) = validate_and_prepare_step(step)?;
+            let step_identifier = (index + 1).to_string(); // Use 1-based index for identifier
+            let (action_params, assertions) = validate_and_prepare_step(step, &step_identifier)?;
             sqlx::query(
                 r#"
                 INSERT INTO test_steps (

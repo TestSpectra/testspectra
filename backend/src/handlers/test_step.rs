@@ -230,6 +230,7 @@ fn cleanup_action_params(action_type: &str, params: &serde_json::Value) -> serde
 // return cleaned action_params and assertions JSON values to be stored.
 pub(crate) fn validate_and_prepare_step(
     step: &CreateTestStepRequest,
+    step_identifier: &str,
 ) -> Result<(serde_json::Value, serde_json::Value), AppError> {
     // For shared_reference steps, action fields should be None
     if matches!(step.step_type, StepType::SharedReference) {
@@ -237,12 +238,12 @@ pub(crate) fn validate_and_prepare_step(
     }
 
     let action_type = step.action_type.as_ref()
-        .ok_or_else(|| AppError::BadRequest("action_type is required for regular steps".to_string()))?;
+        .ok_or_else(|| AppError::BadRequest(format!("Validation failed at step {}: action_type is required for regular steps", step_identifier)))?;
 
     if !is_valid_action_type(action_type) {
         return Err(AppError::BadRequest(format!(
-            "Invalid action type: {}",
-            action_type
+            "Validation failed at step {}: Invalid action type: {}",
+            step_identifier, action_type
         )));
     }
 
@@ -261,7 +262,7 @@ pub(crate) fn validate_and_prepare_step(
 
     if !assertions_value.is_array() {
         return Err(AppError::BadRequest(
-            "Assertions must be an array".to_string(),
+            format!("Validation failed at step {}: Assertions must be an array", step_identifier)
         ));
     }
 
@@ -269,12 +270,15 @@ pub(crate) fn validate_and_prepare_step(
 
     for item in assertions_value.as_array().unwrap() {
         let assertion: IncomingAssertion = serde_json::from_value(item.clone())
-            .map_err(|_| AppError::BadRequest("Invalid assertion format".to_string()))?;
+            .map_err(|_| AppError::BadRequest(format!("Validation failed at step {}: Invalid assertion format", step_identifier)))?;
+
+        let def = get_assertion_definition(&assertion.assertion_type)
+            .ok_or_else(|| AppError::BadRequest(format!("Validation failed at step {}: Unknown assertion type: {}", step_identifier, assertion.assertion_type)))?;
 
         if !is_valid_assertion_type(&assertion.assertion_type) {
             return Err(AppError::BadRequest(format!(
-                "Invalid assertion type: {}",
-                assertion.assertion_type
+                "Validation failed at step {}: Invalid assertion type: {}",
+                step_identifier, def.label
             )));
         }
 
@@ -283,8 +287,8 @@ pub(crate) fn validate_and_prepare_step(
             .any(|allowed| *allowed == assertion.assertion_type)
         {
             return Err(AppError::BadRequest(format!(
-                "Assertion '{}' is not allowed for action '{}'",
-                assertion.assertion_type, action_type
+                "Validation failed at step {}: Assertion '{}' is not allowed for action '{}'",
+                step_identifier, def.label, action_type
             )));
         }
 
@@ -297,8 +301,8 @@ pub(crate) fn validate_and_prepare_step(
                     .unwrap_or(true)
             {
                 return Err(AppError::BadRequest(format!(
-                    "Assertion '{}' requires a selector",
-                    assertion.assertion_type
+                    "Validation failed at step {}: Assertion '{}' requires a selector",
+                    step_identifier, def.label
                 )));
             }
 
@@ -310,8 +314,8 @@ pub(crate) fn validate_and_prepare_step(
                     .unwrap_or(true)
             {
                 return Err(AppError::BadRequest(format!(
-                    "Assertion '{}' requires an expectedValue",
-                    assertion.assertion_type
+                    "Validation failed at step {}: Assertion '{}' requires an expectedValue",
+                    step_identifier, def.label
                 )));
             }
 
@@ -323,8 +327,8 @@ pub(crate) fn validate_and_prepare_step(
                     .unwrap_or(true)
             {
                 return Err(AppError::BadRequest(format!(
-                    "Assertion '{}' requires an attributeName",
-                    assertion.assertion_type
+                    "Validation failed at step {}: Assertion '{}' requires an attributeName",
+                    step_identifier, def.label
                 )));
             }
         }
@@ -335,13 +339,13 @@ pub(crate) fn validate_and_prepare_step(
         if let Some(key_val) = action_params.get("key").and_then(|v| v.as_str()) {
             if !is_valid_key_option(key_val) {
                 return Err(AppError::BadRequest(format!(
-                    "Invalid key '{}' for pressKey action",
-                    key_val
+                    "Validation failed at step {}: Invalid key '{}' for Press Key action",
+                    step_identifier, key_val
                 )));
             }
         } else {
             return Err(AppError::BadRequest(
-                "pressKey action requires a 'key' parameter".to_string(),
+                format!("Validation failed at step {}: Press Key action requires a 'key' parameter", step_identifier),
             ));
         }
     }
@@ -362,7 +366,14 @@ pub async fn insert_test_steps_for_case(
             match step.step_type {
                 StepType::Regular => {
                     // Regular step - validate and insert
-                    let (action_params, assertions) = validate_and_prepare_step(step)?;
+                    let step_identifier_owned: String;
+                    let step_identifier = if let Some(id) = step.id.as_deref() {
+                        id
+                    } else {
+                        step_identifier_owned = step.step_order.to_string();
+                        &step_identifier_owned
+                    };
+                    let (action_params, assertions) = validate_and_prepare_step(step, step_identifier)?;
 
                     let inserted: TestStep = sqlx::query_as(
                         r#"INSERT INTO test_steps 
