@@ -92,7 +92,9 @@ class SharedStepService {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to create shared step: ${response.statusText}`);
+            const body = await response.json();
+            const errorMessage = body.error || 'Failed to create shared step';
+            throw new Error(errorMessage);
         }
 
         return response.json();
@@ -106,7 +108,9 @@ class SharedStepService {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to update shared step: ${response.statusText}`);
+            const body = await response.json();
+            const errorMessage = body.error || 'Failed to update shared step';
+            throw new Error(errorMessage);
         }
 
         return response.json();
@@ -131,7 +135,9 @@ class SharedStepService {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch shared steps metadata: ${response.statusText}`);
+            const body = await response.json();
+            const errorMessage = body.error || 'Failed to fetch shared steps metadata';
+            throw new Error(errorMessage);
         }
 
         const data = await response.json();
