@@ -6,15 +6,125 @@
 import { authService } from "./auth-service";
 import { getApiUrl } from "../lib/config";
 
-export interface TestStep {
+export type ActionType =
+  | "navigate"
+  | "click"
+  | "type"
+  | "clear"
+  | "select"
+  | "scroll"
+  | "swipe"
+  | "wait"
+  | "waitForElement"
+  | "pressKey"
+  | "longPress"
+  | "doubleClick"
+  | "hover"
+  | "dragDrop"
+  | "back"
+  | "refresh";
+
+export type AssertionType =
+  | "elementDisplayed"
+  | "elementNotDisplayed"
+  | "elementExists"
+  | "elementClickable"
+  | "elementInViewport"
+  | "textEquals"
+  | "textContains"
+  | "valueEquals"
+  | "valueContains"
+  | "urlEquals"
+  | "urlContains"
+  | "titleEquals"
+  | "titleContains"
+  | "hasClass"
+  | "hasAttribute"
+  | "isEnabled"
+  | "isDisabled"
+  | "isSelected";
+
+export interface ActionParams {
+  selector?: string;
+  value?: string;
+  text?: string;
+  url?: string;
+  timeout?: string;
+  direction?: "up" | "down" | "left" | "right";
+  targetSelector?: string;
+  key?: string;
+  duration?: string;
+}
+
+export interface Assertion {
+  id?: string;
+  assertionType: AssertionType;
+  selector?: string;
+  expectedValue?: string;
+  attributeName?: string;
+  attributeValue?: string;
+}
+
+interface BaseTestStep {
+  id: string;
   stepOrder: number;
-  actionType: string;
-  actionParams: any;
-  assertions: any[];
+}
+
+export interface RegularTestStep extends BaseTestStep {
+  stepType: "regular";
+  actionType: ActionType;
+  actionParams: ActionParams;
+  assertions: Assertion[];
   customExpectedResult?: string | null;
 }
 
-export type ReviewStatus = "pending" | "pending_revision" | "approved" | "needs_revision";
+export interface SharedTestStep extends BaseTestStep {
+  stepType: "shared_reference";
+  sharedStepId: string;
+  sharedStepName: string;
+  sharedStepDescription?: string;
+  steps: TestStep[]; // Currently Shared step only support regular steps in BE implementation
+}
+
+export type TestStep = SharedTestStep | RegularTestStep;
+
+// Metadata for test steps (actions/assertions/options) provided by backend
+export interface ActionDefinition {
+  value: string;
+  label: string;
+  platform: string; // "both" | "web" | "mobile"
+  icon?: string;
+}
+
+export interface AssertionDefinition {
+  value: string;
+  label: string;
+  needsSelector: boolean;
+  needsValue: boolean;
+  needsAttribute: boolean;
+}
+
+export interface KeyOption {
+  value: string;
+  label: string;
+}
+
+export interface TestStepMetadataResponse {
+  actions: ActionDefinition[];
+  assertions: AssertionDefinition[];
+  assertionsByAction: Record<string, string[]>;
+  keyOptions: KeyOption[];
+  sharedSteps: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
+export type ReviewStatus =
+  | "pending"
+  | "pending_revision"
+  | "approved"
+  | "needs_revision";
 
 export interface TestCase {
   id: string;
@@ -74,6 +184,17 @@ export interface ListTestCasesParams {
   pageSize?: number;
 }
 
+/**
+ * The teststep id for Edit action currently not needed to send in payload since BE will remove the old steps and creates new
+ */
+export type TestStepPayload =
+  | (Omit<RegularTestStep, "id"> & { id?: string })
+  | {
+      stepType: "shared_reference";
+      stepOrder: number;
+      sharedStepId: string;
+    };
+
 export interface CreateTestCasePayload {
   title: string;
   description?: string;
@@ -84,20 +205,10 @@ export interface CreateTestCasePayload {
   preCondition?: string;
   postCondition?: string;
   tags?: string[];
-  steps?: TestStep[];
+  steps?: TestStepPayload[];
 }
 
-export interface UpdateTestCasePayload {
-  title?: string;
-  description?: string;
-  suite?: string;
-  priority?: string;
-  caseType?: string;
-  automation?: string;
-  preCondition?: string;
-  postCondition?: string;
-  tags?: string[];
-}
+export interface UpdateTestCasePayload extends CreateTestCasePayload {}
 
 export interface ReorderPayload {
   movedIds: string[];
@@ -163,6 +274,27 @@ class TestCaseService {
         .json()
         .catch(() => ({ error: "Failed to fetch test cases" }));
       throw new Error(error.error || "Failed to fetch test cases");
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Fetch canonical metadata for test steps (actions, assertions, key options).
+   * This allows the frontend to avoid hardcoding these values.
+   */
+  async getTestStepMetadata(): Promise<TestStepMetadataResponse> {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/test-steps/metadata`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Failed to fetch test step metadata" }));
+      throw new Error(error.error || "Failed to fetch test step metadata");
     }
 
     return response.json();
@@ -238,10 +370,10 @@ class TestCaseService {
    */
   async updateTestSteps(
     testCaseId: string,
-    steps: TestStep[]
+    steps: TestStepPayload[]
   ): Promise<TestCase> {
     const apiUrl = await getApiUrl();
-    const response = await fetch(`${apiUrl}/test-cases/${testCaseId}/steps`, {
+    const response = await fetch(`${apiUrl}/test-steps/${testCaseId}`, {
       method: "PUT",
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ steps }),

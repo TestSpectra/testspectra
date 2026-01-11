@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use serde_json::Value as JsonValue;
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -109,44 +109,3 @@ pub struct DefinitionsResponse {
     pub actions: Vec<ActionDefinitionResponse>,
     pub assertions: Vec<AssertionDefinitionResponse>,
 }
-
-// ================================================================
-// IMPLEMENTATION NOTES: User Defined Actions (Future Feature)
-// ================================================================
-//
-// User Defined Actions allow users to create reusable composite actions
-// that consist of multiple steps. This is useful for common workflows.
-//
-// Database table `user_defined_actions` is already created with schema:
-// - id: UUID primary key
-// - name: Display name for the action
-// - description: Optional description
-// - steps: JSONB array of step objects (same structure as test_steps)
-// - tags: Array of tags for categorization
-// - is_shared: Whether this is shared with team or private
-// - created_by: User who created it
-//
-// To implement:
-// 1. Create UserDefinedAction model and response types
-// 2. Create CRUD handlers for user defined actions
-// 3. Update frontend TestCaseForm to:
-//    - Show user defined actions in action type dropdown
-//    - When selected, expand to show the nested steps (read-only or editable)
-//    - Allow overriding parameters for each nested step
-// 4. Update test runner to expand user defined actions into individual steps
-//
-// Example user defined action structure:
-// {
-//   "name": "Login Flow",
-//   "steps": [
-//     {"action_type": "navigate", "action_params": {"url": "{{baseUrl}}/login"}},
-//     {"action_type": "type", "action_params": {"selector": "#email", "text": "{{email}}"}},
-//     {"action_type": "type", "action_params": {"selector": "#password", "text": "{{password}}"}},
-//     {"action_type": "click", "action_params": {"selector": "#submit"}},
-//     {"action_type": "waitForElement", "action_params": {"selector": "#dashboard"}}
-//   ],
-//   "parameters": ["baseUrl", "email", "password"]
-// }
-//
-// The {{variable}} syntax allows parameterization when using the action.
-// ================================================================

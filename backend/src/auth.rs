@@ -57,8 +57,8 @@ impl JwtService {
 }
 
 // Extractor for authenticated requests (optional - can be used with middleware layer)
-#[derive(Debug, Clone)]
-pub struct AuthUser(pub Claims);
+// #[derive(Debug, Clone)]
+// pub struct AuthUser(pub Claims);
 
 // Note: For now, we use manual token extraction in handlers
 // To use AuthUser extractor, would need to set up middleware layer

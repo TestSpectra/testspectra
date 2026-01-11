@@ -26,7 +26,7 @@ Complete documentation for TestSpectra development, deployment, and releases.
 - [Windows MSI Limitation](WINDOWS_MSI_LIMITATION.md) - MSI installer constraints
 
 ### Development
-- [User Defined Actions](USER_DEFINED_ACTIONS.md) - Custom action types
+- [Shared Steps](features/SHARED_STEPS.md) - Reusable test steps
 - [Local Workflow Testing](LOCAL_WORKFLOW_TESTING.md) - Test GitHub Actions locally
 
 ## 🚀 Quick Links

@@ -56,6 +56,7 @@ impl WsManager {
     }
 
     /// Get the number of active connections
+    #[allow(dead_code)]
     pub fn connection_count(&self) -> usize {
         self.connections.len()
     }

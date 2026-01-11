@@ -21,6 +21,7 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, FromRow, Serialize)]
+#[allow(dead_code)]
 pub struct UserSpecialPermission {
     pub id: Uuid,
     pub user_id: Uuid,
