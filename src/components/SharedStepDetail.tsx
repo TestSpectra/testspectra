@@ -30,9 +30,10 @@ export function SharedStepTitle({ name, description }: Partial<SharedStep>) {
       </div>
 
       {description && (
-        <p className="text-xs text-slate-400">
-          {description}
-        </p>
+        <div
+          className="text-xs text-slate-400"
+          dangerouslySetInnerHTML={{ __html: description }}
+        />
       )}
     </div>
   );

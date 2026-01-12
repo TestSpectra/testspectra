@@ -493,9 +493,10 @@ function AddSharedStepDialog({
                   {selectedSharedStep.name}
                 </h4>
                 {selectedSharedStep.description && (
-                  <p className="text-xs text-slate-400">
-                    {selectedSharedStep.description}
-                  </p>
+                  <div
+                    className="text-xs text-slate-400"
+                    dangerouslySetInnerHTML={{ __html: selectedSharedStep.description }}
+                  />
                 )}
               </div>
 
