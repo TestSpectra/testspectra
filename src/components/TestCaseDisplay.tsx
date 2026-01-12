@@ -32,9 +32,10 @@ export function TestCaseDisplay({ testCase }: TestCaseDisplayProps) {
             <AlertCircle className="w-5 h-5 text-blue-400" />
             Description
           </h2>
-          <p className="text-slate-300 leading-relaxed">
-            {testCase.description}
-          </p>
+          <div
+            className="text-slate-300 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: testCase.description }}
+          />
         </div>
       )}
 

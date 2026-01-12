@@ -213,9 +213,10 @@ export function SharedStepsList({
                       {sharedStep.name}
                     </h3>
                     {sharedStep.description && (
-                      <p className="text-slate-400 text-sm line-clamp-2">
-                        {sharedStep.description}
-                      </p>
+                      <div
+                        className="text-slate-400 text-sm line-clamp-2"
+                        dangerouslySetInnerHTML={{ __html: sharedStep.description }}
+                      />
                     )}
                   </div>
                 </div>
