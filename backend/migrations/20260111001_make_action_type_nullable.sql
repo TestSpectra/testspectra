@@ -1,0 +1,1 @@
+ALTER TABLE test_steps ALTER COLUMN action_type DROP NOT NULL;

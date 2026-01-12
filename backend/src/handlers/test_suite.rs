@@ -106,17 +106,20 @@ async fn list_test_suites(
     .await?;
 
     let response = ListTestSuitesResponse {
-        suites: suites.into_iter().map(|s| TestSuiteResponse {
-            id: s.id.to_string(),
-            name: s.name,
-            description: s.description,
-            created_at: s.created_at.to_rfc3339(),
-            created_by: s.created_by_name.unwrap_or_else(|| "Unknown".to_string()),
-            test_case_count: s.test_case_count.unwrap_or(0),
-            automated_count: s.automated_count.unwrap_or(0),
-            last_run: s.last_run.unwrap_or_else(|| "Belum dijalankan".to_string()),
-            pass_rate: s.pass_rate.unwrap_or(0.0),
-        }).collect(),
+        suites: suites
+            .into_iter()
+            .map(|s| TestSuiteResponse {
+                id: s.id.to_string(),
+                name: s.name,
+                description: s.description,
+                created_at: s.created_at.to_rfc3339(),
+                created_by: s.created_by_name.unwrap_or_else(|| "Unknown".to_string()),
+                test_case_count: s.test_case_count.unwrap_or(0),
+                automated_count: s.automated_count.unwrap_or(0),
+                last_run: s.last_run.unwrap_or_else(|| "Belum dijalankan".to_string()),
+                pass_rate: s.pass_rate.unwrap_or(0.0),
+            })
+            .collect(),
     };
 
     Ok(Json(response))
@@ -132,15 +135,17 @@ async fn create_test_suite(
         .map_err(|_| AppError::BadRequest("Invalid user ID".to_string()))?;
 
     // Check if suite already exists
-    let existing: Option<(Uuid,)> = sqlx::query_as(
-        "SELECT id FROM test_suites WHERE LOWER(name) = LOWER($1)"
-    )
-    .bind(&req.name)
-    .fetch_optional(&state.db)
-    .await?;
+    let existing: Option<(Uuid,)> =
+        sqlx::query_as("SELECT id FROM test_suites WHERE LOWER(name) = LOWER($1)")
+            .bind(&req.name)
+            .fetch_optional(&state.db)
+            .await?;
 
     if existing.is_some() {
-        return Err(AppError::BadRequest(format!("Test suite '{}' already exists", req.name)));
+        return Err(AppError::BadRequest(format!(
+            "Test suite '{}' already exists",
+            req.name
+        )));
     }
 
     // Get user name for response
@@ -162,7 +167,7 @@ async fn create_test_suite(
             0::bigint as test_case_count,
             0::bigint as automated_count,
             NULL::text as last_run,
-            0::float as pass_rate"#
+            0::float as pass_rate"#,
     )
     .bind(&req.name)
     .bind(&req.description)
@@ -176,7 +181,9 @@ async fn create_test_suite(
         name: suite.name,
         description: suite.description,
         created_at: suite.created_at.to_rfc3339(),
-        created_by: suite.created_by_name.unwrap_or_else(|| "Unknown".to_string()),
+        created_by: suite
+            .created_by_name
+            .unwrap_or_else(|| "Unknown".to_string()),
         test_case_count: 0,
         automated_count: 0,
         last_run: "Belum dijalankan".to_string(),
@@ -193,16 +200,18 @@ async fn update_test_suite(
     verify_token(&state, &headers)?;
 
     // Check if another suite with same name exists (excluding current)
-    let existing: Option<(Uuid,)> = sqlx::query_as(
-        "SELECT id FROM test_suites WHERE LOWER(name) = LOWER($1) AND id != $2"
-    )
-    .bind(&req.name)
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?;
+    let existing: Option<(Uuid,)> =
+        sqlx::query_as("SELECT id FROM test_suites WHERE LOWER(name) = LOWER($1) AND id != $2")
+            .bind(&req.name)
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
 
     if existing.is_some() {
-        return Err(AppError::BadRequest(format!("Test suite '{}' already exists", req.name)));
+        return Err(AppError::BadRequest(format!(
+            "Test suite '{}' already exists",
+            req.name
+        )));
     }
 
     // Get current suite to get old name
@@ -211,7 +220,7 @@ async fn update_test_suite(
         .fetch_optional(&state.db)
         .await?
         .ok_or_else(|| AppError::NotFound("Test suite not found".to_string()))?;
-    
+
     let old_name = old_suite.0;
 
     // Update suite
@@ -261,10 +270,14 @@ async fn update_test_suite(
         name: suite_row.name,
         description: suite_row.description,
         created_at: suite_row.created_at.to_rfc3339(),
-        created_by: suite_row.created_by_name.unwrap_or_else(|| "Unknown".to_string()),
+        created_by: suite_row
+            .created_by_name
+            .unwrap_or_else(|| "Unknown".to_string()),
         test_case_count: suite_row.test_case_count.unwrap_or(0),
         automated_count: suite_row.automated_count.unwrap_or(0),
-        last_run: suite_row.last_run.unwrap_or_else(|| "Belum dijalankan".to_string()),
+        last_run: suite_row
+            .last_run
+            .unwrap_or_else(|| "Belum dijalankan".to_string()),
         pass_rate: suite_row.pass_rate.unwrap_or(0.0),
     }))
 }
@@ -279,36 +292,36 @@ async fn delete_test_suite(
     // Get suite name first to update test cases or we can cascade delete if we want?
     // Usually we don't want to delete test cases, maybe just set suite to 'Unassigned' or something?
     // Or strictly delete suite only if empty?
-    // The frontend usually implies deleting the suite entity. 
+    // The frontend usually implies deleting the suite entity.
     // For now, let's just delete the suite. The test cases will have a 'suite' string that no longer matches a suite in test_suites table.
     // This is fine since there is no foreign key constraint on test_cases.suite pointing to test_suites.id/name (it's just a string).
     // But ideally we should update them to 'Unassigned' or keep them as is (orphan suite name).
     // Let's keep them as is for now, or update them to empty string/null?
     // If we delete a suite, the test cases conceptually shouldn't belong to it anymore.
-    
+
     // Let's check what `test_cases` table definition says: `suite VARCHAR(255) NOT NULL`.
     // So we can't set it to NULL. Maybe empty string? Or "Unassigned"?
-    
+
     // I'll implement a transaction: Delete suite, and update associated test cases to 'Unassigned'.
-    
+
     let suite = sqlx::query_as::<_, (String,)>("SELECT name FROM test_suites WHERE id = $1")
         .bind(id)
         .fetch_optional(&state.db)
         .await?;
-        
+
     if let Some((name,)) = suite {
         let mut tx = state.db.begin().await?;
-        
+
         sqlx::query("DELETE FROM test_suites WHERE id = $1")
             .bind(id)
             .execute(&mut *tx)
             .await?;
-            
+
         sqlx::query("DELETE FROM test_cases WHERE suite = $1")
             .bind(name)
             .execute(&mut *tx)
             .await?;
-            
+
         tx.commit().await?;
     } else {
         return Err(AppError::NotFound("Test suite not found".to_string()));
@@ -321,6 +334,8 @@ fn verify_token(state: &TestSuiteState, headers: &HeaderMap) -> Result<String, A
     let token = extract_bearer_token(headers.get("authorization").and_then(|v| v.to_str().ok()))
         .ok_or_else(|| AppError::Unauthorized("Missing token".to_string()))?;
 
-    state.jwt.get_user_id_from_token(&token)
+    state
+        .jwt
+        .get_user_id_from_token(&token)
         .map_err(|_| AppError::Unauthorized("Invalid token".to_string()))
 }

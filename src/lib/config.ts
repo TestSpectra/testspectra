@@ -18,6 +18,7 @@ export async function getApiUrl(): Promise<string> {
     return apiUrlCache;
   } catch (error) {
     console.error("Failed to get API URL from Tauri:", error);
+    console.log("Falling back to VITE_API_URL:", import.meta.env.VITE_API_URL);
     return import.meta.env.VITE_API_URL;
   }
 }

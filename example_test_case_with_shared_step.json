@@ -1,0 +1,41 @@
+{
+    "title": "Test Case with Shared Step",
+    "description": "Example test case using regular and shared steps",
+    "suite": "Authentication",
+    "priority": "high",
+    "caseType": "functional",
+    "automation": "automated",
+    "preCondition": "User exists in system",
+    "postCondition": "User is logged in",
+    "tags": [
+        "login",
+        "authentication"
+    ],
+    "steps": [
+        {
+            "stepOrder": 1,
+            "actionType": "type",
+            "actionParams": {
+                "selector": "#email",
+                "value": "user@example.com"
+            },
+            "assertions": [
+                {
+                    "assertionType": "valueEquals",
+                    "selector": "#email",
+                    "expectedValue": "user@example.com"
+                }
+            ],
+            "customExpectedResult": "Login page should load successfully"
+        },
+        {
+            "stepOrder": 2,
+            "stepType": "shared_reference",
+            "sharedStepId": "123bb3be-3155-4584-a569-06b9504354a9",
+            "actionType": "",
+            "actionParams": null,
+            "assertions": null,
+            "customExpectedResult": null
+        }
+    ]
+}

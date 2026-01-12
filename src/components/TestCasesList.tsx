@@ -684,7 +684,7 @@ export function TestCasesList({
   ].sort();
 
   return (
-    <div className="p-8 bg-slate-950">
+    <div className="p-8">
       <div
         ref={dragPreviewRef}
         className="fixed z-50 pointer-events-none opacity-80"

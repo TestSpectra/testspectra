@@ -124,17 +124,17 @@ async fn list_users(
     let mut sql = String::from("SELECT * FROM users WHERE 1=1");
     let mut count_sql = String::from("SELECT COUNT(*) FROM users WHERE 1=1");
 
-    if let Some(ref search) = query.search {
+    if let Some(ref _search) = query.search {
         let clause = " AND (name ILIKE $1 OR email ILIKE $1)";
         sql.push_str(clause);
         count_sql.push_str(clause);
     }
-    if let Some(ref role) = query.role {
+    if let Some(ref _role) = query.role {
         let clause = if query.search.is_some() { " AND role = $2" } else { " AND role = $1" };
         sql.push_str(clause);
         count_sql.push_str(clause);
     }
-    if let Some(ref status) = query.status {
+    if let Some(ref _status) = query.status {
         let idx = 1 + query.search.is_some() as i32 + query.role.is_some() as i32;
         let clause = format!(" AND status = ${}", idx);
         sql.push_str(&clause);

@@ -6,6 +6,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct TestCaseReview {
     pub id: Uuid,
+    #[allow(dead_code)]
     pub test_case_id: Uuid,
     pub reviewer_id: Uuid,
     pub action: String,
@@ -35,6 +36,7 @@ pub struct CreateReviewRequest {
 pub struct ReviewWithReviewer {
     // Review fields
     pub id: Uuid,
+    #[allow(dead_code)]
     pub test_case_id: Uuid,
     pub reviewer_id: Uuid,
     pub action: String,

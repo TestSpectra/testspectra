@@ -946,7 +946,6 @@ interface TestCaseSummary {
 interface TestCaseDetail extends TestCaseSummary {
   description?: string;
   steps?: TestStep[];
-  expectedOutcome?: string;
   tags?: string[];
   createdBy?: string;
   createdAt?: string;
