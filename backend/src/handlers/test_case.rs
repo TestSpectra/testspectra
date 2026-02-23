@@ -10,8 +10,12 @@ use uuid::Uuid;
 use crate::auth::{extract_bearer_token, JwtService};
 use crate::error::AppError;
 use crate::handlers::test_step::insert_test_steps_for_case;
-use crate::models::test_case::{AutomationStatus, BulkDeleteRequest, BulkDeleteResponse, CaseType, CreateTestCaseRequest, ListTestCasesQuery, ListTestCasesResponse, NestedTestStepResponse, Priority, ReorderRequest, TestCase, TestCaseResponse, TestCaseSummary, TestCaseWithSteps, UpdateTestCaseRequest};
-use crate::models::test_step::{TestStep, StepType};
+use crate::models::test_case::{
+    AutomationStatus, BulkDeleteRequest, BulkDeleteResponse, CaseType, CreateTestCaseRequest,
+    ListTestCasesQuery, ListTestCasesResponse, NestedTestStepResponse, Priority, ReorderRequest,
+    TestCase, TestCaseResponse, TestCaseSummary, TestCaseWithSteps, UpdateTestCaseRequest,
+};
+use crate::models::test_step::{StepType, TestStep};
 
 use crate::websocket::WsManager;
 
@@ -325,12 +329,11 @@ async fn get_test_case(
                 // Shared step reference - fetch definition steps and create nested structure
                 if let Some(ref shared_id) = step.shared_step_id {
                     // Fetch shared step metadata
-                    let shared_step: Option<(String, Option<String>)> = sqlx::query_as(
-                        "SELECT name, description FROM shared_steps WHERE id = $1"
-                    )
-                    .bind(shared_id)
-                    .fetch_optional(&state.db)
-                    .await?;
+                    let shared_step: Option<(String, Option<String>)> =
+                        sqlx::query_as("SELECT name, description FROM shared_steps WHERE id = $1")
+                            .bind(shared_id)
+                            .fetch_optional(&state.db)
+                            .await?;
 
                     // Fetch definition steps
                     let shared_steps: Vec<TestStep> = sqlx::query_as(
@@ -365,11 +368,12 @@ async fn get_test_case(
                         })
                         .collect();
 
-                    let (shared_step_name, shared_step_description) = if let Some((name, description)) = shared_step {
-                        (Some(name), description)
-                    } else {
-                        (None, None)
-                    };
+                    let (shared_step_name, shared_step_description) =
+                        if let Some((name, description)) = shared_step {
+                            (Some(name), description)
+                        } else {
+                            (None, None)
+                        };
 
                     // Add shared step reference with nested steps
                     nested_steps.push(NestedTestStepResponse {
@@ -399,21 +403,22 @@ async fn get_test_case(
         .fetch_optional(&state.db)
         .await?;
 
-    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
-        test_case,
-        steps: nested_steps,
-        created_by_name: creator_name.map(|(n,)| n),
-    })))
+    Ok(Json(TestCaseResponse::from_with_nested_steps(
+        TestCaseWithSteps {
+            test_case,
+            steps: nested_steps,
+            created_by_name: creator_name.map(|(n,)| n),
+        },
+    )))
 }
 
 async fn validate_suite_exists(db: &PgPool, suite_name: &str) -> Result<(), AppError> {
-    let existing_suites: Vec<(String,)> =
-        sqlx::query_as("SELECT DISTINCT suite FROM test_cases")
-            .fetch_all(db)
-            .await?;
-    let suite_exists = existing_suites.iter().any(|(s,)| s == suite_name);
+    let suite: Option<(String,)> = sqlx::query_as("SELECT name FROM test_suites WHERE name = $1")
+        .bind(suite_name)
+        .fetch_optional(db)
+        .await?;
 
-    if !suite_exists {
+    if suite.is_none() {
         return Err(AppError::BadRequest(format!(
             "Suite '{}' does not exist. Please provide an existing suite.",
             suite_name
@@ -494,11 +499,13 @@ async fn create_test_case(
         }
     }
 
-    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
-        test_case,
-        steps: Vec::new(), // Empty nested steps for create response
-        created_by_name: creator_name.map(|(n,)| n),
-    })))
+    Ok(Json(TestCaseResponse::from_with_nested_steps(
+        TestCaseWithSteps {
+            test_case,
+            steps: Vec::new(), // Empty nested steps for create response
+            created_by_name: creator_name.map(|(n,)| n),
+        },
+    )))
 }
 
 async fn update_test_case(
@@ -576,11 +583,13 @@ async fn update_test_case(
         .fetch_optional(&state.db)
         .await?;
 
-    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
-        test_case,
-        steps: Vec::new(), // Empty nested steps for update response
-        created_by_name: creator_name.map(|(n,)| n),
-    })))
+    Ok(Json(TestCaseResponse::from_with_nested_steps(
+        TestCaseWithSteps {
+            test_case,
+            steps: Vec::new(), // Empty nested steps for update response
+            created_by_name: creator_name.map(|(n,)| n),
+        },
+    )))
 }
 
 async fn delete_test_case(
@@ -753,11 +762,13 @@ async fn duplicate_test_case(
         .fetch_optional(&state.db)
         .await?;
 
-    Ok(Json(TestCaseResponse::from_with_nested_steps(TestCaseWithSteps {
-        test_case: new_test_case,
-        steps: Vec::new(), // Empty nested steps for duplicate response
-        created_by_name: creator_name.map(|(n,)| n),
-    })))
+    Ok(Json(TestCaseResponse::from_with_nested_steps(
+        TestCaseWithSteps {
+            test_case: new_test_case,
+            steps: Vec::new(), // Empty nested steps for duplicate response
+            created_by_name: creator_name.map(|(n,)| n),
+        },
+    )))
 }
 
 async fn reorder_test_case(
