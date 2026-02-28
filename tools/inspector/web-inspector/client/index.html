@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inspector</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <div class="header-left">
+          <span class="material-icons-outlined">bug_report</span>
+          <h1>Inspector</h1>
+        </div>
+        <div class="header-center">
+          <input
+            type="text"
+            id="currentUrl"
+            class="url-display"
+            readonly
+            placeholder="No URL loaded"
+          />
+        </div>
+        <div class="header-right">
+          <span class="status" id="status">Ready</span>
+          <div class="toggle-wrapper">
+            <label for="recordMode">Record Mode</label>
+            <button
+              class="toggle"
+              id="recordMode"
+              role="switch"
+              aria-checked="false"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+          <div class="toggle-wrapper">
+            <label for="inspectMode">Inspect Mode</label>
+            <button
+              class="toggle"
+              id="inspectMode"
+              role="switch"
+              aria-checked="true"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="main-layout">
+        <aside class="sidebar">
+          <div class="sidebar-content">
+            <div class="element-panel">
+              <div class="panel-header">
+                <h3>Selected Element</h3>
+              </div>
+              <div class="element-info" id="elementInfo">
+                <div class="info-row">
+                  <span class="info-label">Tag:</span>
+                  <span class="info-value" id="infoTag">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">ID:</span>
+                  <span class="info-value" id="infoId">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Test ID:</span>
+                  <span class="info-value" id="infoTestId">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Class:</span>
+                  <span class="info-value" id="infoClass">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Text:</span>
+                  <span class="info-value" id="infoText">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Type:</span>
+                  <span class="info-value" id="infoType">-</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Name:</span>
+                  <span class="info-value" id="infoName">-</span>
+                </div>
+                <div class="selector-group">
+                  <label>WebDriverIO Selector</label>
+                  <div class="selector-display">
+                    <code id="selectorOutput">Click an element...</code>
+                    <button class="copy-btn" id="copyBtn" title="Copy">
+                      <span class="material-icons-outlined">content_copy</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="element-panel hidden" id="recordedScriptPanel">
+              <div class="panel-header">
+                <h3>Recorded Script</h3>
+                <button class="header-copy-btn" id="copyScriptBtn" title="Copy Script">
+                  <span class="material-icons-outlined">content_copy</span>
+                </button>
+              </div>
+              <div class="script-display">
+                <pre id="recordedCode"></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="code-section">
+            <div class="code-header">
+              <label>Command History</label>
+            </div>
+            <pre id="codeLog"></pre>
+          </div>
+        </aside>
+
+        <div class="resize-handle"></div>
+
+        <main class="main-content">
+          <div class="iframe-wrapper" id="iframeWrapper">
+            <div class="empty-state" id="emptyState">
+              <span class="material-icons-outlined empty-icon">link_off</span>
+              <h2>No URL Loaded</h2>
+              <p>
+                Please enter a target URL and click 'Load' to begin inspection.
+              </p>
+            </div>
+            <iframe id="targetFrame" src="about:blank"></iframe>
+          </div>
+        </main>
+      </div>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
