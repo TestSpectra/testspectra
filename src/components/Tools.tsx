@@ -2,10 +2,17 @@ import { useState } from 'react';
 import { Globe, Smartphone, Play, Square, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { invoke } from '@tauri-apps/api/core';
 
 interface ToolStatus {
   running: boolean;
   loading: boolean;
+  url?: string;
+  port?: number;
+}
+
+interface InspectorStatus {
+  running: boolean;
   url?: string;
   port?: number;
 }
@@ -24,22 +31,48 @@ export function Tools() {
   const handleStartWebInspector = async () => {
     setWebInspector({ ...webInspector, loading: true });
     
-    // Simulate starting server
-    setTimeout(() => {
+    try {
+      const status: InspectorStatus = await invoke('start_web_inspector');
       setWebInspector({
-        running: true,
+        running: status.running,
         loading: false,
-        url: 'http://localhost:9222',
-        port: 9222,
+        url: status.url,
+        port: status.port,
       });
-    }, 2000);
+    } catch (error) {
+      console.error('Failed to start web inspector:', error);
+      setWebInspector({ ...webInspector, loading: false });
+    }
   };
 
-  const handleStopWebInspector = () => {
-    setWebInspector({
-      running: false,
-      loading: false,
-    });
+  const handleStopWebInspector = async () => {
+    try {
+      const status: InspectorStatus = await invoke('stop_web_inspector');
+      setWebInspector({
+        running: status.running,
+        loading: false,
+        url: status.url,
+        port: status.port,
+      });
+    } catch (error) {
+      console.error('Failed to stop web inspector:', error);
+    }
+  };
+
+  const handleOpenInspectorWindow = async () => {
+    try {
+      await invoke('open_inspector_window');
+    } catch (error) {
+      console.error('Failed to open inspector window:', error);
+      // Fallback to opening in browser
+      if (webInspector.url) {
+        window.open(webInspector.url, '_blank');
+      }
+    }
+  };
+
+  const handleOpenInspector = (url: string) => {
+    window.open(url, '_blank');
   };
 
   const handleStartAppiumInspector = async () => {
@@ -61,10 +94,6 @@ export function Tools() {
       running: false,
       loading: false,
     });
-  };
-
-  const handleOpenInspector = (url: string) => {
-    window.open(url, '_blank');
   };
 
   return (
@@ -144,7 +173,7 @@ export function Tools() {
             {webInspector.running && !webInspector.loading && (
               <>
                 <Button 
-                  onClick={() => handleOpenInspector(webInspector.url!)}
+                  onClick={handleOpenInspectorWindow}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
