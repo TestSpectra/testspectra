@@ -135,9 +135,16 @@ async fn start_web_inspector(
 
 #[tauri::command]
 async fn stop_web_inspector(
+    app: AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<InspectorStatus, String> {
     log::info!("[inspector] Stopping web inspector server...");
+
+    // Close inspector window if it exists
+    if let Some(window) = app.get_webview_window("inspector") {
+        log::info!("[inspector] Closing inspector window");
+        let _ = window.close();
+    }
 
     // Stop server
     {
