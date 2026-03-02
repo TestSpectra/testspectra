@@ -5,5 +5,6 @@ pub mod review;
 pub mod notification;
 pub mod test_step;
 pub mod shared_step;
+pub mod project_config;
 pub use action_definition::*;
 

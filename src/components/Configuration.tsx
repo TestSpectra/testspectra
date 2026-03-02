@@ -1,33 +1,16 @@
-import { useState } from 'react';
-import { Save, Plus, Trash2, Globe, Zap, Monitor, Smartphone, TabletSmartphone } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, Plus, Trash2, Globe, Zap, Monitor, Smartphone, TabletSmartphone, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-
-interface Browser {
-  id: string;
-  type: string;
-  mobileEmulation: boolean;
-  deviceName?: string;
-  width?: string;
-  height?: string;
-}
-
-interface LoadStage {
-  id: string;
-  duration: string;
-  targetVUs: string;
-}
-
-interface SuccessThreshold {
-  id: string;
-  metricType: string;
-  maxValue: string;
-}
+import { projectConfigService, Browser, LoadStage, SuccessThreshold, ConfigData } from '../services/project-config-service';
+import { toast } from 'sonner';
 
 export function Configuration() {
   const [activeTab, setActiveTab] = useState('ui-automation');
   const [uiPlatformTab, setUiPlatformTab] = useState('web');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Web Automation Config (web-config.json)
   const [webConfig, setWebConfig] = useState({
@@ -89,6 +72,31 @@ export function Configuration() {
     { id: '1', metricType: 'p95_response_time', maxValue: '300' },
     { id: '2', metricType: 'error_rate', maxValue: '5' },
   ]);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        setLoading(true);
+        const config = await projectConfigService.getConfig('default');
+        const data = config.config_data;
+
+        if (data.webConfig) setWebConfig(data.webConfig);
+        if (data.browsers) setBrowsers(data.browsers);
+        if (data.androidConfig) setAndroidConfig(data.androidConfig);
+        if (data.iosConfig) setIosConfig(data.iosConfig);
+        if (data.loadConfig) setLoadConfig(data.loadConfig);
+        if (data.loadStages) setLoadStages(data.loadStages);
+        if (data.thresholds) setThresholds(data.thresholds);
+      } catch (error) {
+        console.error('Error fetching config:', error);
+        toast.error('Failed to load configuration');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   const handleAddBrowser = () => {
     const newBrowser: Browser = {
@@ -153,9 +161,37 @@ export function Configuration() {
     ));
   };
 
-  const handleSaveConfig = () => {
-    alert('Configuration saved successfully!');
+  const handleSaveConfig = async () => {
+    try {
+      setSaving(true);
+      const configData: ConfigData = {
+        webConfig,
+        browsers,
+        androidConfig,
+        iosConfig,
+        loadConfig,
+        loadStages,
+        thresholds,
+      };
+
+      await projectConfigService.updateConfig('default', configData);
+      toast.success('Configuration saved successfully!');
+    } catch (error) {
+      console.error('Error saving config:', error);
+      toast.error('Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-400">
+        <Loader2 className="w-8 h-8 mb-4 animate-spin text-blue-500" />
+        <p>Loading configuration...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 bg-slate-950">
@@ -165,9 +201,22 @@ export function Configuration() {
           <h1 className="mb-2">Configuration Manager</h1>
           <p className="text-slate-400">Kelola konfigurasi automation dan load testing</p>
         </div>
-        <Button onClick={handleSaveConfig} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Save className="w-4 h-4 mr-2" />
-          Save All Configuration
+        <Button 
+          onClick={handleSaveConfig} 
+          disabled={saving}
+          className="bg-blue-600 hover:bg-blue-700 text-white min-w-[160px]"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Save All Configuration
+            </>
+          )}
         </Button>
       </div>
 

@@ -13,7 +13,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use auth::JwtService;
 use config::Config;
-use handlers::{user::UserState, test_case::TestCaseState, test_suite::TestSuiteState, ActionDefinitionState, review::ReviewState, notification::NotificationState, WebSocketState, SharedStepState};
+use handlers::{user::UserState, test_case::TestCaseState, test_suite::TestSuiteState, ActionDefinitionState, review::ReviewState, notification::NotificationState, WebSocketState, SharedStepState, ProjectConfigState};
 use axum::routing::get;
 use websocket::WsManager;
 
@@ -68,6 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let review_state = ReviewState { db: db.clone(), jwt: jwt.clone(), ws_manager: ws_manager.clone() };
     let notification_state = NotificationState { db: db.clone(), jwt: jwt.clone(), ws_manager: ws_manager.clone() };
     let websocket_state = WebSocketState { ws_manager: ws_manager.clone(), jwt: jwt.clone() };
+    let project_config_state = ProjectConfigState { db: db.clone() };
 
     // CORS layer
     let cors = CorsLayer::new()
@@ -96,6 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/api", handlers::review_routes(review_state))
         .nest("/api", handlers::notification_routes(notification_state))
         .nest("/api", handlers::shared_step_routes(shared_step_state))
+        .nest("/api", handlers::project_config_routes(project_config_state))
         .nest("/api", definitions_routes)
         .layer(cors);
 
