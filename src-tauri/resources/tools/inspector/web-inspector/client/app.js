@@ -16,6 +16,7 @@ const infoClass = document.getElementById("infoClass");
 const infoText = document.getElementById("infoText");
 const infoType = document.getElementById("infoType");
 const infoName = document.getElementById("infoName");
+const loadUrlBtn = document.getElementById("loadUrl");
 
 const recordedScriptPanel = document.getElementById("recordedScriptPanel");
 
@@ -30,6 +31,24 @@ if (initialUrl) {
   currentUrl.value = initialUrl;
   loadUrl(initialUrl);
 }
+
+// Load URL when button is clicked
+loadUrlBtn.addEventListener("click", () => {
+  const url = currentUrl.value.trim();
+  if (url) {
+    loadUrl(url);
+  }
+});
+
+// Allow Enter key to load URL
+currentUrl.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    const url = currentUrl.value.trim();
+    if (url) {
+      loadUrl(url);
+    }
+  }
+});
 
 // Toggle inspect mode
 inspectMode.addEventListener("click", () => {
