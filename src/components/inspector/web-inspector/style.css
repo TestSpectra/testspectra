@@ -217,7 +217,8 @@ body {
 /* Main Layout */
 .main-layout {
   display: flex;
-  height: calc(100vh - 48px - 40px); 
+  height: calc(100vh - 48px - 40px);
+  /* 40px from title bar */
   overflow: hidden;
 }
 
