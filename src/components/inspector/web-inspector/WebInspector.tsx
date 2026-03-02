@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import './style.css';
 
 interface ElementInfo {
@@ -37,10 +38,40 @@ export function WebInspector() {
     const copyScriptBtnRef = useRef<HTMLButtonElement | null>(null);
     const resizeHandleRef = useRef<HTMLDivElement | null>(null);
     const isResizingRef = useRef(false);
+    const isInspectModeRef = useRef(isInspectMode);
+    const isRecordingRef = useRef(isRecording);
+    const currentPageUrlRef = useRef<string | null>(null);
+    const historyRef = useRef<string[]>([]);
+    const historyIndexRef = useRef<number>(-1);
+    const [canGoBack, setCanGoBack] = useState(false);
+    const [canGoForward, setCanGoForward] = useState(false);
 
     const log = useCallback((msg: string) => {
         setCodeLog(prev => [...prev, `> ${msg}`]);
     }, []);
+
+    const updateHistoryFlags = () => {
+        const idx = historyIndexRef.current;
+        const len = historyRef.current.length;
+        setCanGoBack(idx > 0);
+        setCanGoForward(idx >= 0 && idx < len - 1);
+    };
+
+    const pushHistory = (url: string) => {
+        const base = historyRef.current.slice(0, historyIndexRef.current + 1);
+        base.push(url);
+        historyRef.current = base;
+        historyIndexRef.current = base.length - 1;
+        updateHistoryFlags();
+    };
+
+    useEffect(() => {
+        isInspectModeRef.current = isInspectMode;
+    }, [isInspectMode]);
+
+    useEffect(() => {
+        isRecordingRef.current = isRecording;
+    }, [isRecording]);
 
     const addToRecordedScript = useCallback((line: string) => {
         setRecordedCode(prev => {
@@ -92,6 +123,39 @@ export function WebInspector() {
         return el.tagName.toLowerCase();
     }, []);
 
+    const handleLoadUrl = useCallback(
+        async (rawUrl?: string) => {
+            let url = rawUrl ?? urlInput;
+            if (!url) return;
+
+            if (!url.startsWith('http')) {
+                url = `https://${url}`;
+            }
+
+            const iframe = iframeRef.current;
+            const empty = emptyStateRef.current;
+            if (!iframe || !empty) return;
+
+            try {
+                setStatus('Loading');
+                log(`Fetching: ${url}`);
+
+                const html = await invoke<string>('fetch_page_html', { url });
+
+                empty.classList.add('hidden');
+                iframe.classList.add('loaded');
+                iframe.srcdoc = html;
+                currentPageUrlRef.current = url;
+                setUrlInput(url);
+            } catch (e: any) {
+                const message = e?.message || String(e);
+                log(`Proxy error: ${message}`);
+                setStatus('Error');
+            }
+        },
+        [log, urlInput]
+    );
+
     const injectInspectorScript = useCallback(() => {
         const iframe = iframeRef.current;
         if (!iframe) return;
@@ -122,7 +186,7 @@ export function WebInspector() {
             body.addEventListener(
                 'mouseover',
                 e => {
-                    if (!isInspectMode) return;
+                    if (!isInspectModeRef.current) return;
                     e.stopPropagation();
 
                     const prev = doc.querySelectorAll('.wdio-inspector-hover');
@@ -148,7 +212,7 @@ export function WebInspector() {
             body.addEventListener(
                 'mouseout',
                 e => {
-                    if (!isInspectMode) return;
+                    if (!isInspectModeRef.current) return;
                     const target = e.target as HTMLElement;
                     target.classList.remove('wdio-inspector-hover');
                 },
@@ -165,29 +229,33 @@ export function WebInspector() {
                         e.preventDefault();
                         e.stopPropagation();
 
-                        if (isInspectMode) {
-                            const selector = generateSelector(link as HTMLElement);
-                            setCurrentSelector(selector);
-                            setSelectorOutputText(`$('${selector}')`);
-                            log(`Selected: ${selector}`);
-                            link.classList.remove('wdio-inspector-hover');
-                            return;
-                        }
-
-                        if (isRecording) {
-                            const selector = generateSelector(link as HTMLElement);
-                            addToRecordedScript(`await $('${selector}').click();`);
-                        }
-
                         const href = (link as HTMLAnchorElement).getAttribute('href');
                         if (href) {
-                            const current = urlInput || iframe.src;
+                            if (isInspectModeRef.current) {
+                                const selector = generateSelector(link as HTMLElement);
+                                setCurrentSelector(selector);
+                                setSelectorOutputText(`$('${selector}')`);
+                                log(`Selected: ${selector}`);
+                                link.classList.remove('wdio-inspector-hover');
+                                return;
+                            }
+
+                            let base = currentPageUrlRef.current || urlInput;
+                            if (!base) {
+                                base = href;
+                            }
+
                             try {
-                                const currentUrl = new URL(current);
+                                const currentUrl = new URL(base);
                                 const targetUrl = new URL(href, currentUrl.href).href;
-                                setUrlInput(targetUrl);
-                                iframe.src = targetUrl;
-                                log(`Loading: ${targetUrl}`);
+
+                                if (isRecordingRef.current) {
+                                    const selector = generateSelector(link as HTMLElement);
+                                    addToRecordedScript(`await $('${selector}').click();`);
+                                }
+
+                                pushHistory(targetUrl);
+                                handleLoadUrl(targetUrl);
                             } catch {
                                 log('Invalid navigation URL');
                             }
@@ -195,15 +263,15 @@ export function WebInspector() {
                         return;
                     }
 
-                    if (!isInspectMode && !isRecording) return;
+                    if (!isInspectModeRef.current && !isRecordingRef.current) return;
 
-                    if (isRecording) {
+                    if (isRecordingRef.current) {
                         const selector = generateSelector(target);
                         addToRecordedScript(`await $('${selector}').click();`);
                         return;
                     }
 
-                    if (isInspectMode) {
+                    if (isInspectModeRef.current) {
                         e.preventDefault();
                         e.stopPropagation();
 
@@ -221,7 +289,7 @@ export function WebInspector() {
             body.addEventListener(
                 'change',
                 e => {
-                    if (!isRecording) return;
+                    if (!isRecordingRef.current) return;
                     const target = e.target as HTMLInputElement;
                     const selector = generateSelector(target as unknown as HTMLElement);
                     const value = (target.value || '').replace(/'/g, "\\'");
@@ -234,30 +302,7 @@ export function WebInspector() {
         } catch (e: any) {
             log(`Injection Failed: ${e?.message || String(e)}`);
         }
-    }, [addToRecordedScript, generateSelector, isInspectMode, isRecording, log, updateInfo, urlInput]);
-
-    const handleLoadUrl = useCallback(
-        (rawUrl?: string) => {
-            let url = rawUrl ?? urlInput;
-            if (!url) return;
-
-            if (!url.startsWith('http')) {
-                url = `https://${url}`;
-            }
-
-            const iframe = iframeRef.current;
-            const empty = emptyStateRef.current;
-            if (iframe && empty) {
-                empty.classList.add('hidden');
-                iframe.classList.add('loaded');
-                iframe.src = url;
-                setUrlInput(url);
-                setStatus('Loading');
-                log(`Loading: ${url}`);
-            }
-        },
-        [log, urlInput]
-    );
+    }, [addToRecordedScript, generateSelector, handleLoadUrl, log, updateInfo, urlInput]);
 
     useEffect(() => {
         const iframe = iframeRef.current;
@@ -278,6 +323,7 @@ export function WebInspector() {
         const params = new URLSearchParams(window.location.search);
         const initial = params.get('url');
         if (initial) {
+            pushHistory(initial);
             setUrlInput(initial);
             handleLoadUrl(initial);
         }
@@ -313,6 +359,22 @@ export function WebInspector() {
         isResizingRef.current = true;
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
+    };
+
+    const handleBack = () => {
+        if (historyIndexRef.current <= 0) return;
+        historyIndexRef.current -= 1;
+        updateHistoryFlags();
+        const url = historyRef.current[historyIndexRef.current];
+        handleLoadUrl(url);
+    };
+
+    const handleForward = () => {
+        if (historyIndexRef.current >= historyRef.current.length - 1) return;
+        historyIndexRef.current += 1;
+        updateHistoryFlags();
+        const url = historyRef.current[historyIndexRef.current];
+        handleLoadUrl(url);
     };
 
     const handleToggleInspect = () => {
@@ -365,6 +427,26 @@ export function WebInspector() {
                     <h1>Inspector</h1>
                 </div>
                 <div className="header-center">
+                    <div className="nav-buttons">
+                        <button
+                            type="button"
+                            className="nav-btn"
+                            onClick={handleBack}
+                            disabled={!canGoBack}
+                            title="Back"
+                        >
+                            <span className="material-icons-outlined">arrow_back</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="nav-btn"
+                            onClick={handleForward}
+                            disabled={!canGoForward}
+                            title="Forward"
+                        >
+                            <span className="material-icons-outlined">arrow_forward</span>
+                        </button>
+                    </div>
                     <input
                         type="text"
                         id="currentUrl"
@@ -373,10 +455,23 @@ export function WebInspector() {
                         value={urlInput}
                         onChange={e => setUrlInput(e.target.value)}
                         onKeyDown={e => {
-                            if (e.key === 'Enter') handleLoadUrl();
+                            if (e.key === 'Enter') {
+                                const value = e.currentTarget.value;
+                                if (!value) return;
+                                pushHistory(value);
+                                handleLoadUrl(value);
+                            }
                         }}
                     />
-                    <button id="loadUrl" className="load-btn" onClick={() => handleLoadUrl()}>
+                    <button
+                        id="loadUrl"
+                        className="load-btn"
+                        onClick={() => {
+                            if (!urlInput) return;
+                            pushHistory(urlInput);
+                            handleLoadUrl(urlInput);
+                        }}
+                    >
                         Load
                     </button>
                 </div>
@@ -526,4 +621,3 @@ export function WebInspector() {
         </div>
     );
 }
-

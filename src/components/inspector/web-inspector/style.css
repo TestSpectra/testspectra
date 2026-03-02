@@ -92,6 +92,34 @@ body {
   align-items: center;
 }
 
+.nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nav-btn {
+  padding: 0.25rem;
+  background-color: transparent;
+  border: none;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.nav-btn:not(:disabled):hover {
+  background-color: var(--bg-panel);
+  color: var(--text-secondary);
+}
+
 .url-display {
   flex: 1;
   padding: 0.375rem 0.75rem;
@@ -189,7 +217,7 @@ body {
 /* Main Layout */
 .main-layout {
   display: flex;
-  height: calc(100vh - 48px);
+  height: calc(100vh - 48px - 40px); 
   overflow: hidden;
 }
 

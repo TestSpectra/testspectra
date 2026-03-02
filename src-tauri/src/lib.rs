@@ -180,6 +180,28 @@ async fn get_inspector_status(
 }
 
 #[tauri::command]
+async fn fetch_page_html(url: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Upstream returned status {}", response.status()));
+    }
+
+    let html = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    Ok(html)
+}
+
+#[tauri::command]
 async fn open_inspector_window(
     app: AppHandle,
 ) -> Result<String, String> {
@@ -292,7 +314,8 @@ pub fn run() {
             start_web_inspector,
             stop_web_inspector,
             get_inspector_status,
-            open_inspector_window
+            open_inspector_window,
+            fetch_page_html
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
