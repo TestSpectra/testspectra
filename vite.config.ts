@@ -53,6 +53,12 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        inspector: path.resolve(__dirname, 'inspector.html'),
+      },
+    },
   },
   server: {
     port: 3001,

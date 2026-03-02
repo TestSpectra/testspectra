@@ -182,29 +182,33 @@ async fn get_inspector_status(
 #[tauri::command]
 async fn open_inspector_window(
     app: AppHandle,
-    state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let status = state.inspector_status.lock().await;
-    
-    if !status.running {
-        return Err("Inspector server is not running".to_string());
+    if let Some(window) = app.get_webview_window("inspector") {
+        window
+            .set_focus()
+            .map_err(|e| format!("Failed to focus inspector window: {}", e))?;
+        log::info!("[inspector] Focused existing inspector window");
+        return Ok("inspector.html".to_string());
     }
 
-    let url = status.url.as_ref().ok_or("No server URL available")?;
-    
-    // Open new window with inspector
-    let inspector_url = format!("{}/", url);
-    
-    tauri::WebviewWindowBuilder::new(&app, "inspector", tauri::WebviewUrl::External(inspector_url.parse().map_err(|e| format!("Invalid URL: {}", e))?))
-        .title("Web Inspector")
-        .inner_size(1200.0, 800.0)
-        .min_inner_size(800.0, 600.0)
-        .resizable(true)
+    let mut conf = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == "inspector")
+        .cloned()
+        .ok_or_else(|| "Inspector window config not found".to_string())?;
+
+    let builder = tauri::WebviewWindowBuilder::from_config(&app, &conf)
+        .map_err(|e| format!("Failed to create inspector window builder: {}", e))?;
+
+    builder
         .build()
         .map_err(|e| format!("Failed to create inspector window: {}", e))?;
 
-    log::info!("[inspector] Opened inspector window: {}", inspector_url);
-    Ok(inspector_url)
+    log::info!("[inspector] Opened inspector window from config");
+    Ok("inspector.html".to_string())
 }
 
 #[tauri::command]

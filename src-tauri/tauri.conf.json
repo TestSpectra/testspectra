@@ -25,7 +25,23 @@
         "devtools": true,
         "dragDropEnabled": false,
         "decorations": false,
-        "transparent": true
+        "create": true
+      },
+      {
+        "label": "inspector",
+        "title": "Web Inspector",
+        "url": "inspector.html",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "devtools": true,
+        "dragDropEnabled": false,
+        "decorations": false,
+        "create": false
       }
     ],
     "security": {

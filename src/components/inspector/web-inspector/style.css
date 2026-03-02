@@ -16,12 +16,11 @@
 
 * {
   margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 
 body {
-  font-family: "Roboto", sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--bg-dark);
   color: var(--text-secondary);
   height: 100vh;
@@ -48,7 +47,7 @@ body {
   background-color: #6b7280;
 }
 
-.container {
+.web-inspector-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -278,7 +277,7 @@ input[type="url"]:focus {
   box-shadow: 0 0 0 2px rgba(71, 85, 105, 0.2);
 }
 
-button {
+#web-inspector button {
   padding: 0.5rem 1rem;
   background-color: var(--accent);
   color: var(--text-primary);
@@ -290,11 +289,11 @@ button {
   transition: background-color 0.2s;
 }
 
-button:hover {
+#web-inspector button:hover {
   background-color: var(--accent-hover);
 }
 
-button:focus {
+#web-inspector button:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(71, 85, 105, 0.4);
 }

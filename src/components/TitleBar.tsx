@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
 import { Minus, Square, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { NotificationBadge } from './NotificationBadge';
 
 type Platform = 'macos' | 'windows' | 'linux' | 'unknown';
 
 interface TitleBarProps {
     currentUser?: any;
+    subtitle?: string;
+    showNotificationBadge?: boolean;
 }
 
-export function TitleBar({ currentUser }: TitleBarProps = {}) {
+export function TitleBar({ currentUser, subtitle, showNotificationBadge = true }: TitleBarProps = {}) {
     const [platform, setPlatform] = useState<Platform>('unknown');
     const [isMaximized, setIsMaximized] = useState(false);
 
@@ -149,7 +151,7 @@ export function TitleBar({ currentUser }: TitleBarProps = {}) {
     return (
         <div
             data-tauri-drag-region
-            className="z-200 h-10 w-full bg-slate-900 border-b border-slate-800 flex items-center justify-between select-none shrink-0 overflow-hidden"
+            className="title-bar z-200 h-10 w-full bg-slate-900 border-b border-slate-800 flex items-center justify-between select-none shrink-0 overflow-hidden"
         >
             {/* Left side - macOS controls or empty space */}
             <div className="flex items-center h-full">
@@ -163,14 +165,18 @@ export function TitleBar({ currentUser }: TitleBarProps = {}) {
             >
                 <span className="text-xs font-semibold text-slate-300">TestSpectra</span>
                 <span className="text-xs text-slate-500">•</span>
-                <span className="text-xs text-slate-400">QA Automation Platform</span>
+                <span className="text-xs text-slate-400">
+                    {subtitle || 'QA Automation Platform'}
+                </span>
             </div>
 
             {/* Right side - Notification badge and Windows/Linux controls */}
             <div className="flex items-center h-full gap-2">
-                <div className="pr-4">
-                    <NotificationBadge userId={currentUser?.id} />
-                </div>
+                {showNotificationBadge && (
+                    <div className="pr-4">
+                        <NotificationBadge userId={currentUser?.id} />
+                    </div>
+                )}
                 {platform !== 'macos' && platform !== 'unknown' && <WindowsControls />}
             </div>
         </div>
