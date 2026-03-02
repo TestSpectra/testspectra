@@ -77,7 +77,7 @@ export function Configuration() {
     const fetchConfig = async () => {
       try {
         setLoading(true);
-        const config = await projectConfigService.getConfig('default');
+        const config = await projectConfigService.getConfig();
         const data = config.config_data;
 
         if (data.webConfig) setWebConfig(data.webConfig);
@@ -204,7 +204,7 @@ export function Configuration() {
         <Button 
           onClick={handleSaveConfig} 
           disabled={saving}
-          className="bg-blue-600 hover:bg-blue-700 text-white min-w-[160px]"
+          className="bg-blue-600 hover:bg-blue-700 text-white min-w-40"
         >
           {saving ? (
             <>
@@ -372,7 +372,7 @@ export function Configuration() {
                   <Button 
                     onClick={handleAddBrowser}
                     variant="outline"
-                    className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
+                    className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Browser

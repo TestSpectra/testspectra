@@ -17,7 +17,6 @@ pub struct ProjectConfigState {
 // TODO: remove endpoint /config use the correct project_id if already implemented
 pub fn project_config_routes(state: ProjectConfigState) -> Router {
     Router::new()
-        .route("/config", get(get_default_config))
         .route("/config/:project_id", get(get_config).put(update_config))
         .with_state(state)
 }
@@ -45,17 +44,6 @@ async fn get_config(
             Ok(Json(default_config))
         }
     }
-}
-
-async fn get_default_config(
-    State(state): State<ProjectConfigState>,
-) -> Result<Json<ProjectConfig>, AppError> {
-    let default_config: ProjectConfig = sqlx::query_as(
-        "SELECT project_id, config_data, updated_at FROM project_configurations WHERE project_id = 'default'"
-    )
-    .fetch_one(&state.db)
-    .await?;
-    Ok(Json(default_config))
 }
 
 async fn update_config(

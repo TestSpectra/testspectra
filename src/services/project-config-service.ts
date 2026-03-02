@@ -73,13 +73,12 @@ export interface ProjectConfig {
 }
 
 export const projectConfigService = {
-  async getConfig(projectId?: string): Promise<ProjectConfig> {
-    const url = projectId 
-      ? `${getApiUrl()}/config/${projectId}`
-      : `${getApiUrl()}/config`;
-    
+  async getConfig(projectId: string = "default"): Promise<ProjectConfig> {
+    const apiUrl = await getApiUrl()
+    const url = `${apiUrl}/config/${projectId}`
+
     logDebug(`Fetching config from: ${url}`);
-    
+
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
@@ -93,11 +92,12 @@ export const projectConfigService = {
     return response.json();
   },
 
-  async updateConfig(projectId: string, configData: ConfigData): Promise<ProjectConfig> {
-    const url = `${getApiUrl()}/config/${projectId}`;
-    
+  async updateConfig(projectId: string = "default", configData: ConfigData): Promise<ProjectConfig> {
+    const apiUrl = await getApiUrl()
+    const url = `${apiUrl}/config/${projectId}`;
+
     logDebug(`Updating config at: ${url}`);
-    
+
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
