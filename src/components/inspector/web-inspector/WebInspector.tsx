@@ -141,7 +141,7 @@ export function WebInspector() {
 
             empty.classList.add('hidden');
             iframe.classList.add('loaded');
-            iframe.src = `/proxy?url=${encodeURIComponent(url)}`;
+            iframe.src = `/?url=${encodeURIComponent(url)}`;
             currentPageUrlRef.current = url;
             setUrlInput(url);
         },

@@ -3,6 +3,7 @@ use axum::{
     extract::State,
     http::{header, HeaderMap, HeaderValue, Request, StatusCode},
     response::{IntoResponse, Response},
+    routing::get,
     Router,
 };
 use serde::Deserialize;
@@ -50,6 +51,7 @@ impl InspectorServer {
         port: u16,
     ) -> Result<(SocketAddr, broadcast::Sender<()>), Box<dyn std::error::Error + Send + Sync>> {
         let app = Router::new()
+            .route("/__inspector", get(inspector_index_handler))
             .fallback(fallback_handler)
             .with_state(self.state.clone());
 
@@ -74,6 +76,16 @@ impl InspectorServer {
     }
 }
 
+async fn inspector_index_handler(
+    State(state): State<Arc<InspectorState>>,
+) -> impl IntoResponse {
+    let path = state.client_dir.join("index.html");
+    match tokio::fs::read_to_string(path).await {
+        Ok(content) => ([(header::CONTENT_TYPE, "text/html")], content).into_response(),
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 async fn fallback_handler(
     State(state): State<Arc<InspectorState>>,
     req: Request<Body>,
@@ -83,21 +95,29 @@ async fn fallback_handler(
     *static_req_parts.method_mut() = req.method().clone();
     *static_req_parts.headers_mut() = req.headers().clone();
 
-    match ServeDir::new(state.client_dir.clone())
-        .append_index_html_on_directories(true)
-        .oneshot(static_req_parts)
-        .await
-    {
-        Ok(res) => {
-            if res.status() != StatusCode::NOT_FOUND {
-                return res.into_response();
+    // Check if the request is for the proxy functionality (has url query param)
+    // or if we already have a target host set and it's not a request for a static file
+    // that exists in the client_dir.
+    
+    // First, try to serve static files (except for root / which we want to proxy if needed)
+    if req.uri().path() != "/" {
+        match ServeDir::new(state.client_dir.clone())
+            .append_index_html_on_directories(false)
+            .oneshot(static_req_parts)
+            .await
+        {
+            Ok(res) => {
+                if res.status() != StatusCode::NOT_FOUND {
+                    return res.into_response();
+                }
             }
-        }
-        Err(e) => {
-            log::error!("ServeDir error: {}", e);
+            Err(e) => {
+                log::error!("ServeDir error: {}", e);
+            }
         }
     }
 
+    // If static file not found or it's root request, try proxy handler
     proxy_handler(State(state), req).await.into_response()
 }
 

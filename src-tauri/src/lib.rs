@@ -47,7 +47,7 @@ async fn start_web_inspector(
 
     let status = InspectorStatus {
         running: true,
-        url: Some(format!("http://{}", addr)),
+        url: Some(format!("http://{}/__inspector", addr)),
         port: Some(addr.port()),
     };
 
@@ -93,7 +93,7 @@ async fn open_inspector_window(
     }
     
     // This part assumes the server is running on a known port (e.g., 8888)
-    let url = "http://127.0.0.1:8888".to_string();
+    let url = "http://127.0.0.1:8888/__inspector".to_string();
 
     // Find the inspector window config from tauri.conf.json
     let mut window_config = app
