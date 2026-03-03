@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import '../../../index.css';
 import './style.css';
 
 interface ElementInfo {
@@ -124,7 +124,7 @@ export function WebInspector() {
     }, []);
 
     const handleLoadUrl = useCallback(
-        async (rawUrl?: string) => {
+        (rawUrl?: string) => {
             let url = rawUrl ?? urlInput;
             if (!url) return;
 
@@ -136,22 +136,14 @@ export function WebInspector() {
             const empty = emptyStateRef.current;
             if (!iframe || !empty) return;
 
-            try {
-                setStatus('Loading');
-                log(`Fetching: ${url}`);
+            setStatus('Loading');
+            log(`Loading: ${url}`);
 
-                const html = await invoke<string>('fetch_page_html', { url });
-
-                empty.classList.add('hidden');
-                iframe.classList.add('loaded');
-                iframe.srcdoc = html;
-                currentPageUrlRef.current = url;
-                setUrlInput(url);
-            } catch (e: any) {
-                const message = e?.message || String(e);
-                log(`Proxy error: ${message}`);
-                setStatus('Error');
-            }
+            empty.classList.add('hidden');
+            iframe.classList.add('loaded');
+            iframe.src = `/proxy?url=${encodeURIComponent(url)}`;
+            currentPageUrlRef.current = url;
+            setUrlInput(url);
         },
         [log, urlInput]
     );

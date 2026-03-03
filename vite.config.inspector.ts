@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite'
@@ -50,16 +49,18 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  root: path.resolve(__dirname, 'src/inspector'),
   build: {
     target: 'esnext',
-    outDir: 'dist',
+    outDir: path.resolve(__dirname, 'src-tauri/resources/inspector'),
+    emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
+        inspector: path.resolve(__dirname, 'src/inspector/index.html'),
       },
     },
   },
   server: {
-    port: 3001,
+    port: 3002, // Use a different port for dev server if needed
   },
 });

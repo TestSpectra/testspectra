@@ -325,9 +325,8 @@ export function Tools() {
             <ol className="space-y-2 list-decimal list-inside">
               <li>Click "Start Web Inspector" to launch the local server</li>
               <li>Wait for the server to initialize (usually 2-3 seconds)</li>
-              <li>Click "Open Inspector" to launch Chrome DevTools in your browser</li>
-              <li>Connect to your running web application to inspect elements</li>
-              <li>Use the inspector to find selectors for your test automation</li>
+              <li>Click "Open Inspector" to launch the inspector window</li>
+              <li>Enter a URL to start inspecting elements</li>
             </ol>
           </div>
           <div>
@@ -345,3 +344,4 @@ export function Tools() {
     </div>
   );
 }
+

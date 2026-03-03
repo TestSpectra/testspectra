@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:3001",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
+    "beforeDevCommand": "pnpm build:inspector && pnpm dev",
+    "beforeBuildCommand": "pnpm build:inspector && pnpm build"
   },
   "app": {
     "withGlobalTauri": true,
@@ -30,7 +30,6 @@
       {
         "label": "inspector",
         "title": "Web Inspector",
-        "url": "inspector.html",
         "width": 1600,
         "height": 900,
         "minWidth": 1200,
@@ -59,7 +58,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "resources/default-config.env"
+      "resources/default-config.env",
+      "resources/inspector"
     ],
     "createUpdaterArtifacts": true
   },

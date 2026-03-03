@@ -23,6 +23,7 @@ export function TitleBar({ currentUser, subtitle, showNotificationBadge = true }
                     const { getCurrentWindow } = await import('@tauri-apps/api/window');
 
                     const currentPlatform = getPlatform();
+                    console.log('Detected platform:', currentPlatform);
                     setPlatform(currentPlatform as Platform);
 
                     // Check if window is maximized

@@ -30,3 +30,6 @@ Thumbs.db
 
 backend.pid
 backups
+
+# inspector build files
+*/resources/inspector 

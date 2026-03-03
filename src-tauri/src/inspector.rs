@@ -1,253 +1,202 @@
+use axum::{
+    body::{Body, Bytes},
+    extract::State,
+    http::{header, HeaderMap, HeaderValue, Request, StatusCode},
+    response::{IntoResponse, Response},
+    Router,
+};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
-use axum::{
-    extract::{Query, State},
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri},
-    response::{Html, IntoResponse},
-    routing::get,
-    Router,
-};
-use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
-use tower::ServiceBuilder;
-use tower_http::{
-    cors::{Any, CorsLayer},
-    services::ServeDir,
-};
+use tokio::sync::broadcast;
+use tower::util::ServiceExt;
+use tower_http::services::ServeDir;
 use url::Url;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProxyQuery {
-    url: String,
-}
 
 #[derive(Debug, Clone)]
 pub struct InspectorState {
     pub client_dir: PathBuf,
-    pub last_target_url: Arc<RwLock<Option<String>>>,
+    pub target_host: Arc<tokio::sync::RwLock<Option<String>>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProxyQuery {
+    url: String,
 }
 
 #[derive(Clone)]
 pub struct InspectorServer {
-    pub state: InspectorState,
-    addr: SocketAddr,
-    pub shutdown_tx: tokio::sync::broadcast::Sender<()>,
+    pub state: Arc<InspectorState>,
+    pub shutdown_tx: broadcast::Sender<()>,
 }
 
 impl InspectorServer {
-    pub fn new(port: u16, client_dir: PathBuf) -> Self {
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
-
-        let state = InspectorState {
+    pub fn new(client_dir: PathBuf) -> Self {
+        let (shutdown_tx, _) = broadcast::channel(1);
+        let state = Arc::new(InspectorState {
             client_dir,
-            last_target_url: Arc::new(RwLock::new(None)),
-        };
+            target_host: Arc::new(tokio::sync::RwLock::new(None)),
+        });
 
         Self {
             state,
-            addr,
             shutdown_tx,
         }
     }
 
-    pub async fn start(self) -> Result<(SocketAddr, tokio::sync::broadcast::Sender<()>), Box<dyn std::error::Error + Send + Sync>> {
-        let shutdown_tx = self.shutdown_tx.clone();
-        let state = self.state.clone();
-
-        // CORS layer
-        let cors = CorsLayer::new()
-            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-            .allow_headers(Any)
-            .allow_origin(Any);
-
-        // Router setup
+    pub async fn start(
+        self,
+        port: u16,
+    ) -> Result<(SocketAddr, broadcast::Sender<()>), Box<dyn std::error::Error + Send + Sync>> {
         let app = Router::new()
-            .route("/", get(serve_index))
-            .route("/proxy", get(proxy_handler))
-            .nest_service("/static", ServeDir::new(&state.client_dir))
-            .fallback(serve_static_files)
-            .layer(
-                ServiceBuilder::new()
-                    .layer(cors)
-            )
-            .with_state(state);
+            .fallback(fallback_handler)
+            .with_state(self.state.clone());
 
-        log::info!("🚀 Starting Inspector Server at http://{}", self.addr);
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        log::info!("🚀 Starting Inspector Server at http://{}", addr);
 
-        let listener = tokio::net::TcpListener::bind(self.addr).await?;
-        let addr = listener.local_addr()?;
+        let listener = tokio::net::TcpListener::bind(addr).await?;
+        let local_addr = listener.local_addr()?;
+        let shutdown_tx = self.shutdown_tx.clone();
+        let mut shutdown_rx = shutdown_tx.subscribe();
 
-        // Start the server
-        let _server_handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             axum::serve(listener, app)
-                .with_graceful_shutdown(shutdown_signal(shutdown_tx.subscribe()))
+                .with_graceful_shutdown(async move {
+                    shutdown_rx.recv().await.ok();
+                })
                 .await
-                .map_err(|e| log::error!("Server error: {}", e))
+                .ok();
         });
 
-        Ok((addr, self.shutdown_tx))
+        Ok((local_addr, shutdown_tx))
     }
 }
 
-async fn serve_index(State(state): State<InspectorState>) -> impl IntoResponse {
-    let index_path = state.client_dir.join("index.html");
-    log::info!("[inspector] Looking for index.html at: {:?}", index_path);
-    
-    match tokio::fs::read_to_string(&index_path).await {
-        Ok(content) => {
-            log::info!("[inspector] Successfully loaded index.html ({} bytes)", content.len());
-            Html(content).into_response()
-        },
+async fn fallback_handler(
+    State(state): State<Arc<InspectorState>>,
+    req: Request<Body>,
+) -> Response {
+    let mut static_req_parts = Request::new(Body::empty());
+    *static_req_parts.uri_mut() = req.uri().clone();
+    *static_req_parts.method_mut() = req.method().clone();
+    *static_req_parts.headers_mut() = req.headers().clone();
+
+    match ServeDir::new(state.client_dir.clone())
+        .append_index_html_on_directories(true)
+        .oneshot(static_req_parts)
+        .await
+    {
+        Ok(res) => {
+            if res.status() != StatusCode::NOT_FOUND {
+                return res.into_response();
+            }
+        }
         Err(e) => {
-            log::error!("[inspector] Failed to read index.html: {}", e);
-            let error_html = r#"
-<!DOCTYPE html>
-<html>
-<head><title>Inspector - Not Found</title></head>
-<body>
-    <h1>Inspector Client Not Found</h1>
-    <p>The inspector client files could not be found.</p>
-    <p>Looking for: index.html</p>
-</body>
-</html>
-            "#;
-            Html(error_html).into_response()
+            log::error!("ServeDir error: {}", e);
         }
     }
+
+    proxy_handler(State(state), req).await.into_response()
 }
 
 async fn proxy_handler(
-    State(state): State<InspectorState>,
-    Query(query): Query<ProxyQuery>,
-) -> impl IntoResponse {
-    let target_url = match Url::parse(&query.url) {
-        Ok(url) => url,
-        Err(_) => {
-            return (StatusCode::BAD_REQUEST, "Invalid URL").into_response();
-        }
-    };
+    State(state): State<Arc<InspectorState>>,
+    req: Request<Body>,
+) -> Result<Response, StatusCode> {
+    let mut target_url_base: Option<String> = None;
 
-    // Store this as the last target URL
-    {
-        let mut last_url = state.last_target_url.write().await;
-        *last_url = Some(query.url.clone());
-    }
-
-    log::info!("Proxying request to: {}", target_url);
-
-    // Create HTTP client
-    let client = match reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build() {
-        Ok(client) => client,
-        Err(e) => {
-            log::error!("Failed to create HTTP client: {}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create HTTP client").into_response();
-        }
-    };
-
-    // Make the request
-    let method = reqwest::Method::GET;
-    let request = client.request(method, target_url.as_str());
-
-    match request.send().await {
-        Ok(response) => {
-            let status_code = response.status().as_u16();
-            let status = StatusCode::from_u16(status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    if let Some(query_str) = req.uri().query() {
+        if let Ok(query) = serde_urlencoded::from_str::<ProxyQuery>(query_str) {
+            let parsed_url = Url::parse(&query.url).map_err(|_| StatusCode::BAD_REQUEST)?;
+            let host = format!("{}://{}", parsed_url.scheme(), parsed_url.host_str().unwrap_or(""));
             
-            // Convert response to bytes to avoid borrowing issues
-            let body_bytes = match response.bytes().await {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    log::error!("Failed to read response body: {}", e);
-                    return (StatusCode::BAD_GATEWAY, "Failed to read response").into_response();
-                }
-            };
-
-            // Simple response without complex headers for now
-            (status, body_bytes.to_vec()).into_response()
-        }
-        Err(e) => {
-            log::error!("Proxy request failed: {}", e);
-            (StatusCode::BAD_GATEWAY, format!("Proxy request failed: {}", e)).into_response()
+            let mut target_host_lock = state.target_host.write().await;
+            *target_host_lock = Some(host.clone());
+            target_url_base = Some(host);
         }
     }
-}
 
-async fn serve_static_files(
-    State(state): State<InspectorState>,
-    uri: Uri,
-) -> impl IntoResponse {
-    let path = uri.path();
-    let file_path = state.client_dir.join(&path[1..]); // Remove leading '/'
-
-    if file_path.exists() && file_path.is_file() {
-        match tokio::fs::read(&file_path).await {
-            Ok(contents) => {
-                let mime_type = get_mime_type(&file_path);
-
-                let mut headers = HeaderMap::new();
-                if let Ok(value) = HeaderValue::from_str(&mime_type) {
-                    headers.insert(header::CONTENT_TYPE, value);
+    if target_url_base.is_none() {
+        if let Some(referer) = req.headers().get(header::REFERER) {
+            if let Ok(referer_str) = referer.to_str() {
+                if let Ok(referer_url) = Url::parse(referer_str) {
+                    if let Some(query_str) = referer_url.query() {
+                         if let Ok(query) = serde_urlencoded::from_str::<ProxyQuery>(query_str) {
+                            let parsed_url = Url::parse(&query.url).map_err(|_| StatusCode::BAD_REQUEST)?;
+                            let host = format!("{}://{}", parsed_url.scheme(), parsed_url.host_str().unwrap_or(""));
+                            target_url_base = Some(host);
+                         }
+                    }
                 }
-
-                (headers, contents).into_response()
             }
-            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "File read error").into_response(),
         }
-    } else {
-        (StatusCode::NOT_FOUND, "File not found").into_response()
     }
-}
-
-fn get_mime_type(file_path: &PathBuf) -> String {
-    let path_str = file_path.to_string_lossy();
     
-    if path_str.ends_with(".html") {
-        "text/html".to_string()
-    } else if path_str.ends_with(".css") {
-        "text/css".to_string()
-    } else if path_str.ends_with(".js") {
-        "application/javascript".to_string()
-    } else if path_str.ends_with(".png") {
-        "image/png".to_string()
-    } else if path_str.ends_with(".jpg") || path_str.ends_with(".jpeg") {
-        "image/jpeg".to_string()
-    } else if path_str.ends_with(".gif") {
-        "image/gif".to_string()
-    } else if path_str.ends_with(".svg") {
-        "image/svg+xml".to_string()
-    } else if path_str.ends_with(".json") {
-        "application/json".to_string()
-    } else {
-        "application/octet-stream".to_string()
+    if target_url_base.is_none() {
+        let target_host_lock = state.target_host.read().await;
+        target_url_base = target_host_lock.clone();
     }
+
+    let base = match target_url_base {
+        Some(url) => Url::parse(&url).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        None => {
+            log::warn!("Proxy request for '{}' but no target host is set.", req.uri().path());
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
+
+    let path = req.uri().path();
+    let mut full_target_url = base.join(path).map_err(|_| StatusCode::BAD_REQUEST)?;
+    full_target_url.set_query(req.uri().query());
+
+    log::info!("Proxying request to: {}", full_target_url);
+
+    let client = reqwest::Client::new();
+    let (parts, body) = req.into_parts();
+    let body_bytes = body_to_bytes(body).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let response = client
+        .request(parts.method, full_target_url)
+        .headers(clone_headers_for_proxy(&parts.headers))
+        .body(body_bytes)
+        .send()
+        .await
+        .map_err(|e| {
+            log::error!("Proxy request failed: {}", e);
+            StatusCode::BAD_GATEWAY
+        })?;
+
+    let mut response_builder = Response::builder().status(response.status());
+    let headers = response_builder.headers_mut().unwrap();
+    
+    for (key, value) in response.headers().iter() {
+        if key != "content-security-policy"
+            && key != "x-frame-options"
+            && key != "content-security-policy-report-only"
+            && key != "cross-origin-embedder-policy"
+        {
+            headers.insert(key.clone(), value.clone());
+        }
+    }
+    
+    headers.insert("x-frame-options", HeaderValue::from_static("ALLOWALL"));
+
+    let body = Body::from_stream(response.bytes_stream());
+    Ok(response_builder.body(body).unwrap())
 }
 
-async fn shutdown_signal(mut shutdown_rx: tokio::sync::broadcast::Receiver<()>) {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-        _ = shutdown_rx.recv() => {},
+fn clone_headers_for_proxy(headers: &HeaderMap) -> HeaderMap {
+    let mut new_headers = HeaderMap::new();
+    for (key, value) in headers.iter() {
+        if key != header::HOST {
+            new_headers.insert(key.clone(), value.clone());
+        }
     }
+    new_headers
+}
+
+async fn body_to_bytes(body: Body) -> Result<Bytes, axum::Error> {
+    axum::body::to_bytes(body, usize::MAX).await
 }
