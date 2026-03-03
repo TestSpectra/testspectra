@@ -39,7 +39,7 @@
         "center": true,
         "devtools": true,
         "dragDropEnabled": false,
-        "decorations": false,
+        "decorations": true,
         "create": false
       }
     ],
