@@ -145,6 +145,36 @@ async fn open_inspector_window(
         .build()
         .map_err(|e| e.to_string())?;
 
+#[tauri::command]
+async fn open_inspector_browser(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    // Check if server is running before opening browser
+    let process_lock = state.inspector_process.lock().await;
+    if process_lock.is_none() {
+        return Err("Inspector server is not running. Please start it first.".to_string());
+    }
+    drop(process_lock);
+
+    // Get the web-inspector JS file path from resources
+    let inspector_js_path = app
+        .path()
+        .resolve("resources/web-inspector.js", BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+
+    // Use the CLI to open inspector with WebDriver
+    let output = Command::new("node")
+        .arg(&inspector_js_path)
+        .arg("open")
+        .arg("http://127.0.0.1:8888/__/inspector")
+        .spawn()
+        .map_err(|e| {
+            log::error!("Failed to open inspector browser: {}", e);
+            e.to_string()
+        })?;
+
+    log::info!("Inspector browser opened via CLI");
     Ok(())
 }
 
@@ -182,6 +212,7 @@ pub fn run() {
             start_web_inspector,
             stop_web_inspector,
             open_inspector_window,
+            open_inspector_browser,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

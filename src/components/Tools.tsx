@@ -71,6 +71,18 @@ export function Tools() {
     }
   };
 
+  const handleOpenInspectorBrowser = async () => {
+    try {
+      await invoke('open_inspector_browser');
+    } catch (error) {
+      console.error('Failed to open inspector in browser:', error);
+      // Fallback to opening URL directly
+      if (webInspector.url) {
+        window.open(webInspector.url, '_blank');
+      }
+    }
+  };
+
   const handleOpenInspector = (url: string) => {
     window.open(url, '_blank');
   };
@@ -177,7 +189,15 @@ export function Tools() {
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  Open Inspector
+                  Open Inspector Window
+                </Button>
+                <Button 
+                  onClick={handleOpenInspectorBrowser}
+                  variant="outline"
+                  className="w-full border-green-700 text-green-400 hover:bg-green-900/20"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open in Browser (with WebDriver)
                 </Button>
                 <Button 
                   onClick={handleStopWebInspector}
@@ -204,7 +224,11 @@ export function Tools() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-400 mt-0.5">•</span>
-                <span>Debug automation scripts</span>
+                <span>Record interactions as WebDriverIO scripts</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-400 mt-0.5">•</span>
+                <span>Cross-origin navigation support</span>
               </li>
             </ul>
           </div>
@@ -323,9 +347,11 @@ export function Tools() {
           <div>
             <h3 className="text-sm text-slate-200 mb-3">Web Inspector</h3>
             <ol className="space-y-2 list-decimal list-inside">
-              <li>Click "Start Web Inspector" to launch the local server</li>
-              <li>Wait for the server to initialize (usually 2-3 seconds)</li>
-              <li>Click "Open Inspector" to launch the inspector window</li>
+              <li>Click "Start Web Inspector" to launch the proxy server</li>
+              <li>Wait for the server to initialize (usually 1-2 seconds)</li>
+              <li>Choose your preferred option:</li>
+              <li className="ml-4">• "Open Inspector Window" - Opens in Tauri window</li>
+              <li className="ml-4">• "Open in Browser" - Opens with WebDriver automation</li>
               <li>Enter a URL to start inspecting elements</li>
             </ol>
           </div>
