@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:watch": "tsx bin/dev-server.ts",
     "build:client": "tsc -b && vite build",
     "build:cli": "tsup",
-    "build": "npm run build:client && npm run build:cli",
+    "build": "pnpm run build:client && pnpm run build:cli",
     "preview": "vite preview"
   },
   "peerDependencies": {
@@ -25,8 +26,11 @@
     "cac": "^7.0.0"
   },
   "devDependencies": {
+    "@types/chokidar": "^1.7.5",
     "@types/node": "^25.3.3",
+    "chokidar": "^5.0.0",
     "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "webdriverio": "^9.24.0"
   }

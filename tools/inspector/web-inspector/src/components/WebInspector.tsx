@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bug, ArrowLeft, ArrowRight, Copy, Link2Off } from "lucide-react";
+import { Bug, ArrowLeft, ArrowRight, Copy, Link2Off, RotateCcw } from "lucide-react";
 
 interface ElementInfo {
   tagName: string;
@@ -325,6 +325,23 @@ export default function WebInspector() {
     iframeRef.current?.contentWindow?.history.forward();
   };
 
+  const handleReload = () => {
+    const iframe = iframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      try {
+        // Use current location, not initial src
+        iframe.contentWindow.location.reload();
+        setStatus("Reloading");
+        log("Reloading page...");
+      } catch (e) {
+        // Fallback to src reload if cross-origin
+        iframe.src = iframe.src;
+        setStatus("Reloading");
+        log("Reloading page (fallback)...");
+      }
+    }
+  };
+
   const handleToggleInspect = () => {
     const next = !isInspectMode;
     setIsInspectMode(next);
@@ -443,6 +460,14 @@ export default function WebInspector() {
               title="Forward"
             >
               <ArrowRight size={16} />
+            </button>
+            <button
+              type="button"
+              className="nav-btn"
+              onClick={handleReload}
+              title="Reload"
+            >
+              <RotateCcw size={16} />
             </button>
           </div>
           <input
