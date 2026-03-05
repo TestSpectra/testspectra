@@ -1,1 +1,1 @@
-{"root":["./src/main.tsx","./src/components/webinspector.tsx","./bin/proxy-server.ts","./bin/web-inspector.ts"],"version":"5.9.3"}
+{"root":["./src/main.tsx","./src/components/webinspector.tsx","./bin/dev-server.ts","./bin/proxy-server.ts","./bin/web-inspector.ts"],"version":"5.9.3"}

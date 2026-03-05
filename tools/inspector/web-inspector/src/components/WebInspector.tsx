@@ -392,6 +392,36 @@ export default function WebInspector() {
       window.location.hostname === "127.0.0.1" &&
       window.location.pathname === "/__/inspector";
 
+    // Check if we have a target URL from cross-origin redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUrl = urlParams.get('target');
+    
+    if (targetUrl) {
+      try {
+        const decodedUrl = decodeURIComponent(targetUrl);
+        log(`Loading target URL from redirect: ${decodedUrl}`);
+        
+        const empty = emptyStateRef.current;
+        if (empty) empty.classList.add("hidden");
+        
+        const targetUrlObj = new URL(decodedUrl);
+        const cleanPath = targetUrlObj.pathname + targetUrlObj.search + targetUrlObj.hash;
+        
+        setIframeUrl(cleanPath);
+        setUrlInput(decodedUrl);
+        currentPageUrlRef.current = decodedUrl;
+        
+        // Clean up URL by removing target parameter
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('target');
+        window.history.replaceState({}, '', newUrl.toString());
+        
+        return;
+      } catch (e) {
+        log(`Invalid target URL: ${targetUrl}`);
+      }
+    }
+
     // Only prefill iframe if we're on an actual user target site
     if (!isCurrentServer) {
       const empty = emptyStateRef.current;
@@ -421,6 +451,21 @@ export default function WebInspector() {
             href !== currentPageUrlRef.current &&
             !href.includes("/__/inspector")
           ) {
+            const currentOrigin = window.location.origin;
+            const newUrl = new URL(href);
+            const newOrigin = newUrl.origin;
+            
+            // Check if we've navigated to a different domain
+            if (newOrigin !== currentOrigin) {
+              log(`Cross-origin navigation detected: ${href}`);
+              log(`Redirecting to maintain inspector access...`);
+              
+              // Preserve full URL including path and query when redirecting
+              const encodedUrl = encodeURIComponent(href);
+              window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}`;
+              return;
+            }
+            
             currentPageUrlRef.current = href;
             // Only update address bar if they're not manually typing
             if (document.activeElement?.id !== "currentUrl") {
@@ -429,7 +474,31 @@ export default function WebInspector() {
           }
         }
       } catch (e) {
-        // Ignore cross-origin errors (e.g., navigating to 3rd party site with web security enforced or pending unload)
+        // Cross-origin error detected - iframe navigated to different domain
+        // Try to detect the new domain from the iframe src if possible
+        const iframe = iframeRef.current;
+        if (iframe && iframe.src && iframe.src !== "about:blank") {
+          try {
+            const newUrl = new URL(iframe.src);
+            const newOrigin = newUrl.origin;
+            const currentOrigin = window.location.origin;
+            
+            if (newOrigin !== currentOrigin) {
+              log(`Cross-origin navigation detected via iframe src: ${iframe.src}`);
+              log(`Redirecting to maintain inspector access...`);
+              
+              // Preserve full URL including path and query when redirecting
+              const encodedUrl = encodeURIComponent(iframe.src);
+              window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}`;
+              return;
+            }
+          } catch (srcError) {
+            // Ignore if iframe.src is also not accessible
+          }
+        }
+        
+        // If we can't determine the new origin, just log the cross-origin error
+        log("Cross-origin navigation detected, but unable to determine target domain");
       }
     }, 500);
 
