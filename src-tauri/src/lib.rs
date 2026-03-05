@@ -145,6 +145,9 @@ async fn open_inspector_window(
         .build()
         .map_err(|e| e.to_string())?;
 
+    Ok(())
+}
+
 #[tauri::command]
 async fn open_inspector_browser(
     app: AppHandle,
@@ -164,7 +167,7 @@ async fn open_inspector_browser(
         .map_err(|e| e.to_string())?;
 
     // Use the CLI to open inspector with WebDriver
-    let output = Command::new("node")
+    let _output = Command::new("node")
         .arg(&inspector_js_path)
         .arg("open")
         .arg("http://127.0.0.1:8888/__/inspector")
