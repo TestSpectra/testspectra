@@ -14,6 +14,7 @@ export const PORT = 8888;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CLIENT_DIR = path.join(__dirname, "../client");
+const CERT_CACHE_PATH = path.join(os.tmpdir(), "wdio-inspector-cert.json");
 
 // ============================================================
 // 1. MIME TYPES
@@ -65,10 +66,35 @@ function generateCert(): { key: string; cert: string } {
   return { key: privateKey, cert };
 }
 
-const { key, cert } = generateCert();
+function getCachedCert(): { key: string; cert: string } {
+  if (fs.existsSync(CERT_CACHE_PATH)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(CERT_CACHE_PATH, "utf8"));
+      console.log("✅ Using cached certificate");
+      return cached;
+    } catch (err) {
+      console.log("⚠️  Cache corrupted, regenerating...");
+    }
+  }
+  const cert = generateCert();
+  fs.writeFileSync(CERT_CACHE_PATH, JSON.stringify(cert));
+  return cert;
+}
+
+const { key, cert } = getCachedCert();
 
 // ============================================================
-// 3. SERVE STATIC FILES (inspector UI assets)
+// 3. HTTP AGENTS FOR CONNECTION POOLING
+// ============================================================
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50 });
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+  rejectUnauthorized: false,
+});
+
+// ============================================================
+// 4. SERVE STATIC FILES (inspector UI assets)
 // ============================================================
 function serveStaticFile(filePath: string, res: http.ServerResponse): boolean {
   if (!fs.existsSync(filePath)) return false;
@@ -83,7 +109,7 @@ function serveStaticFile(filePath: string, res: http.ServerResponse): boolean {
 }
 
 // ============================================================
-// 4. SERVE INSPECTOR HTML
+// 5. SERVE INSPECTOR HTML
 //    Reads index.html from client dir, injects host info
 // ============================================================
 function serveInspectorHtml(
@@ -116,7 +142,7 @@ function serveInspectorHtml(
 }
 
 // ============================================================
-// 5. PROXY TO TARGET
+// 6. PROXY TO TARGET
 // ============================================================
 function proxyToTarget(
   req: http.IncomingMessage,
@@ -133,8 +159,8 @@ function proxyToTarget(
     headers: {
       ...req.headers,
       host: host,
-      "accept-encoding": "identity", // disable compression for easier handling
     },
+    agent: protocol === "https" ? httpsAgent : httpAgent,
     rejectUnauthorized: false,
   };
 
@@ -145,7 +171,6 @@ function proxyToTarget(
     delete headers["content-security-policy"];
     delete headers["content-security-policy-report-only"];
     delete headers["frame-options"];
-    delete headers["content-encoding"];
     delete headers["content-length"]; // will be recalculated if needed
 
     res.writeHead(proxyRes.statusCode || 200, headers);
@@ -172,7 +197,7 @@ function proxyToTarget(
 }
 
 // ============================================================
-// 6. HANDLE REQUEST (shared by HTTP & HTTPS)
+// 7. HANDLE REQUEST (shared by HTTP & HTTPS)
 // ============================================================
 function handleRequest(
   req: http.IncomingMessage,
@@ -220,7 +245,7 @@ function handleRequest(
 }
 
 // ============================================================
-// 7. BUILD THE SERVER
+// 8. BUILD THE SERVER
 // ============================================================
 
 // HTTP server — handles plain HTTP requests and CONNECT tunnels
@@ -282,7 +307,7 @@ server.on("error", (err: Error) => {
 });
 
 // ============================================================
-// 8. START SERVER
+// 9. START SERVER
 // ============================================================
 server.listen(PORT, () => {
   console.log(`🚀 Inspector Proxy running on http://127.0.0.1:${PORT}`);
