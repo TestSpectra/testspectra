@@ -43,11 +43,23 @@ export default function WebInspector() {
   const isResizingRef = useRef(false);
   const isInspectModeRef = useRef(isInspectMode);
   const isRecordingRef = useRef(isRecording);
-  const currentPageUrlRef = useRef<string | null>(null);
 
+  const currentPageUrlRef = useRef<string | null>(null);
   const log = useCallback((msg: string) => {
     setCodeLog((prev) => [...prev, `> ${msg}`]);
   }, []);
+
+  const handleCrossOriginRedirect = useCallback((targetUrl: string, source: string) => {
+    log(`Cross-origin navigation detected ${source}: ${targetUrl}`);
+    log(`Redirecting to maintain inspector access...`);
+
+    const newUrl = new URL(targetUrl);
+    const encodedUrl = encodeURIComponent(targetUrl);
+    const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
+    const recordParam = isRecordingRef.current ? '&record=1' : '';
+    window.location.href = `${newUrl.origin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
+  }, [log]);
+
 
   useEffect(() => {
     isInspectModeRef.current = isInspectMode;
@@ -259,14 +271,12 @@ export default function WebInspector() {
         const originalPushState = iframe.contentWindow.history.pushState;
         const originalReplaceState = iframe.contentWindow.history.replaceState;
 
-        iframe.contentWindow.history.pushState = function (...args) {
-          originalPushState.apply(this, args);
-          // Trigger our navigation handler after pushState
+        const handleHistoryNavigation = (method: string) => {
           setTimeout(() => {
             try {
               const newHref = iframe.contentWindow?.location.href;
               if (newHref && newHref !== currentPageUrlRef.current) {
-                log(`SPA navigation detected (pushState): ${newHref}`);
+                log(`SPA navigation detected (${method}): ${newHref}`);
 
                 // Check for cross-origin navigation
                 const currentOrigin = window.location.origin;
@@ -274,13 +284,7 @@ export default function WebInspector() {
                 const newOrigin = newUrl.origin;
 
                 if (newOrigin !== currentOrigin) {
-                  log(`Cross-origin SPA navigation detected: ${newHref}`);
-                  log(`Redirecting to maintain inspector access...`);
-
-                  const encodedUrl = encodeURIComponent(newHref);
-                  const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
-                  const recordParam = isRecordingRef.current ? '&record=1' : '';
-                  window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
+                  handleCrossOriginRedirect(newHref, '(SPA)');
                   return;
                 }
 
@@ -295,40 +299,14 @@ export default function WebInspector() {
           }, 0);
         };
 
+        iframe.contentWindow.history.pushState = function (...args) {
+          originalPushState.apply(this, args);
+          handleHistoryNavigation('pushState');
+        };
+
         iframe.contentWindow.history.replaceState = function (...args) {
           originalReplaceState.apply(this, args);
-          // Trigger our navigation handler after replaceState
-          setTimeout(() => {
-            try {
-              const newHref = iframe.contentWindow?.location.href;
-              if (newHref && newHref !== currentPageUrlRef.current) {
-                log(`SPA navigation detected (replaceState): ${newHref}`);
-
-                // Check for cross-origin navigation
-                const currentOrigin = window.location.origin;
-                const newUrl = new URL(newHref);
-                const newOrigin = newUrl.origin;
-
-                if (newOrigin !== currentOrigin) {
-                  log(`Cross-origin SPA navigation detected: ${newHref}`);
-                  log(`Redirecting to maintain inspector access...`);
-
-                  const encodedUrl = encodeURIComponent(newHref);
-                  const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
-                  const recordParam = isRecordingRef.current ? '&record=1' : '';
-                  window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
-                  return;
-                }
-
-                currentPageUrlRef.current = newHref;
-                if (document.activeElement?.id !== "currentUrl") {
-                  setUrlInput(newHref);
-                }
-              }
-            } catch (e) {
-              // Ignore cross-origin errors
-            }
-          }, 0);
+          handleHistoryNavigation('replaceState');
         };
       }
 
@@ -551,14 +529,7 @@ export default function WebInspector() {
 
           // Check if we've navigated to a different domain
           if (newOrigin !== currentOrigin) {
-            log(`Cross-origin navigation detected: ${href}`);
-            log(`Redirecting to maintain inspector access...`);
-
-            // Preserve full URL and current inspector modes using refs
-            const encodedUrl = encodeURIComponent(href);
-            const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
-            const recordParam = isRecordingRef.current ? '&record=1' : '';
-            window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
+            handleCrossOriginRedirect(href, '');
             return;
           }
 
@@ -578,14 +549,7 @@ export default function WebInspector() {
             const currentOrigin = window.location.origin;
 
             if (newOrigin !== currentOrigin) {
-              log(`Cross-origin navigation detected via iframe src: ${iframe.src}`);
-              log(`Redirecting to maintain inspector access...`);
-
-              // Preserve full URL and current inspector modes using refs
-              const encodedUrl = encodeURIComponent(iframe.src);
-              const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
-              const recordParam = isRecordingRef.current ? '&record=1' : '';
-              window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
+              handleCrossOriginRedirect(iframe.src, 'via iframe src');
               return;
             }
           } catch (srcError) {
