@@ -1,5 +1,5 @@
 use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Manager, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager};
 use tauri_plugin_log::{Target, TargetKind};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -98,57 +98,6 @@ async fn stop_web_inspector(
 }
 
 #[tauri::command]
-async fn open_inspector_window(
-    app: AppHandle,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("inspector") {
-        window.set_focus().map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    // Check if server is running before opening window
-    let process_lock = state.inspector_process.lock().await;
-    if process_lock.is_none() {
-        return Err("Inspector server is not running. Please start it first.".to_string());
-    }
-    
-    let url = "http://127.0.0.1:8888/__/inspector".to_string();
-
-    // Find the inspector window config from tauri.conf.json
-    let mut window_config = app
-        .config()
-        .app
-        .windows
-        .iter()
-        .find(|w| w.label == "inspector")
-        .cloned()
-        .ok_or_else(|| "Inspector window config not found".to_string())?;
-    
-    // Override the URL with the actual server URL
-    window_config.url = tauri::WebviewUrl::External(url.parse().unwrap());
-
-    // Build the window from the loaded config
-    WebviewWindowBuilder::from_config(&app, &window_config)
-        .map_err(|e| e.to_string())?
-        .initialization_script(
-            r#"
-                if (navigator.serviceWorker) {
-                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                        for(let registration of registrations) {
-                            registration.unregister();
-                        }
-                    });
-                }
-            "#,
-        )
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-#[tauri::command]
 async fn open_inspector_browser(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
@@ -214,7 +163,6 @@ pub fn run() {
             log_frontend_event,
             start_web_inspector,
             stop_web_inspector,
-            open_inspector_window,
             open_inspector_browser,
         ])
         .run(tauri::generate_context!())

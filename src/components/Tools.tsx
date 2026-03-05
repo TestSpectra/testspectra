@@ -61,21 +61,9 @@ export function Tools() {
 
   const handleOpenInspectorWindow = async () => {
     try {
-      await invoke('open_inspector_window');
-    } catch (error) {
-      console.error('Failed to open inspector window:', error);
-      // Fallback to opening in browser
-      if (webInspector.url) {
-        window.open(webInspector.url, '_blank');
-      }
-    }
-  };
-
-  const handleOpenInspectorBrowser = async () => {
-    try {
       await invoke('open_inspector_browser');
     } catch (error) {
-      console.error('Failed to open inspector in browser:', error);
+      console.error('Failed to open inspector browser:', error);
       // Fallback to opening URL directly
       if (webInspector.url) {
         window.open(webInspector.url, '_blank');
@@ -189,15 +177,7 @@ export function Tools() {
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  Open Inspector Window
-                </Button>
-                <Button 
-                  onClick={handleOpenInspectorBrowser}
-                  variant="outline"
-                  className="w-full border-green-700 text-green-400 hover:bg-green-900/20"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Open in Browser (with WebDriver)
+                  Open Inspector
                 </Button>
                 <Button 
                   onClick={handleStopWebInspector}
@@ -349,10 +329,9 @@ export function Tools() {
             <ol className="space-y-2 list-decimal list-inside">
               <li>Click "Start Web Inspector" to launch the proxy server</li>
               <li>Wait for the server to initialize (usually 1-2 seconds)</li>
-              <li>Choose your preferred option:</li>
-              <li className="ml-4">• "Open Inspector Window" - Opens in Tauri window</li>
-              <li className="ml-4">• "Open in Browser" - Opens with WebDriver automation</li>
+              <li>Click "Open Inspector" to launch Chrome with WebDriver</li>
               <li>Enter a URL to start inspecting elements</li>
+              <li>Use inspect mode to generate selectors</li>
             </ol>
           </div>
           <div>
