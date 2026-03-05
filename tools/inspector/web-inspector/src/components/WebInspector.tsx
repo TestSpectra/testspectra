@@ -395,11 +395,24 @@ export default function WebInspector() {
     // Check if we have a target URL from cross-origin redirect
     const urlParams = new URLSearchParams(window.location.search);
     const targetUrl = urlParams.get('target');
+    const shouldInspect = urlParams.get('inspect') === '1';
+    const shouldRecord = urlParams.get('record') === '1';
     
     if (targetUrl) {
       try {
         const decodedUrl = decodeURIComponent(targetUrl);
         log(`Loading target URL from redirect: ${decodedUrl}`);
+        
+        // Restore inspector modes
+        if (shouldInspect) {
+          setIsInspectMode(true);
+          log('Restored inspect mode');
+        }
+        if (shouldRecord) {
+          setIsRecording(true);
+          setShowRecordedScript(true);
+          log('Restored record mode');
+        }
         
         const empty = emptyStateRef.current;
         if (empty) empty.classList.add("hidden");
@@ -411,9 +424,11 @@ export default function WebInspector() {
         setUrlInput(decodedUrl);
         currentPageUrlRef.current = decodedUrl;
         
-        // Clean up URL by removing target parameter
+        // Clean up URL by removing all inspector parameters
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('target');
+        newUrl.searchParams.delete('inspect');
+        newUrl.searchParams.delete('record');
         window.history.replaceState({}, '', newUrl.toString());
         
         return;
@@ -460,9 +475,11 @@ export default function WebInspector() {
               log(`Cross-origin navigation detected: ${href}`);
               log(`Redirecting to maintain inspector access...`);
               
-              // Preserve full URL including path and query when redirecting
+              // Preserve full URL and current inspector modes using refs
               const encodedUrl = encodeURIComponent(href);
-              window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}`;
+              const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
+              const recordParam = isRecordingRef.current ? '&record=1' : '';
+              window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
               return;
             }
             
@@ -487,9 +504,11 @@ export default function WebInspector() {
               log(`Cross-origin navigation detected via iframe src: ${iframe.src}`);
               log(`Redirecting to maintain inspector access...`);
               
-              // Preserve full URL including path and query when redirecting
+              // Preserve full URL and current inspector modes using refs
               const encodedUrl = encodeURIComponent(iframe.src);
-              window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}`;
+              const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
+              const recordParam = isRecordingRef.current ? '&record=1' : '';
+              window.location.href = `${newOrigin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
               return;
             }
           } catch (srcError) {
