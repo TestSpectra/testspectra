@@ -55,8 +55,8 @@ export default function WebInspector() {
 
     const newUrl = new URL(targetUrl);
     const encodedUrl = encodeURIComponent(targetUrl);
-    const inspectParam = isInspectModeRef.current ? '&inspect=1' : '';
-    const recordParam = isRecordingRef.current ? '&record=1' : '';
+    const inspectParam = `&inspect=${+isInspectModeRef.current}`;
+    const recordParam = `&record=${+isRecordingRef.current}`;
     window.location.href = `${newUrl.origin}/__/inspector?target=${encodedUrl}${inspectParam}${recordParam}`;
   }, [log]);
 
@@ -459,16 +459,9 @@ export default function WebInspector() {
         const decodedUrl = decodeURIComponent(targetUrl);
         log(`Loading target URL from redirect: ${decodedUrl}`);
 
-        // Restore inspector modes
-        if (shouldInspect) {
-          setIsInspectMode(true);
-          log('Restored inspect mode');
-        }
-        if (shouldRecord) {
-          setIsRecording(true);
-          setShowRecordedScript(true);
-          log('Restored record mode');
-        }
+        setIsInspectMode(shouldInspect);
+        setIsRecording(shouldRecord);
+        setShowRecordedScript(shouldRecord);
 
         const empty = emptyStateRef.current;
         if (empty) empty.classList.add("hidden");
