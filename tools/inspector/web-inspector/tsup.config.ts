@@ -7,4 +7,8 @@ export default defineConfig({
   outDir: "dist/bin",
   clean: true,
   tsconfig: "tsconfig.app.json",
+  bundle: true,
+  noExternal: ["cac"],
+  minify: false,
+  splitting: false,
 });
