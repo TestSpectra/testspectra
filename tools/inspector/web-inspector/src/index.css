@@ -12,6 +12,10 @@
   --purple: #a78bfa;
   --yellow: #fbbf24;
   --green: #34d399;
+
+  --font-sans:
+    ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 * {
@@ -306,7 +310,7 @@ input[type="url"]:focus {
   box-shadow: 0 0 0 2px rgba(71, 85, 105, 0.2);
 }
 
-#web-inspector button {
+button {
   padding: 0.5rem 1rem;
   background-color: var(--accent);
   color: var(--text-primary);
@@ -318,11 +322,11 @@ input[type="url"]:focus {
   transition: background-color 0.2s;
 }
 
-#web-inspector button:hover {
+button:hover {
   background-color: var(--accent-hover);
 }
 
-#web-inspector button:focus {
+button:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(71, 85, 105, 0.4);
 }
@@ -538,7 +542,9 @@ input[type="url"]:focus {
 .empty-icon {
   font-size: 64px;
   color: var(--accent);
-  font-variation-settings: "FILL" 0, "wght" 200;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 200;
 }
 
 .empty-state h2 {
@@ -558,7 +564,7 @@ input[type="url"]:focus {
   height: 100%;
   border: none;
   background-color: white;
-  display: none;
+  /* display: none; */
 }
 
 #targetFrame.loaded {
