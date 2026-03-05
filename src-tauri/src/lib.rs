@@ -1,5 +1,5 @@
 use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Emitter};
 use tauri_plugin_log::{Target, TargetKind};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -12,8 +12,227 @@ pub struct InspectorStatus {
     port: Option<u16>,
 }
 
+#[derive(Clone, serde::Serialize)]
+pub struct DependencyStatus {
+    name: String,
+    installed: bool,
+    version: Option<String>,
+    required: bool,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct SystemCheckResult {
+    all_ready: bool,
+    dependencies: Vec<DependencyStatus>,
+    missing_count: usize,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct InstallProgress {
+    dependency: String,
+    status: String, // "checking", "downloading", "installing", "completed", "failed"
+    progress: f32,  // 0.0 to 1.0
+    message: String,
+}
+
 pub struct AppState {
     inspector_process: Arc<Mutex<Option<Child>>>,
+    install_progress: Arc<Mutex<Option<InstallProgress>>>,
+}
+
+#[tauri::command]
+async fn check_system_dependencies() -> Result<SystemCheckResult, String> {
+    let mut dependencies = Vec::new();
+    let mut missing_count = 0;
+
+    // Check Node.js
+    let node_status = check_nodejs().await;
+    if !node_status.installed {
+        missing_count += 1;
+    }
+    dependencies.push(node_status);
+
+    // Check WebDriverIO
+    let wdio_status = check_webdriverio().await;
+    if !wdio_status.installed {
+        missing_count += 1;
+    }
+    dependencies.push(wdio_status);
+
+    Ok(SystemCheckResult {
+        all_ready: missing_count == 0,
+        dependencies,
+        missing_count,
+    })
+}
+
+async fn check_nodejs() -> DependencyStatus {
+    match Command::new("node").arg("--version").output() {
+        Ok(output) => {
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                DependencyStatus {
+                    name: "Node.js".to_string(),
+                    installed: true,
+                    version: Some(version),
+                    required: true,
+                }
+            } else {
+                DependencyStatus {
+                    name: "Node.js".to_string(),
+                    installed: false,
+                    version: None,
+                    required: true,
+                }
+            }
+        }
+        Err(_) => DependencyStatus {
+            name: "Node.js".to_string(),
+            installed: false,
+            version: None,
+            required: true,
+        },
+    }
+}
+
+async fn check_webdriverio() -> DependencyStatus {
+    // Check if webdriverio is installed globally
+    match Command::new("npm").args(&["list", "-g", "webdriverio", "--depth=0"]).output() {
+        Ok(output) => {
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            if output_str.contains("webdriverio@") {
+                // Extract version
+                let version = output_str
+                    .lines()
+                    .find(|line| line.contains("webdriverio@"))
+                    .and_then(|line| line.split("webdriverio@").nth(1))
+                    .and_then(|v| v.split_whitespace().next())
+                    .map(|v| v.to_string());
+                
+                DependencyStatus {
+                    name: "WebDriverIO".to_string(),
+                    installed: true,
+                    version,
+                    required: true,
+                }
+            } else {
+                DependencyStatus {
+                    name: "WebDriverIO".to_string(),
+                    installed: false,
+                    version: None,
+                    required: true,
+                }
+            }
+        }
+        Err(_) => DependencyStatus {
+            name: "WebDriverIO".to_string(),
+            installed: false,
+            version: None,
+            required: true,
+        },
+    }
+}
+
+#[tauri::command]
+async fn install_missing_dependencies(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    // Check what's missing first
+    let system_check = check_system_dependencies().await?;
+    
+    for dep in system_check.dependencies {
+        if !dep.installed {
+            match dep.name.as_str() {
+                "WebDriverIO" => {
+                    install_webdriverio(&app, &state).await?;
+                }
+                "Node.js" => {
+                    return Err("Node.js is not installed. Please install Node.js manually from https://nodejs.org/".to_string());
+                }
+                _ => {}
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+async fn install_webdriverio(
+    app: &AppHandle,
+    state: &tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    // Update progress
+    let progress = InstallProgress {
+        dependency: "WebDriverIO".to_string(),
+        status: "installing".to_string(),
+        progress: 0.0,
+        message: "Installing WebDriverIO globally...".to_string(),
+    };
+    
+    {
+        let mut progress_lock = state.install_progress.lock().await;
+        *progress_lock = Some(progress.clone());
+    }
+    
+    // Emit progress event
+    let _ = app.emit("install-progress", &progress);
+
+    // Install WebDriverIO globally
+    let output = Command::new("npm")
+        .args(&["install", "-g", "webdriverio"])
+        .output()
+        .map_err(|e| format!("Failed to run npm install: {}", e))?;
+
+    if output.status.success() {
+        let progress = InstallProgress {
+            dependency: "WebDriverIO".to_string(),
+            status: "completed".to_string(),
+            progress: 1.0,
+            message: "WebDriverIO installed successfully!".to_string(),
+        };
+        
+        {
+            let mut progress_lock = state.install_progress.lock().await;
+            *progress_lock = Some(progress.clone());
+        }
+        
+        let _ = app.emit("install-progress", &progress);
+        
+        // Clear progress after a delay
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        {
+            let mut progress_lock = state.install_progress.lock().await;
+            *progress_lock = None;
+        }
+        
+        Ok(())
+    } else {
+        let error_msg = String::from_utf8_lossy(&output.stderr);
+        let progress = InstallProgress {
+            dependency: "WebDriverIO".to_string(),
+            status: "failed".to_string(),
+            progress: 0.0,
+            message: format!("Installation failed: {}", error_msg),
+        };
+        
+        {
+            let mut progress_lock = state.install_progress.lock().await;
+            *progress_lock = Some(progress.clone());
+        }
+        
+        let _ = app.emit("install-progress", &progress);
+        
+        Err(format!("Failed to install WebDriverIO: {}", error_msg))
+    }
+}
+
+#[tauri::command]
+async fn get_install_progress(
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<InstallProgress>, String> {
+    let progress_lock = state.install_progress.lock().await;
+    Ok(progress_lock.clone())
 }
 
 #[tauri::command]
@@ -24,6 +243,20 @@ async fn start_web_inspector(
     let mut process_lock = state.inspector_process.lock().await;
     if process_lock.is_some() {
         return Err("Inspector server is already running".to_string());
+    }
+
+    // Check system dependencies first
+    let system_check = check_system_dependencies().await?;
+    if !system_check.all_ready {
+        return Err(format!(
+            "Missing dependencies: {}. Please install them first.",
+            system_check.dependencies
+                .iter()
+                .filter(|d| !d.installed)
+                .map(|d| d.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
     }
 
     // Get the web-inspector JS file path from resources
@@ -68,10 +301,6 @@ async fn stop_web_inspector(
 ) -> Result<InspectorStatus, String> {
     let mut process_lock = state.inspector_process.lock().await;
     if let Some(mut child) = process_lock.take() {
-        if let Some(window) = app.get_webview_window("inspector") {
-            let _ = window.close();
-        }
-        
         // Try to stop gracefully first
         let inspector_js_path = app
             .path()
@@ -139,6 +368,7 @@ fn log_frontend_event(message: String) {
 pub fn run() {
     let app_state = AppState {
         inspector_process: Arc::new(Mutex::new(None)),
+        install_progress: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()
@@ -161,6 +391,9 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             log_frontend_event,
+            check_system_dependencies,
+            install_missing_dependencies,
+            get_install_progress,
             start_web_inspector,
             stop_web_inspector,
             open_inspector_browser,
