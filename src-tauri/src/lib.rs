@@ -1,9 +1,9 @@
-use tauri::path::BaseDirectory;
-use tauri::{AppHandle, Manager, Emitter};
-use tauri_plugin_log::{Target, TargetKind};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::process::{Child, Command};
+use std::sync::Arc;
+use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_log::{Target, TargetKind};
+use tokio::sync::Mutex;
 
 #[derive(Clone, serde::Serialize)]
 pub struct InspectorStatus {
@@ -42,23 +42,56 @@ pub struct AppState {
 
 #[tauri::command]
 async fn check_system_dependencies() -> Result<SystemCheckResult, String> {
+    log::info!("Starting system dependency check...");
     let mut dependencies = Vec::new();
     let mut missing_count = 0;
 
     // Check Node.js
+    log::info!("Checking Node.js status...");
     let node_status = check_nodejs().await;
     if !node_status.installed {
+        log::warn!("Node.js is not installed or not in PATH");
         missing_count += 1;
+    } else {
+        log::info!(
+            "Node.js detected: {}",
+            node_status.version.as_deref().unwrap_or("unknown")
+        );
     }
     dependencies.push(node_status);
 
+    // Check npm
+    log::info!("Checking npm status...");
+    let npm_status = check_npm().await;
+    if !npm_status.installed {
+        log::warn!("npm is not installed or not in PATH");
+        missing_count += 1;
+    } else {
+        log::info!(
+            "npm detected: {}",
+            npm_status.version.as_deref().unwrap_or("unknown")
+        );
+    }
+    dependencies.push(npm_status);
+
     // Check WebDriverIO
+    log::info!("Checking WebDriverIO status...");
     let wdio_status = check_webdriverio().await;
     if !wdio_status.installed {
+        log::warn!("WebDriverIO is not installed globally");
         missing_count += 1;
+    } else {
+        log::info!(
+            "WebDriverIO detected: {}",
+            wdio_status.version.as_deref().unwrap_or("unknown")
+        );
     }
     dependencies.push(wdio_status);
 
+    log::info!(
+        "System dependency check completed. Missing: {}",
+        missing_count
+    );
     Ok(SystemCheckResult {
         all_ready: missing_count == 0,
         dependencies,
@@ -67,6 +100,7 @@ async fn check_system_dependencies() -> Result<SystemCheckResult, String> {
 }
 
 async fn check_nodejs() -> DependencyStatus {
+    log::debug!("Executing 'node --version'...");
     match Command::new("node").arg("--version").output() {
         Ok(output) => {
             if output.status.success() {
@@ -78,6 +112,12 @@ async fn check_nodejs() -> DependencyStatus {
                     required: true,
                 }
             } else {
+                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                log::error!(
+                    "Node.js version check failed with status: {}. Error: {}",
+                    output.status,
+                    stderr
+                );
                 DependencyStatus {
                     name: "Node.js".to_string(),
                     installed: false,
@@ -86,20 +126,67 @@ async fn check_nodejs() -> DependencyStatus {
                 }
             }
         }
-        Err(_) => DependencyStatus {
-            name: "Node.js".to_string(),
-            installed: false,
-            version: None,
-            required: true,
-        },
+        Err(e) => {
+            log::error!("Failed to execute 'node': {}", e);
+            DependencyStatus {
+                name: "Node.js".to_string(),
+                installed: false,
+                version: None,
+                required: true,
+            }
+        }
+    }
+}
+
+async fn check_npm() -> DependencyStatus {
+    log::debug!("Executing 'npm --version'...");
+    match Command::new("npm").arg("--version").output() {
+        Ok(output) => {
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                DependencyStatus {
+                    name: "npm".to_string(),
+                    installed: true,
+                    version: Some(version),
+                    required: true,
+                }
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                log::error!(
+                    "npm version check failed with status: {}. Error: {}",
+                    output.status,
+                    stderr
+                );
+                DependencyStatus {
+                    name: "npm".to_string(),
+                    installed: false,
+                    version: None,
+                    required: true,
+                }
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to execute 'npm': {}", e);
+            DependencyStatus {
+                name: "npm".to_string(),
+                installed: false,
+                version: None,
+                required: true,
+            }
+        }
     }
 }
 
 async fn check_webdriverio() -> DependencyStatus {
+    log::debug!("Checking for global WebDriverIO installation...");
     // Check if webdriverio is installed globally
-    match Command::new("npm").args(&["list", "-g", "webdriverio", "--depth=0"]).output() {
+    match Command::new("npm")
+        .args(&["list", "-g", "webdriverio", "--depth=0"])
+        .output()
+    {
         Ok(output) => {
             let output_str = String::from_utf8_lossy(&output.stdout);
+            log::debug!("npm list output: {}", output_str);
             if output_str.contains("webdriverio@") {
                 // Extract version
                 let version = output_str
@@ -108,7 +195,7 @@ async fn check_webdriverio() -> DependencyStatus {
                     .and_then(|line| line.split("webdriverio@").nth(1))
                     .and_then(|v| v.split_whitespace().next())
                     .map(|v| v.to_string());
-                
+
                 DependencyStatus {
                     name: "WebDriverIO".to_string(),
                     installed: true,
@@ -116,6 +203,7 @@ async fn check_webdriverio() -> DependencyStatus {
                     required: true,
                 }
             } else {
+                log::debug!("WebDriverIO not found in global npm packages");
                 DependencyStatus {
                     name: "WebDriverIO".to_string(),
                     installed: false,
@@ -124,12 +212,15 @@ async fn check_webdriverio() -> DependencyStatus {
                 }
             }
         }
-        Err(_) => DependencyStatus {
-            name: "WebDriverIO".to_string(),
-            installed: false,
-            version: None,
-            required: true,
-        },
+        Err(e) => {
+            log::error!("Failed to execute 'npm list -g webdriverio': {}", e);
+            DependencyStatus {
+                name: "WebDriverIO".to_string(),
+                installed: false,
+                version: None,
+                required: true,
+            }
+        }
     }
 }
 
@@ -140,21 +231,29 @@ async fn install_missing_dependencies(
 ) -> Result<(), String> {
     // Check what's missing first
     let system_check = check_system_dependencies().await?;
-    
+
     for dep in system_check.dependencies {
         if !dep.installed {
             match dep.name.as_str() {
                 "WebDriverIO" => {
+                    log::info!("Missing WebDriverIO, attempting to install...");
                     install_webdriverio(&app, &state).await?;
                 }
                 "Node.js" => {
+                    log::error!("Node.js is missing but cannot be auto-installed.");
                     return Err("Node.js is not installed. Please install Node.js manually from https://nodejs.org/".to_string());
                 }
-                _ => {}
+                "npm" => {
+                    log::error!("npm is missing but cannot be auto-installed.");
+                    return Err("npm is not installed. Please install npm (it usually comes with Node.js) manually.".to_string());
+                }
+                _ => {
+                    log::warn!("Missing unknown dependency: {}", dep.name);
+                }
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -169,43 +268,48 @@ async fn install_webdriverio(
         progress: 0.0,
         message: "Installing WebDriverIO globally...".to_string(),
     };
-    
+
     {
         let mut progress_lock = state.install_progress.lock().await;
         *progress_lock = Some(progress.clone());
     }
-    
+
     // Emit progress event
     let _ = app.emit("install-progress", &progress);
 
     // Install WebDriverIO globally
+    log::info!("Installing WebDriverIO globally via npm... this may take a while.");
     let output = Command::new("npm")
         .args(&["install", "-g", "webdriverio"])
         .output()
-        .map_err(|e| format!("Failed to run npm install: {}", e))?;
+        .map_err(|e| {
+            log::error!("Failed to execute npm install: {}", e);
+            format!("Failed to run npm install: {}", e)
+        })?;
 
     if output.status.success() {
+        log::info!("WebDriverIO installed successfully");
         let progress = InstallProgress {
             dependency: "WebDriverIO".to_string(),
             status: "completed".to_string(),
             progress: 1.0,
             message: "WebDriverIO installed successfully!".to_string(),
         };
-        
+
         {
             let mut progress_lock = state.install_progress.lock().await;
             *progress_lock = Some(progress.clone());
         }
-        
+
         let _ = app.emit("install-progress", &progress);
-        
+
         // Clear progress after a delay
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         {
             let mut progress_lock = state.install_progress.lock().await;
             *progress_lock = None;
         }
-        
+
         Ok(())
     } else {
         let error_msg = String::from_utf8_lossy(&output.stderr);
@@ -215,14 +319,14 @@ async fn install_webdriverio(
             progress: 0.0,
             message: format!("Installation failed: {}", error_msg),
         };
-        
+
         {
             let mut progress_lock = state.install_progress.lock().await;
             *progress_lock = Some(progress.clone());
         }
-        
+
         let _ = app.emit("install-progress", &progress);
-        
+
         Err(format!("Failed to install WebDriverIO: {}", error_msg))
     }
 }
@@ -250,7 +354,8 @@ async fn start_web_inspector(
     if !system_check.all_ready {
         return Err(format!(
             "Missing dependencies: {}. Please install them first.",
-            system_check.dependencies
+            system_check
+                .dependencies
                 .iter()
                 .filter(|d| !d.installed)
                 .map(|d| d.name.as_str())
@@ -267,14 +372,17 @@ async fn start_web_inspector(
 
     log::info!("Inspector JS path: {:?}", inspector_js_path);
     if !inspector_js_path.exists() {
-        return Err(format!("Inspector JS file not found at: {:?}", inspector_js_path));
+        return Err(format!(
+            "Inspector JS file not found at: {:?}",
+            inspector_js_path
+        ));
     }
 
     // Start the web-inspector using Node.js
     let mut cmd = Command::new("node");
     cmd.arg(&inspector_js_path);
     cmd.arg("start");
-    
+
     let child = cmd.spawn().map_err(|e| {
         log::error!("Failed to start web-inspector: {}", e);
         e.to_string()
@@ -306,16 +414,16 @@ async fn stop_web_inspector(
             .path()
             .resolve("resources/web-inspector.js", BaseDirectory::Resource)
             .map_err(|e| e.to_string())?;
-            
+
         let _ = Command::new("node")
             .arg(&inspector_js_path)
             .arg("stop")
             .output();
-        
+
         // Force kill if still running
         let _ = child.kill();
         let _ = child.wait();
-        
+
         log::info!("Inspector server stopped.");
     }
 
