@@ -3,9 +3,7 @@ use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-mod inspector;
-use inspector::InspectorServer;
+use std::process::{Child, Command};
 
 #[derive(Clone, serde::Serialize)]
 pub struct InspectorStatus {
@@ -15,7 +13,7 @@ pub struct InspectorStatus {
 }
 
 pub struct AppState {
-    inspector_server: Arc<Mutex<Option<InspectorServer>>>,
+    inspector_process: Arc<Mutex<Option<Child>>>,
 }
 
 #[tauri::command]
@@ -23,32 +21,41 @@ async fn start_web_inspector(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<InspectorStatus, String> {
-    let mut server_lock = state.inspector_server.lock().await;
-    if server_lock.is_some() {
+    let mut process_lock = state.inspector_process.lock().await;
+    if process_lock.is_some() {
         return Err("Inspector server is already running".to_string());
     }
 
-    let inspector_dist_path = app
+    // Get the web-inspector JS file path from resources
+    let inspector_js_path = app
         .path()
-        .resolve("resources/inspector", BaseDirectory::Resource)
+        .resolve("resources/web-inspector.js", BaseDirectory::Resource)
         .map_err(|e| e.to_string())?;
 
-    log::info!("Inspector client path: {:?}", inspector_dist_path);
-    if !inspector_dist_path.exists() {
-        return Err(format!("Inspector client directory not found at: {:?}", inspector_dist_path));
+    log::info!("Inspector JS path: {:?}", inspector_js_path);
+    if !inspector_js_path.exists() {
+        return Err(format!("Inspector JS file not found at: {:?}", inspector_js_path));
     }
 
-    let server = InspectorServer::new(inspector_dist_path);
-    let server_clone = server.clone();
+    // Start the web-inspector using Node.js
+    let mut cmd = Command::new("node");
+    cmd.arg(&inspector_js_path);
+    cmd.arg("start");
     
-    let (addr, _shutdown_tx) = server.start(8888).await.map_err(|e| e.to_string())?;
-    
-    *server_lock = Some(server_clone);
+    let child = cmd.spawn().map_err(|e| {
+        log::error!("Failed to start web-inspector: {}", e);
+        e.to_string()
+    })?;
+
+    *process_lock = Some(child);
+
+    // Give it a moment to start
+    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
     let status = InspectorStatus {
         running: true,
-        url: Some(format!("http://{}/__inspector", addr)),
-        port: Some(addr.port()),
+        url: Some("http://127.0.0.1:8888/__/inspector".to_string()),
+        port: Some(8888),
     };
 
     Ok(status)
@@ -59,13 +66,27 @@ async fn stop_web_inspector(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<InspectorStatus, String> {
-    let mut server_lock = state.inspector_server.lock().await;
-    if let Some(server) = server_lock.take() {
+    let mut process_lock = state.inspector_process.lock().await;
+    if let Some(mut child) = process_lock.take() {
         if let Some(window) = app.get_webview_window("inspector") {
             let _ = window.close();
         }
-        // Sending shutdown signal
-        let _ = server.shutdown_tx.send(());
+        
+        // Try to stop gracefully first
+        let inspector_js_path = app
+            .path()
+            .resolve("resources/web-inspector.js", BaseDirectory::Resource)
+            .map_err(|e| e.to_string())?;
+            
+        let _ = Command::new("node")
+            .arg(&inspector_js_path)
+            .arg("stop")
+            .output();
+        
+        // Force kill if still running
+        let _ = child.kill();
+        let _ = child.wait();
+        
         log::info!("Inspector server stopped.");
     }
 
@@ -87,13 +108,12 @@ async fn open_inspector_window(
     }
 
     // Check if server is running before opening window
-    let server_lock = state.inspector_server.lock().await;
-    if server_lock.is_none() {
+    let process_lock = state.inspector_process.lock().await;
+    if process_lock.is_none() {
         return Err("Inspector server is not running. Please start it first.".to_string());
     }
     
-    // This part assumes the server is running on a known port (e.g., 8888)
-    let url = "http://127.0.0.1:8888/__inspector".to_string();
+    let url = "http://127.0.0.1:8888/__/inspector".to_string();
 
     // Find the inspector window config from tauri.conf.json
     let mut window_config = app
@@ -136,7 +156,7 @@ fn log_frontend_event(message: String) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app_state = AppState {
-        inspector_server: Arc::new(Mutex::new(None)),
+        inspector_process: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()
