@@ -1,5 +1,5 @@
-import { getApiUrl } from '../lib/config';
-import { logDebug } from '../lib/debug';
+import { getApiUrl } from "../lib/config";
+import { logDebug } from "../lib/debug";
 
 export interface Browser {
   id: string;
@@ -39,7 +39,6 @@ export interface ConfigData {
     deviceName: string;
     automationName: string;
     appPackage: string;
-    appActivity: string;
     autoGrantPermissions: boolean;
     noReset: boolean;
     implicitWait: string;
@@ -74,41 +73,44 @@ export interface ProjectConfig {
 
 export const projectConfigService = {
   async getConfig(projectId: string = "default"): Promise<ProjectConfig> {
-    const apiUrl = await getApiUrl()
-    const url = `${apiUrl}/config/${projectId}`
+    const apiUrl = await getApiUrl();
+    const url = `${apiUrl}/config/${projectId}`;
 
     logDebug(`Fetching config from: ${url}`);
 
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch configuration');
+      throw new Error("Failed to fetch configuration");
     }
 
     return response.json();
   },
 
-  async updateConfig(projectId: string = "default", configData: ConfigData): Promise<ProjectConfig> {
-    const apiUrl = await getApiUrl()
+  async updateConfig(
+    projectId: string = "default",
+    configData: ConfigData,
+  ): Promise<ProjectConfig> {
+    const apiUrl = await getApiUrl();
     const url = `${apiUrl}/config/${projectId}`;
 
     logDebug(`Updating config at: ${url}`);
 
     const response = await fetch(url, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },
       body: JSON.stringify({ config_data: configData }),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to update configuration');
+      throw new Error("Failed to update configuration");
     }
 
     return response.json();

@@ -1,17 +1,17 @@
-import { useState } from "react";
-import {
-  Globe,
-  Smartphone,
-  Play,
-  Square,
-  ExternalLink,
-  Loader2,
-} from "lucide-react";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Progress } from "./ui/progress";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import {
+  ExternalLink,
+  Globe,
+  Loader2,
+  Play,
+  Smartphone,
+  Square,
+} from "lucide-react";
+import { useState } from "react";
+import { projectConfigService } from "../services/project-config-service";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 interface ToolStatus {
   running: boolean;
@@ -58,9 +58,12 @@ export function Tools() {
     let unlisten: (() => void) | undefined;
 
     try {
-      unlisten = await listen<InstallProgress>("web-install-progress", (event) => {
-        setWebInstallProgress(event.payload);
-      });
+      unlisten = await listen<InstallProgress>(
+        "web-install-progress",
+        (event) => {
+          setWebInstallProgress(event.payload);
+        },
+      );
 
       // Pass scope explicitly if needed, although start_web_inspector handles its own deps
       // But if start_web_inspector calls install_missing_dependencies internally without scope...
@@ -133,9 +136,12 @@ export function Tools() {
     let unlisten: (() => void) | undefined;
 
     try {
-      unlisten = await listen<InstallProgress>("mobile-install-progress", (event) => {
-        setMobileInstallProgress(event.payload);
-      });
+      unlisten = await listen<InstallProgress>(
+        "mobile-install-progress",
+        (event) => {
+          setMobileInstallProgress(event.payload);
+        },
+      );
 
       const status: InspectorStatus = await invoke("start_appium_server");
       setAppiumInspector({
@@ -175,7 +181,22 @@ export function Tools() {
 
   const handleOpenAppiumInspectorWindow = async () => {
     try {
-      await invoke("open_mobile_inspector_window");
+      // Fetch default config
+      const config = await projectConfigService.getConfig("default");
+      const androidConfig = config.config_data.androidConfig;
+
+      await invoke("open_mobile_inspector_window", {
+        capabilities: {
+          platformName: androidConfig.platformName,
+          platformVersion: androidConfig.platformVersion,
+          deviceName: androidConfig.deviceName,
+          automationName: androidConfig.automationName,
+          appPackage: androidConfig.appPackage,
+          autoGrantPermissions: androidConfig.autoGrantPermissions,
+          noReset: androidConfig.noReset,
+          // Add other wait timeouts if needed
+        },
+      });
     } catch (error) {
       console.error("Failed to open mobile inspector window:", error);
     }
@@ -226,8 +247,8 @@ export function Tools() {
                       {webInstallProgress?.status === "installing"
                         ? "Installing dependencies..."
                         : webInstallProgress?.status === "checking"
-                        ? "Checking system..."
-                        : "Starting inspector..."}
+                          ? "Checking system..."
+                          : "Starting inspector..."}
                     </span>
                   </div>
                   <span className="text-slate-400 font-medium">
@@ -383,8 +404,8 @@ export function Tools() {
                       {mobileInstallProgress?.status === "installing"
                         ? "Installing dependencies..."
                         : mobileInstallProgress?.status === "checking"
-                        ? "Checking system..."
-                        : "Starting inspector..."}
+                          ? "Checking system..."
+                          : "Starting inspector..."}
                     </span>
                   </div>
                   <span className="text-slate-400 font-medium">
