@@ -1,10 +1,17 @@
-import { useState } from 'react';
-import { Globe, Smartphone, Play, Square, ExternalLink, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { useState } from "react";
+import {
+  Globe,
+  Smartphone,
+  Play,
+  Square,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 interface ToolStatus {
   running: boolean;
@@ -34,7 +41,8 @@ export function Tools() {
     loading: false,
     opening: false,
   });
-  const [installProgress, setInstallProgress] = useState<InstallProgress | null>(null);
+  const [installProgress, setInstallProgress] =
+    useState<InstallProgress | null>(null);
 
   const [appiumInspector, setAppiumInspector] = useState<ToolStatus>({
     running: false,
@@ -44,15 +52,20 @@ export function Tools() {
   const handleStartWebInspector = async () => {
     setWebInspector({ ...webInspector, loading: true, error: undefined });
     setInstallProgress(null);
-    
+
     let unlisten: (() => void) | undefined;
 
     try {
-      unlisten = await listen<InstallProgress>('install-progress', (event) => {
+      unlisten = await listen<InstallProgress>("install-progress", (event) => {
         setInstallProgress(event.payload);
       });
 
-      const status: InspectorStatus = await invoke('start_web_inspector');
+      // Pass scope explicitly if needed, although start_web_inspector handles its own deps
+      // But if start_web_inspector calls install_missing_dependencies internally without scope...
+      // Wait, start_web_inspector calls check_system_dependencies and then manually calls install_webdriverio if missing.
+      // It does NOT call install_missing_dependencies. So it is fine.
+
+      const status: InspectorStatus = await invoke("start_web_inspector");
       setWebInspector({
         running: status.running,
         loading: false,
@@ -62,11 +75,12 @@ export function Tools() {
         error: undefined,
       });
     } catch (error) {
-      console.error('Failed to start web inspector:', error);
-      setWebInspector({ 
-        ...webInspector, 
-        loading: false, 
-        error: typeof error === 'string' ? error : 'Failed to start web inspector' 
+      console.error("Failed to start web inspector:", error);
+      setWebInspector({
+        ...webInspector,
+        loading: false,
+        error:
+          typeof error === "string" ? error : "Failed to start web inspector",
       });
     } finally {
       if (unlisten) {
@@ -78,7 +92,7 @@ export function Tools() {
 
   const handleStopWebInspector = async () => {
     try {
-      const status: InspectorStatus = await invoke('stop_web_inspector');
+      const status: InspectorStatus = await invoke("stop_web_inspector");
       setWebInspector({
         running: status.running,
         loading: false,
@@ -87,48 +101,87 @@ export function Tools() {
         port: status.port,
       });
     } catch (error) {
-      console.error('Failed to stop web inspector:', error);
+      console.error("Failed to stop web inspector:", error);
     }
   };
 
   const handleOpenInspectorWindow = async () => {
-    setWebInspector(prev => ({ ...prev, opening: true }));
+    setWebInspector((prev) => ({ ...prev, opening: true }));
     try {
-      await invoke('open_inspector_browser');
+      await invoke("open_inspector_browser");
     } catch (error) {
-      console.error('Failed to open inspector browser:', error);
+      console.error("Failed to open inspector browser:", error);
       // Fallback to opening URL directly
       if (webInspector.url) {
-        window.open(webInspector.url, '_blank');
+        window.open(webInspector.url, "_blank");
       }
     } finally {
-      setWebInspector(prev => ({ ...prev, opening: false }));
+      setWebInspector((prev) => ({ ...prev, opening: false }));
     }
   };
 
   const handleOpenInspector = (url: string) => {
-    window.open(url, '_blank');
+    window.open(url, "_blank");
   };
 
   const handleStartAppiumInspector = async () => {
-    setAppiumInspector({ ...appiumInspector, loading: true });
-    
-    // Simulate starting server
-    setTimeout(() => {
-      setAppiumInspector({
-        running: true,
-        loading: false,
-        url: 'http://localhost:4723',
-        port: 4723,
+    setAppiumInspector({ ...appiumInspector, loading: true, error: undefined });
+    setInstallProgress({
+      progress: 0.1,
+      status: "checking",
+      dependency: "Appium",
+      message: "Starting Appium server...",
+    });
+
+    let unlisten: (() => void) | undefined;
+
+    try {
+      unlisten = await listen<InstallProgress>("install-progress", (event) => {
+        setInstallProgress(event.payload);
       });
-    }, 2500);
+
+      const status: InspectorStatus = await invoke("start_appium_server");
+      setAppiumInspector({
+        running: status.running,
+        loading: false,
+        url: status.url,
+        port: status.port,
+        error: undefined,
+      });
+    } catch (error) {
+      console.error("Failed to start Appium server:", error);
+      setAppiumInspector({
+        ...appiumInspector,
+        loading: false,
+        error:
+          typeof error === "string" ? error : "Failed to start Appium server",
+      });
+    } finally {
+      if (unlisten) {
+        unlisten();
+      }
+      setInstallProgress(null);
+    }
   };
 
-  const handleStopAppiumInspector = () => {
-    setAppiumInspector({
-      running: false,
-      loading: false,
-    });
+  const handleStopAppiumInspector = async () => {
+    try {
+      await invoke("stop_appium_server");
+      setAppiumInspector({
+        running: false,
+        loading: false,
+      });
+    } catch (error) {
+      console.error("Failed to stop Appium server:", error);
+    }
+  };
+
+  const handleOpenAppiumInspectorWindow = async () => {
+    try {
+      await invoke("open_mobile_inspector_window");
+    } catch (error) {
+      console.error("Failed to open mobile inspector window:", error);
+    }
   };
 
   return (
@@ -136,7 +189,9 @@ export function Tools() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="mb-2">Tools Module</h1>
-        <p className="text-slate-400">Launch and manage inspection tools for testing</p>
+        <p className="text-slate-400">
+          Launch and manage inspection tools for testing
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
@@ -150,7 +205,10 @@ export function Tools() {
               <div className="flex items-center gap-3 mb-2">
                 <h2>Web Inspector</h2>
                 {webInspector.running && (
-                  <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30 border">
+                  <Badge
+                    variant="outline"
+                    className="bg-green-500/20 text-green-400 border-green-500/30 border"
+                  >
                     Running
                   </Badge>
                 )}
@@ -161,28 +219,29 @@ export function Tools() {
             </div>
           </div>
 
-          {webInspector.loading && (
+          {(webInspector.loading ||
+            (installProgress &&
+              installProgress.dependency === "WebDriverIO")) && (
             <div className="mb-6">
               <div className="bg-slate-800 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
                   <span className="text-sm text-slate-300">
-                    {installProgress ? installProgress.message : 'Starting Web Inspector server...'}
+                    {installProgress
+                      ? installProgress.message
+                      : "Starting Web Inspector..."}
                   </span>
                 </div>
-                {installProgress ? (
-                  <div className="w-full">
-                    <Progress value={installProgress.progress * 100} className="h-2" />
-                    <div className="flex justify-between text-xs text-slate-500 mt-2">
-                      <span>{installProgress.status}</span>
-                      <span>{Math.round(installProgress.progress * 100)}%</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                    <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                  </div>
-                )}
+                <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: installProgress
+                        ? `${Math.max(5, installProgress.progress * 100)}%`
+                        : "60%",
+                    }}
+                  ></div>
+                </div>
               </div>
             </div>
           )}
@@ -198,16 +257,22 @@ export function Tools() {
             <div className="mb-6 bg-slate-800/50 rounded-lg p-4 border border-green-500/30">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-green-400">Server is running</span>
+                <span className="text-sm text-green-400">
+                  Server is running
+                </span>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-400">URL:</span>
-                  <span className="text-slate-200 font-mono">{webInspector.url}</span>
+                  <span className="text-slate-200 font-mono">
+                    {webInspector.url}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Port:</span>
-                  <span className="text-slate-200 font-mono">{webInspector.port}</span>
+                  <span className="text-slate-200 font-mono">
+                    {webInspector.port}
+                  </span>
                 </div>
               </div>
             </div>
@@ -215,7 +280,7 @@ export function Tools() {
 
           <div className="space-y-3">
             {!webInspector.running && !webInspector.loading && (
-              <Button 
+              <Button
                 onClick={handleStartWebInspector}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               >
@@ -226,7 +291,7 @@ export function Tools() {
 
             {webInspector.running && !webInspector.loading && (
               <>
-                <Button 
+                <Button
                   onClick={handleOpenInspectorWindow}
                   disabled={webInspector.opening}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
@@ -236,9 +301,11 @@ export function Tools() {
                   ) : (
                     <ExternalLink className="w-4 h-4 mr-2" />
                   )}
-                  {webInspector.opening ? 'Opening Browser...' : 'Open Inspector'}
+                  {webInspector.opening
+                    ? "Opening Browser..."
+                    : "Open Inspector"}
                 </Button>
-                <Button 
+                <Button
                   onClick={handleStopWebInspector}
                   variant="outline"
                   className="w-full border-red-700 text-red-400 hover:bg-red-900/20"
@@ -283,7 +350,10 @@ export function Tools() {
               <div className="flex items-center gap-3 mb-2">
                 <h2>Mobile App Inspector</h2>
                 {appiumInspector.running && (
-                  <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30 border">
+                  <Badge
+                    variant="outline"
+                    className="bg-green-500/20 text-green-400 border-green-500/30 border"
+                  >
                     Running
                   </Badge>
                 )}
@@ -294,15 +364,29 @@ export function Tools() {
             </div>
           </div>
 
-          {appiumInspector.loading && (
+          {(appiumInspector.loading ||
+            (installProgress &&
+              (installProgress.dependency === "Appium" ||
+                installProgress.dependency === "Appium Inspector Plugin"))) && (
             <div className="mb-6">
               <div className="bg-slate-800 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
-                  <span className="text-sm text-slate-300">Starting Appium server...</span>
+                  <span className="text-sm text-slate-300">
+                    {installProgress
+                      ? installProgress.message
+                      : "Starting Appium server..."}
+                  </span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                  <div className="bg-teal-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                  <div
+                    className="bg-teal-500 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: installProgress
+                        ? `${Math.max(5, installProgress.progress * 100)}%`
+                        : "60%",
+                    }}
+                  ></div>
                 </div>
               </div>
             </div>
@@ -312,16 +396,22 @@ export function Tools() {
             <div className="mb-6 bg-slate-800/50 rounded-lg p-4 border border-green-500/30">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-green-400">Server is running</span>
+                <span className="text-sm text-green-400">
+                  Server is running
+                </span>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-400">URL:</span>
-                  <span className="text-slate-200 font-mono">{appiumInspector.url}</span>
+                  <span className="text-slate-200 font-mono">
+                    {appiumInspector.url}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Port:</span>
-                  <span className="text-slate-200 font-mono">{appiumInspector.port}</span>
+                  <span className="text-slate-200 font-mono">
+                    {appiumInspector.port}
+                  </span>
                 </div>
               </div>
             </div>
@@ -329,7 +419,7 @@ export function Tools() {
 
           <div className="space-y-3">
             {!appiumInspector.running && !appiumInspector.loading && (
-              <Button 
+              <Button
                 onClick={handleStartAppiumInspector}
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white"
               >
@@ -340,14 +430,14 @@ export function Tools() {
 
             {appiumInspector.running && !appiumInspector.loading && (
               <>
-                <Button 
-                  onClick={() => handleOpenInspector(appiumInspector.url!)}
+                <Button
+                  onClick={handleOpenAppiumInspectorWindow}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open Inspector
                 </Button>
-                <Button 
+                <Button
                   onClick={handleStopAppiumInspector}
                   variant="outline"
                   className="w-full border-red-700 text-red-400 hover:bg-red-900/20"
@@ -394,10 +484,16 @@ export function Tools() {
             </ol>
           </div>
           <div>
-            <h3 className="text-sm text-slate-200 mb-3">Mobile App Inspector</h3>
+            <h3 className="text-sm text-slate-200 mb-3">
+              Mobile App Inspector
+            </h3>
             <ol className="space-y-2 list-decimal list-inside">
-              <li>Ensure you have an Android emulator or iOS simulator running</li>
-              <li>Click "Start Appium Inspector" to launch the Appium server</li>
+              <li>
+                Ensure you have an Android emulator or iOS simulator running
+              </li>
+              <li>
+                Click "Start Appium Inspector" to launch the Appium server
+              </li>
               <li>Wait for the server to be ready</li>
               <li>Click "Open Inspector" to launch the Appium Inspector UI</li>
               <li>Configure your desired capabilities and start the session</li>
@@ -408,4 +504,3 @@ export function Tools() {
     </div>
   );
 }
-

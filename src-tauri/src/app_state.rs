@@ -13,5 +13,6 @@ pub struct InstallProgress {
 pub struct AppState {
     pub inspector_process: Arc<Mutex<Option<Child>>>,
     pub browser_process: Arc<Mutex<Option<Child>>>,
+    pub appium_process: Arc<Mutex<Option<Child>>>,
     pub install_progress: Arc<Mutex<Option<InstallProgress>>>,
 }

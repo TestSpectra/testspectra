@@ -1,8 +1,8 @@
-use tauri::{AppHandle, Manager, Emitter};
-use tauri::path::BaseDirectory;
-use std::process::Command;
 use crate::app_state::AppState;
 use crate::dependencies::{check_system_dependencies, install_webdriverio};
+use std::process::Command;
+use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Clone, serde::Serialize)]
 pub struct InspectorStatus {
@@ -44,7 +44,7 @@ pub async fn start_web_inspector(
     }
 
     // Check system dependencies first
-    let system_check = check_system_dependencies().await?;
+    let system_check = check_system_dependencies(Some("web".to_string())).await?;
 
     // Check critical dependencies that cannot be auto-installed
     let critical_missing: Vec<&str> = system_check
@@ -79,13 +79,16 @@ pub async fn start_web_inspector(
         let _ = app.emit("install-progress", &progress);
 
         // This function handles the installation and emits progress events
-        install_webdriverio(&app, &state).await?;
+        install_webdriverio(&app, &state, 0.0, 1.0).await?;
     }
 
     // Get the web-inspector JS file path from resources
     let inspector_js_path = app
         .path()
-        .resolve("resources/web-inspector/bin/web-inspector.js", BaseDirectory::Resource)
+        .resolve(
+            "resources/web-inspector/bin/web-inspector.js",
+            BaseDirectory::Resource,
+        )
         .map_err(|e| e.to_string())?;
 
     log::info!("Inspector JS path: {:?}", inspector_js_path);
@@ -130,7 +133,10 @@ pub async fn stop_web_inspector(
         // Try to stop gracefully first
         let inspector_js_path = app
             .path()
-            .resolve("resources/web-inspector/bin/web-inspector.js", BaseDirectory::Resource)
+            .resolve(
+                "resources/web-inspector/bin/web-inspector.js",
+                BaseDirectory::Resource,
+            )
             .map_err(|e| e.to_string())?;
 
         let _ = Command::new("node")
@@ -149,17 +155,17 @@ pub async fn stop_web_inspector(
     let mut browser_lock = state.browser_process.lock().await;
     if let Some(mut child) = browser_lock.take() {
         log::info!("Stopping inspector browser...");
-        
+
         // Try graceful shutdown first with SIGTERM
         #[cfg(unix)]
         {
-             let _ = Command::new("kill")
+            let _ = Command::new("kill")
                 .arg("-TERM")
                 .arg(child.id().to_string())
                 .output();
-             
-             // Give it a moment to cleanup
-             std::thread::sleep(std::time::Duration::from_millis(1000));
+
+            // Give it a moment to cleanup
+            std::thread::sleep(std::time::Duration::from_millis(1000));
         }
 
         // Force kill if still running
@@ -190,7 +196,10 @@ pub async fn open_inspector_browser(
     // Get the web-inspector JS file path from resources
     let inspector_js_path = app
         .path()
-        .resolve("resources/web-inspector/bin/web-inspector.js", BaseDirectory::Resource)
+        .resolve(
+            "resources/web-inspector/bin/web-inspector.js",
+            BaseDirectory::Resource,
+        )
         .map_err(|e| e.to_string())?;
 
     // Use the CLI to open inspector with WebDriver

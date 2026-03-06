@@ -1,6 +1,7 @@
 pub mod app_state;
 pub mod dependencies;
 pub mod inspector;
+pub mod mobile_inspector;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -11,6 +12,9 @@ use dependencies::{
 };
 use inspector::{
     start_web_inspector, stop_web_inspector, open_inspector_browser
+};
+use mobile_inspector::{
+    start_appium_server, stop_appium_server, open_mobile_inspector_window
 };
 
 #[tauri::command]
@@ -23,6 +27,7 @@ pub fn run() {
     let app_state = AppState {
         inspector_process: Arc::new(Mutex::new(None)),
         browser_process: Arc::new(Mutex::new(None)),
+        appium_process: Arc::new(Mutex::new(None)),
         install_progress: Arc::new(Mutex::new(None)),
     };
 
@@ -52,6 +57,9 @@ pub fn run() {
             start_web_inspector,
             stop_web_inspector,
             open_inspector_browser,
+            start_appium_server,
+            stop_appium_server,
+            open_mobile_inspector_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -27,6 +27,7 @@ import { TestReport } from "./components/TestReport";
 import { TestSuites } from "./components/TestSuites";
 import { TitleBar } from "./components/TitleBar";
 import { Tools } from "./components/Tools";
+import { MobileInspector } from "./components/MobileInspector";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { UserManagement } from "./components/UserManagement";
 import { VersionGuard } from "./components/VersionGuard";
@@ -318,10 +319,20 @@ function AppContent() {
     );
   }
 
+  const isInspector = location.pathname === "/mobile-inspector";
+
   return (
     <>
-      <TitleBar currentUser={currentUser} />
+      <TitleBar 
+        currentUser={currentUser} 
+        subtitle={isInspector ? "Mobile Inspector" : "QA Automation Platform"}
+        showNotificationBadge={!isInspector}
+      />
       <Routes>
+        {/* Standalone Route for Mobile Inspector */}
+        <Route path="/mobile-inspector" element={<MobileInspector />} />
+
+        {/* Main App Layout */}
         <Route
           element={
             <Layout

@@ -41,6 +41,22 @@
         "dragDropEnabled": false,
         "decorations": true,
         "create": false
+      },
+      {
+        "label": "mobile_inspector",
+        "title": "Mobile Inspector",
+        "width": 1600,
+        "height": 900,
+        "minWidth": 1200,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "devtools": true,
+        "dragDropEnabled": false,
+        "decorations": false,
+        "create": false,
+        "url": "/mobile-inspector"
       }
     ],
     "security": {
