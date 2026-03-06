@@ -27,7 +27,6 @@ import { TestReport } from "./components/TestReport";
 import { TestSuites } from "./components/TestSuites";
 import { TitleBar } from "./components/TitleBar";
 import { Tools } from "./components/Tools";
-import { MobileInspector } from "./components/MobileInspector";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { UserManagement } from "./components/UserManagement";
 import { VersionGuard } from "./components/VersionGuard";
@@ -36,12 +35,13 @@ import { WebSocketProvider } from "./contexts/WebSocketContext";
 import { useUpdateManager } from "./hooks/useUpdateManager";
 import { getUserServiceClient } from "./services/api-client";
 import { authService } from "./services/auth-service";
+import { MobileInspectorApp } from "./MobileInspectorApp";
 
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedTestCaseId, setSelectedTestCaseId] = useState<string | null>(
-    null
+    null,
   );
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [historyFilter, setHistoryFilter] = useState<string | null>(null);
@@ -319,19 +319,14 @@ function AppContent() {
     );
   }
 
-  const isInspector = location.pathname === "/mobile-inspector";
-
   return (
     <>
-      <TitleBar 
-        currentUser={currentUser} 
-        subtitle={isInspector ? "Mobile Inspector" : "QA Automation Platform"}
-        showNotificationBadge={!isInspector}
+      <TitleBar
+        currentUser={currentUser}
+        subtitle="QA Automation Platform"
+        showNotificationBadge={true}
       />
       <Routes>
-        {/* Standalone Route for Mobile Inspector */}
-        <Route path="/mobile-inspector" element={<MobileInspector />} />
-
         {/* Main App Layout */}
         <Route
           element={
@@ -599,6 +594,13 @@ function AppContent() {
 }
 
 export default function App() {
+  // Simple check for the mobile-inspector URL before entering the full app context
+  const isInspector = window.location.pathname === "/mobile-inspector";
+
+  if (isInspector) {
+    return <MobileInspectorApp />;
+  }
+
   return (
     <VersionGuard>
       <Router>
