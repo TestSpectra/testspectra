@@ -9,6 +9,7 @@ import { listen } from '@tauri-apps/api/event';
 interface ToolStatus {
   running: boolean;
   loading: boolean;
+  opening?: boolean;
   url?: string;
   port?: number;
   error?: string;
@@ -31,6 +32,7 @@ export function Tools() {
   const [webInspector, setWebInspector] = useState<ToolStatus>({
     running: false,
     loading: false,
+    opening: false,
   });
   const [installProgress, setInstallProgress] = useState<InstallProgress | null>(null);
 
@@ -54,6 +56,7 @@ export function Tools() {
       setWebInspector({
         running: status.running,
         loading: false,
+        opening: false,
         url: status.url,
         port: status.port,
         error: undefined,
@@ -79,6 +82,7 @@ export function Tools() {
       setWebInspector({
         running: status.running,
         loading: false,
+        opening: false,
         url: status.url,
         port: status.port,
       });
@@ -88,6 +92,7 @@ export function Tools() {
   };
 
   const handleOpenInspectorWindow = async () => {
+    setWebInspector(prev => ({ ...prev, opening: true }));
     try {
       await invoke('open_inspector_browser');
     } catch (error) {
@@ -96,6 +101,8 @@ export function Tools() {
       if (webInspector.url) {
         window.open(webInspector.url, '_blank');
       }
+    } finally {
+      setWebInspector(prev => ({ ...prev, opening: false }));
     }
   };
 
@@ -221,10 +228,15 @@ export function Tools() {
               <>
                 <Button 
                   onClick={handleOpenInspectorWindow}
+                  disabled={webInspector.opening}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Open Inspector
+                  {webInspector.opening ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                  )}
+                  {webInspector.opening ? 'Opening Browser...' : 'Open Inspector'}
                 </Button>
                 <Button 
                   onClick={handleStopWebInspector}
