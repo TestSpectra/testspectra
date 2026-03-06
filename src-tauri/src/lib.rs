@@ -1,6 +1,6 @@
 pub mod app_state;
 pub mod dependencies;
-pub mod inspector;
+pub mod web_inspector;
 pub mod mobile_inspector;
 
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use app_state::AppState;
 use dependencies::{
     check_system_dependencies, install_missing_dependencies, get_install_progress
 };
-use inspector::{
+use web_inspector::{
     start_web_inspector, stop_web_inspector, open_inspector_browser
 };
 use mobile_inspector::{
@@ -29,6 +29,8 @@ pub fn run() {
         browser_process: Arc::new(Mutex::new(None)),
         appium_process: Arc::new(Mutex::new(None)),
         install_progress: Arc::new(Mutex::new(None)),
+        web_install_progress: Arc::new(Mutex::new(None)),
+        mobile_install_progress: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()

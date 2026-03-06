@@ -41,23 +41,25 @@ export function Tools() {
     loading: false,
     opening: false,
   });
-  const [installProgress, setInstallProgress] =
+  const [webInstallProgress, setWebInstallProgress] =
     useState<InstallProgress | null>(null);
 
   const [appiumInspector, setAppiumInspector] = useState<ToolStatus>({
     running: false,
     loading: false,
   });
+  const [mobileInstallProgress, setMobileInstallProgress] =
+    useState<InstallProgress | null>(null);
 
   const handleStartWebInspector = async () => {
     setWebInspector({ ...webInspector, loading: true, error: undefined });
-    setInstallProgress(null);
+    setWebInstallProgress(null);
 
     let unlisten: (() => void) | undefined;
 
     try {
-      unlisten = await listen<InstallProgress>("install-progress", (event) => {
-        setInstallProgress(event.payload);
+      unlisten = await listen<InstallProgress>("web-install-progress", (event) => {
+        setWebInstallProgress(event.payload);
       });
 
       // Pass scope explicitly if needed, although start_web_inspector handles its own deps
@@ -86,7 +88,7 @@ export function Tools() {
       if (unlisten) {
         unlisten();
       }
-      setInstallProgress(null);
+      setWebInstallProgress(null);
     }
   };
 
@@ -126,18 +128,13 @@ export function Tools() {
 
   const handleStartAppiumInspector = async () => {
     setAppiumInspector({ ...appiumInspector, loading: true, error: undefined });
-    setInstallProgress({
-      progress: 0.1,
-      status: "checking",
-      dependency: "Appium",
-      message: "Starting Appium server...",
-    });
+    setMobileInstallProgress(null);
 
     let unlisten: (() => void) | undefined;
 
     try {
-      unlisten = await listen<InstallProgress>("install-progress", (event) => {
-        setInstallProgress(event.payload);
+      unlisten = await listen<InstallProgress>("mobile-install-progress", (event) => {
+        setMobileInstallProgress(event.payload);
       });
 
       const status: InspectorStatus = await invoke("start_appium_server");
@@ -160,7 +157,7 @@ export function Tools() {
       if (unlisten) {
         unlisten();
       }
-      setInstallProgress(null);
+      setMobileInstallProgress(null);
     }
   };
 
@@ -219,29 +216,41 @@ export function Tools() {
             </div>
           </div>
 
-          {(webInspector.loading ||
-            (installProgress &&
-              installProgress.dependency === "WebDriverIO")) && (
-            <div className="mb-6">
-              <div className="bg-slate-800 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                  <span className="text-sm text-slate-300">
-                    {installProgress
-                      ? installProgress.message
-                      : "Starting Web Inspector..."}
+          {webInspector.loading && (
+            <div className="mt-4 p-4 bg-slate-800 rounded-lg border border-slate-700 animate-in fade-in zoom-in duration-300">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                    <span>
+                      {webInstallProgress?.status === "installing"
+                        ? "Installing dependencies..."
+                        : webInstallProgress?.status === "checking"
+                        ? "Checking system..."
+                        : "Starting inspector..."}
+                    </span>
+                  </div>
+                  <span className="text-slate-400 font-medium">
+                    {webInstallProgress
+                      ? `${Math.round(webInstallProgress.progress * 100)}%`
+                      : "0%"}
                   </span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: installProgress
-                        ? `${Math.max(5, installProgress.progress * 100)}%`
-                        : "60%",
+                      width: webInstallProgress
+                        ? `${Math.max(5, webInstallProgress.progress * 100)}%`
+                        : "1%",
                     }}
                   ></div>
                 </div>
+                {webInstallProgress?.message && (
+                  <p className="text-xs text-slate-400 truncate">
+                    {webInstallProgress.message}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -364,30 +373,41 @@ export function Tools() {
             </div>
           </div>
 
-          {(appiumInspector.loading ||
-            (installProgress &&
-              (installProgress.dependency === "Appium" ||
-                installProgress.dependency === "Appium Inspector Plugin"))) && (
-            <div className="mb-6">
-              <div className="bg-slate-800 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
-                  <span className="text-sm text-slate-300">
-                    {installProgress
-                      ? installProgress.message
-                      : "Starting Appium server..."}
+          {appiumInspector.loading && (
+            <div className="mt-4 p-4 bg-slate-800 rounded-lg border border-slate-700 animate-in fade-in zoom-in duration-300">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Loader2 className="w-4 h-4 animate-spin text-teal-500" />
+                    <span>
+                      {mobileInstallProgress?.status === "installing"
+                        ? "Installing dependencies..."
+                        : mobileInstallProgress?.status === "checking"
+                        ? "Checking system..."
+                        : "Starting inspector..."}
+                    </span>
+                  </div>
+                  <span className="text-slate-400 font-medium">
+                    {mobileInstallProgress
+                      ? `${Math.round(mobileInstallProgress.progress * 100)}%`
+                      : "0%"}
                   </span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-teal-500 h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: installProgress
-                        ? `${Math.max(5, installProgress.progress * 100)}%`
-                        : "60%",
+                      width: mobileInstallProgress
+                        ? `${Math.max(5, mobileInstallProgress.progress * 100)}%`
+                        : "1%",
                     }}
                   ></div>
                 </div>
+                {mobileInstallProgress?.message && (
+                  <p className="text-xs text-slate-400 truncate">
+                    {mobileInstallProgress.message}
+                  </p>
+                )}
               </div>
             </div>
           )}

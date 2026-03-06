@@ -375,31 +375,34 @@ pub async fn install_missing_dependencies(
         let current_progress_base = index as f32 / total_missing as f32;
         let next_progress_base = (index + 1) as f32 / total_missing as f32;
 
-        // Pass progress range to installer functions
-        match dep.name.as_str() {
-            "WebDriverIO" => {
-                log::info!("Missing WebDriverIO, attempting to install...");
-                install_webdriverio(&app, &state, current_progress_base, next_progress_base)
-                    .await?;
-            }
-            "Appium" => {
-                log::info!("Missing Appium, attempting to install...");
-                install_appium(&app, &state, current_progress_base, next_progress_base).await?;
-            }
-            "Appium Inspector Plugin" => {
-                log::info!("Missing Appium Inspector Plugin, attempting to install...");
-                install_appium_inspector_plugin(
-                    &app,
-                    &state,
-                    current_progress_base,
-                    next_progress_base,
-                )
+    // Pass progress range to installer functions
+    // Default event name for generic install
+    let event_name = "install-progress";
+    match dep.name.as_str() {
+        "WebDriverIO" => {
+            log::info!("Missing WebDriverIO, attempting to install...");
+            install_webdriverio(&app, &state, current_progress_base, next_progress_base, event_name)
                 .await?;
-            }
-            _ => {
-                // Should be filtered out already
-            }
         }
+        "Appium" => {
+            log::info!("Missing Appium, attempting to install...");
+            install_appium(&app, &state, current_progress_base, next_progress_base, event_name).await?;
+        }
+        "Appium Inspector Plugin" => {
+            log::info!("Missing Appium Inspector Plugin, attempting to install...");
+            install_appium_inspector_plugin(
+                &app,
+                &state,
+                current_progress_base,
+                next_progress_base,
+                event_name,
+            )
+            .await?;
+        }
+        _ => {
+            // Should be filtered out already
+        }
+    }
     }
 
     // Check for non-installable missing dependencies
@@ -427,6 +430,7 @@ pub async fn install_webdriverio(
     state: &tauri::State<'_, AppState>,
     start_progress: f32,
     end_progress: f32,
+    event_name: &str,
 ) -> Result<(), String> {
     install_global_package(
         app,
@@ -435,6 +439,7 @@ pub async fn install_webdriverio(
         "webdriverio",
         start_progress,
         end_progress,
+        event_name,
     )
     .await
 }
@@ -444,8 +449,9 @@ pub async fn install_appium(
     state: &tauri::State<'_, AppState>,
     start_progress: f32,
     end_progress: f32,
+    event_name: &str,
 ) -> Result<(), String> {
-    install_global_package(app, state, "Appium", "appium", start_progress, end_progress).await
+    install_global_package(app, state, "Appium", "appium", start_progress, end_progress, event_name).await
 }
 
 pub async fn install_appium_inspector_plugin(
@@ -453,6 +459,7 @@ pub async fn install_appium_inspector_plugin(
     state: &tauri::State<'_, AppState>,
     start_progress: f32,
     end_progress: f32,
+    event_name: &str,
 ) -> Result<(), String> {
     // Update progress
     let progress = InstallProgress {
@@ -467,7 +474,7 @@ pub async fn install_appium_inspector_plugin(
         *progress_lock = Some(progress.clone());
     }
 
-    let _ = app.emit("install-progress", &progress);
+    let _ = app.emit(event_name, &progress);
 
     log::info!("Installing Appium Inspector Plugin...");
 
@@ -510,7 +517,7 @@ pub async fn install_appium_inspector_plugin(
             *progress_lock = Some(progress.clone());
         }
 
-        let _ = app.emit("install-progress", &progress);
+        let _ = app.emit(event_name, &progress);
 
         // Only clear if we reached 100% (or close to it)
         if end_progress >= 0.99 {
@@ -522,6 +529,40 @@ pub async fn install_appium_inspector_plugin(
         }
         Ok(())
     } else {
+        // If install failed, try update just in case
+        log::info!("Install failed, trying to update plugin...");
+
+        let update_status = Command::new("appium")
+            .args(&["plugin", "update", "inspector"])
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status();
+
+        if let Ok(up_status) = update_status {
+            if up_status.success() {
+                log::info!("Appium Inspector Plugin updated successfully");
+                let progress = InstallProgress {
+                    dependency: "Appium Inspector Plugin".to_string(),
+                    status: "completed".to_string(),
+                    progress: end_progress,
+                    message: "Appium Inspector Plugin updated successfully!".to_string(),
+                };
+                {
+                    let mut progress_lock = state.install_progress.lock().await;
+                    *progress_lock = Some(progress.clone());
+                }
+                let _ = app.emit(event_name, &progress);
+                if end_progress >= 0.99 {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    {
+                        let mut progress_lock = state.install_progress.lock().await;
+                        *progress_lock = None;
+                    }
+                }
+                return Ok(());
+            }
+        }
+
         // Can't check "already installed" easily with inherit stdio, but user will see it.
         // We can assume if it fails, it might be already installed or actual error.
         // But for better UX let's assume failure needs attention.
@@ -539,7 +580,7 @@ pub async fn install_appium_inspector_plugin(
             *progress_lock = Some(progress.clone());
         }
 
-        let _ = app.emit("install-progress", &progress);
+        let _ = app.emit(event_name, &progress);
         Err(format!(
             "Failed to install Appium Inspector Plugin: {}",
             error_msg
@@ -547,13 +588,14 @@ pub async fn install_appium_inspector_plugin(
     }
 }
 
-async fn install_global_package(
+pub async fn install_global_package(
     app: &AppHandle,
     state: &tauri::State<'_, AppState>,
     name: &str,
     package: &str,
     start_progress: f32,
     end_progress: f32,
+    event_name: &str,
 ) -> Result<(), String> {
     // Update progress
     let progress = InstallProgress {
@@ -569,7 +611,7 @@ async fn install_global_package(
     }
 
     // Emit progress event
-    let _ = app.emit("install-progress", &progress);
+    let _ = app.emit(event_name, &progress);
 
     // Install globally
     log::info!("Installing {} globally via npm...", name);
@@ -604,7 +646,7 @@ async fn install_global_package(
             *progress_lock = Some(progress.clone());
         }
 
-        let _ = app.emit("install-progress", &progress);
+        let _ = app.emit(event_name, &progress);
 
         // Only clear if we reached 100% (or close to it)
         if end_progress >= 0.99 {
@@ -633,7 +675,7 @@ async fn install_global_package(
             *progress_lock = Some(progress.clone());
         }
 
-        let _ = app.emit("install-progress", &progress);
+        let _ = app.emit(event_name, &progress);
 
         Err(format!("Failed to install {}: {}", name, error_msg))
     }

@@ -28,7 +28,7 @@ pub async fn start_appium_server(
 
     // Check system dependencies
     // Emit initial progress
-    let _ = app.emit("install-progress", &crate::app_state::InstallProgress {
+    let _ = app.emit("mobile-install-progress", &crate::app_state::InstallProgress {
         dependency: "System Check".to_string(),
         status: "checking".to_string(),
         progress: 0.0,
@@ -62,9 +62,9 @@ pub async fn start_appium_server(
             progress: start_progress,
             message: "Appium missing. Starting auto-installation...".to_string(),
         };
-        let _ = app.emit("install-progress", &progress);
+        let _ = app.emit("mobile-install-progress", &progress);
         
-        install_appium(&app, &state, start_progress, end_progress).await?;
+        install_appium(&app, &state, start_progress, end_progress, "mobile-install-progress").await?;
         current_step += 1.0;
     }
 
@@ -79,15 +79,15 @@ pub async fn start_appium_server(
             progress: start_progress,
             message: "Inspector Plugin missing. Starting auto-installation...".to_string(),
         };
-        let _ = app.emit("install-progress", &progress);
+        let _ = app.emit("mobile-install-progress", &progress);
         
-        install_appium_inspector_plugin(&app, &state, start_progress, end_progress).await?;
+        install_appium_inspector_plugin(&app, &state, start_progress, end_progress, "mobile-install-progress").await?;
         current_step += 1.0;
     }
 
     // Update progress for Starting Server
     let start_server_progress = current_step / total_steps;
-    let _ = app.emit("install-progress", &crate::app_state::InstallProgress {
+    let _ = app.emit("mobile-install-progress", &crate::app_state::InstallProgress {
         dependency: "Appium Server".to_string(),
         status: "starting".to_string(),
         progress: start_server_progress,

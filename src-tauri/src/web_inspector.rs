@@ -39,9 +39,20 @@ pub async fn start_web_inspector(
     state: tauri::State<'_, AppState>,
 ) -> Result<InspectorStatus, String> {
     let mut process_lock = state.inspector_process.lock().await;
-    if process_lock.is_some() {
-        return Err("Inspector server is already running".to_string());
+    // If process is running, kill it and restart
+    if let Some(mut child) = process_lock.take() {
+        log::info!("Inspector server is already running, stopping it to restart...");
+        let _ = child.kill();
+        let _ = child.wait();
     }
+
+    // Emit initial progress
+    let _ = app.emit("web-install-progress", &crate::app_state::InstallProgress {
+        dependency: "System Check".to_string(),
+        status: "checking".to_string(),
+        progress: 0.0,
+        message: "Checking system dependencies...".to_string(),
+    });
 
     // Check system dependencies first
     let system_check = check_system_dependencies(Some("web".to_string())).await?;
@@ -67,19 +78,58 @@ pub async fn start_web_inspector(
         .iter()
         .any(|d| !d.installed && d.name == "WebDriverIO");
 
+    // Calculate total steps:
+    // 1 step for System Check
+    // + 1 step for WebDriverIO install (if missing)
+    // + 1 step for Starting Server
+    let mut total_steps = 2.0; // System Check + Start Server
+    if wdio_missing { total_steps += 1.0; }
+
+    let mut current_step = 1.0; // System Check done
+
     if wdio_missing {
         log::info!("WebDriverIO missing, attempting auto-installation...");
+        let start_progress = current_step / total_steps;
+        let end_progress = (current_step + 1.0) / total_steps;
+
         // Emit initial progress event so UI knows we are starting installation
         let progress = crate::app_state::InstallProgress {
             dependency: "WebDriverIO".to_string(),
             status: "checking".to_string(),
-            progress: 0.0,
+            progress: start_progress,
             message: "WebDriverIO missing. Starting auto-installation...".to_string(),
         };
-        let _ = app.emit("install-progress", &progress);
+        let _ = app.emit("web-install-progress", &progress);
 
         // This function handles the installation and emits progress events
-        install_webdriverio(&app, &state, 0.0, 1.0).await?;
+        // Note: install_webdriverio currently emits "install-progress"
+        // We need to update it to support custom event name or update it to use the new event structure
+        // For now, let's assume install_webdriverio will be updated to take an event name
+        install_webdriverio(&app, &state, start_progress, end_progress, "web-install-progress").await?;
+        current_step += 1.0;
+    }
+
+    // Update progress for Starting Server
+    let start_server_progress = current_step / total_steps;
+    let _ = app.emit("web-install-progress", &crate::app_state::InstallProgress {
+        dependency: "Web Inspector Server".to_string(),
+        status: "starting".to_string(),
+        progress: start_server_progress,
+        message: "Starting Web Inspector server...".to_string(),
+    });
+
+    // Kill any process using port 8888 (Web Inspector default port)
+    log::info!("Ensuring port 8888 is free...");
+    #[cfg(unix)]
+    {
+        let _ = Command::new("sh")
+            .arg("-c")
+            .arg("lsof -ti:8888 | xargs kill -9")
+            .output();
+    }
+    #[cfg(windows)]
+    {
+        // Placeholder for windows port killing
     }
 
     // Get the web-inspector JS file path from resources
