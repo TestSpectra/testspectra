@@ -33,15 +33,27 @@ To keep the initial Tauri installer lightweight, the inspector binaries are not 
 
 ## 🛠️ Implementation Detail
 
-### 1. The "Transplant" (Porting Appium Inspector)
+### 1. Web Inspector (WebDriverIO Integration)
 
-The Appium Inspector is a React-based web app. We will "transplant" its core logic into Tauri.
+Instead of a complex port, we use a lightweight proxy server architecture.
 
-- **Repo Extraction**: Clone the Appium Inspector source and isolate the `src` components responsible for the XML tree and screenshot rendering.
-- **From Electron to Tauri**: Replace Electron's `ipcRenderer` calls with Tauri's `invoke` system.
-- **Backend Proxy (Rust)**: Build a Rust-based WebDriver proxy to handle commands between the UI and the local Appium Server (e.g., `POST /session`, `GET /source`).
+- **Proxy Server (Node.js)**: A local MITM proxy server running on port 8888 that intercepts browser traffic and injects the inspector UI script.
+- **Chrome DevTools Protocol**: Uses `webdriverio` to launch a Chrome instance connected to the proxy.
+- **Graceful Lifecycle**: The proxy and browser processes are managed by Tauri (Rust). Closing the inspector in the UI automatically kills the browser session via `SIGTERM`/`SIGINT`.
+- **Global Installation Support**: Automatically detects `webdriverio` from global npm packages (`nvm` compatible) to avoid bundling heavy dependencies.
 
-### 2. Dynamic Plugin Architecture
+```typescript
+// Simplified Web Inspector Architecture
+cli
+  .command("open [url]", "Open inspector with wdio")
+  .action(async (url) => {
+    // 1. Launch Proxy Server
+    // 2. Launch Chrome with --proxy-server=http://127.0.0.1:8888
+    // 3. Inject Inspector UI into target pages
+  });
+```
+
+### 2. Mobile Inspector (Appium Integration)
 
 Implement a "Lazy Loading" system for the inspector tools using Rust.
 
