@@ -231,8 +231,10 @@ async fn install_missing_dependencies(
 ) -> Result<(), String> {
     // Check what's missing first
     let system_check = check_system_dependencies().await?;
+    log::info!("Dependency missing: {:?}", system_check.dependencies.len());
 
     for dep in system_check.dependencies {
+        log::info!("Checking dependency: {:?}", dep.name.as_str());
         if !dep.installed {
             match dep.name.as_str() {
                 "WebDriverIO" => {
@@ -351,17 +353,41 @@ async fn start_web_inspector(
 
     // Check system dependencies first
     let system_check = check_system_dependencies().await?;
-    if !system_check.all_ready {
+    
+    // Check critical dependencies that cannot be auto-installed
+    let critical_missing: Vec<&str> = system_check
+        .dependencies
+        .iter()
+        .filter(|d| !d.installed && (d.name == "Node.js" || d.name == "npm"))
+        .map(|d| d.name.as_str())
+        .collect();
+
+    if !critical_missing.is_empty() {
         return Err(format!(
-            "Missing dependencies: {}. Please install them first.",
-            system_check
-                .dependencies
-                .iter()
-                .filter(|d| !d.installed)
-                .map(|d| d.name.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
+            "Missing critical dependencies: {}. Please install them manually.",
+            critical_missing.join(", ")
         ));
+    }
+
+    // Check if WebDriverIO needs installation
+    let wdio_missing = system_check
+        .dependencies
+        .iter()
+        .any(|d| !d.installed && d.name == "WebDriverIO");
+
+    if wdio_missing {
+        log::info!("WebDriverIO missing, attempting auto-installation...");
+        // Emit initial progress event so UI knows we are starting installation
+        let progress = InstallProgress {
+            dependency: "WebDriverIO".to_string(),
+            status: "checking".to_string(),
+            progress: 0.0,
+            message: "WebDriverIO missing. Starting auto-installation...".to_string(),
+        };
+        let _ = app.emit("install-progress", &progress);
+        
+        // This function handles the installation and emits progress events
+        install_webdriverio(&app, &state).await?;
     }
 
     // Get the web-inspector JS file path from resources

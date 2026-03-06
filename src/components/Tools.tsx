@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { Globe, Smartphone, Play, Square, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 interface ToolStatus {
   running: boolean;
   loading: boolean;
   url?: string;
   port?: number;
+  error?: string;
 }
 
 interface InspectorStatus {
@@ -17,11 +20,19 @@ interface InspectorStatus {
   port?: number;
 }
 
+interface InstallProgress {
+  dependency: string;
+  status: string;
+  progress: number;
+  message: string;
+}
+
 export function Tools() {
   const [webInspector, setWebInspector] = useState<ToolStatus>({
     running: false,
     loading: false,
   });
+  const [installProgress, setInstallProgress] = useState<InstallProgress | null>(null);
 
   const [appiumInspector, setAppiumInspector] = useState<ToolStatus>({
     running: false,
@@ -29,19 +40,36 @@ export function Tools() {
   });
 
   const handleStartWebInspector = async () => {
-    setWebInspector({ ...webInspector, loading: true });
+    setWebInspector({ ...webInspector, loading: true, error: undefined });
+    setInstallProgress(null);
     
+    let unlisten: (() => void) | undefined;
+
     try {
+      unlisten = await listen<InstallProgress>('install-progress', (event) => {
+        setInstallProgress(event.payload);
+      });
+
       const status: InspectorStatus = await invoke('start_web_inspector');
       setWebInspector({
         running: status.running,
         loading: false,
         url: status.url,
         port: status.port,
+        error: undefined,
       });
     } catch (error) {
       console.error('Failed to start web inspector:', error);
-      setWebInspector({ ...webInspector, loading: false });
+      setWebInspector({ 
+        ...webInspector, 
+        loading: false, 
+        error: typeof error === 'string' ? error : 'Failed to start web inspector' 
+      });
+    } finally {
+      if (unlisten) {
+        unlisten();
+      }
+      setInstallProgress(null);
     }
   };
 
@@ -108,7 +136,7 @@ export function Tools() {
         {/* Web Inspector */}
         <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
           <div className="flex items-start gap-4 mb-6">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-14 h-14 bg-linear-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shrink-0">
               <Globe className="w-7 h-7 text-white" />
             </div>
             <div className="flex-1">
@@ -131,12 +159,31 @@ export function Tools() {
               <div className="bg-slate-800 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                  <span className="text-sm text-slate-300">Starting Web Inspector server...</span>
+                  <span className="text-sm text-slate-300">
+                    {installProgress ? installProgress.message : 'Starting Web Inspector server...'}
+                  </span>
                 </div>
-                <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                  <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                </div>
+                {installProgress ? (
+                  <div className="w-full">
+                    <Progress value={installProgress.progress * 100} className="h-2" />
+                    <div className="flex justify-between text-xs text-slate-500 mt-2">
+                      <span>{installProgress.status}</span>
+                      <span>{Math.round(installProgress.progress * 100)}%</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                  </div>
+                )}
               </div>
+            </div>
+          )}
+
+          {webInspector.error && (
+            <div className="mb-6 p-4 bg-red-900/20 border border-red-900/50 rounded-lg flex items-start gap-3">
+              <div className="text-red-400 mt-0.5">⚠️</div>
+              <div className="text-sm text-red-200">{webInspector.error}</div>
             </div>
           )}
 
@@ -217,7 +264,7 @@ export function Tools() {
         {/* Appium Inspector */}
         <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
           <div className="flex items-start gap-4 mb-6">
-            <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-14 h-14 bg-linear-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center shrink-0">
               <Smartphone className="w-7 h-7 text-white" />
             </div>
             <div className="flex-1">
