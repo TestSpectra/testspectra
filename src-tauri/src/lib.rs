@@ -37,6 +37,7 @@ pub struct InstallProgress {
 
 pub struct AppState {
     inspector_process: Arc<Mutex<Option<Child>>>,
+    browser_process: Arc<Mutex<Option<Child>>>,
     install_progress: Arc<Mutex<Option<InstallProgress>>>,
 }
 
@@ -453,6 +454,29 @@ async fn stop_web_inspector(
         log::info!("Inspector server stopped.");
     }
 
+    // Kill the browser process if it exists
+    let mut browser_lock = state.browser_process.lock().await;
+    if let Some(mut child) = browser_lock.take() {
+        log::info!("Stopping inspector browser...");
+        
+        // Try graceful shutdown first with SIGTERM
+        #[cfg(unix)]
+        {
+             let _ = Command::new("kill")
+                .arg("-TERM")
+                .arg(child.id().to_string())
+                .output();
+             
+             // Give it a moment to cleanup
+             std::thread::sleep(std::time::Duration::from_millis(1000));
+        }
+
+        // Force kill if still running
+        let _ = child.kill();
+        let _ = child.wait();
+        log::info!("Inspector browser stopped.");
+    }
+
     Ok(InspectorStatus {
         running: false,
         url: None,
@@ -511,10 +535,16 @@ async fn open_inspector_browser(
         cmd.env("NODE_PATH", node_path);
     }
 
-    let _output = cmd.spawn().map_err(|e| {
+    let child = cmd.spawn().map_err(|e| {
         log::error!("Failed to open inspector browser: {}", e);
         e.to_string()
     })?;
+
+    // Store the browser process handle
+    {
+        let mut browser_lock = state.browser_process.lock().await;
+        *browser_lock = Some(child);
+    }
 
     log::info!("Inspector browser opened via CLI");
     Ok(())
@@ -529,6 +559,7 @@ fn log_frontend_event(message: String) {
 pub fn run() {
     let app_state = AppState {
         inspector_process: Arc::new(Mutex::new(None)),
+        browser_process: Arc::new(Mutex::new(None)),
         install_progress: Arc::new(Mutex::new(None)),
     };
 

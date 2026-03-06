@@ -988,8 +988,21 @@ if (process.argv[2] === "__internal-server") {
       '5. Toggle "Record Mode" to record interactions as a script.'
     );
     console.log("6. Press Ctrl+C to exit.\n");
-    setInterval(() => {
+    const keepAlive = setInterval(() => {
     }, 1e3);
+    const cleanup = async () => {
+      console.log("\n\u{1F6D1} Stopping Inspector Browser...");
+      clearInterval(keepAlive);
+      try {
+        await browser.deleteSession();
+        console.log("\u2705 Browser session closed.");
+      } catch (e) {
+        console.error("\u26A0\uFE0F Failed to close browser session:", e);
+      }
+      process.exit(0);
+    };
+    process.on("SIGINT", cleanup);
+    process.on("SIGTERM", cleanup);
   });
   cli.help();
   cli.version("0.0.1");

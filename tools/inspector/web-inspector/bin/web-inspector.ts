@@ -181,7 +181,23 @@ if (process.argv[2] === "__internal-server") {
       console.log("6. Press Ctrl+C to exit.\n");
 
       // Keeping the process alive
-      setInterval(() => {}, 1000);
+      const keepAlive = setInterval(() => {}, 1000);
+
+      // Handle graceful shutdown
+      const cleanup = async () => {
+        console.log("\n🛑 Stopping Inspector Browser...");
+        clearInterval(keepAlive);
+        try {
+          await browser.deleteSession();
+          console.log("✅ Browser session closed.");
+        } catch (e) {
+          console.error("⚠️ Failed to close browser session:", e);
+        }
+        process.exit(0);
+      };
+
+      process.on("SIGINT", cleanup);
+      process.on("SIGTERM", cleanup);
     });
 
   cli.help();
