@@ -27,7 +27,7 @@ export function MobileInspector() {
           const { status, payload } = event.payload;
           if (status === "session-ready") {
             const sid = payload.session_id;
-            const url = `http://127.0.0.1:4723/inspector?state=${JSON.stringify(
+            const url = `appium-inspector://localhost/inspector?state=${JSON.stringify(
               {
                 attachSessId: sid,
               },
