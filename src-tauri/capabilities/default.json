@@ -4,10 +4,13 @@
   "description": "enables the default permissions",
   "windows": [
     "main",
-    "inspector"
+    "inspector",
+    "mobile_inspector"
   ],
   "remote": {
-    "urls": ["http://127.0.0.1:8888/*"]
+    "urls": [
+      "http://127.0.0.1:8888/*"
+    ]
   },
   "permissions": [
     "core:default",
