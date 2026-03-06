@@ -353,7 +353,7 @@ async fn start_web_inspector(
 
     // Check system dependencies first
     let system_check = check_system_dependencies().await?;
-    
+
     // Check critical dependencies that cannot be auto-installed
     let critical_missing: Vec<&str> = system_check
         .dependencies
@@ -385,7 +385,7 @@ async fn start_web_inspector(
             message: "WebDriverIO missing. Starting auto-installation...".to_string(),
         };
         let _ = app.emit("install-progress", &progress);
-        
+
         // This function handles the installation and emits progress events
         install_webdriverio(&app, &state).await?;
     }
@@ -460,6 +460,28 @@ async fn stop_web_inspector(
     })
 }
 
+fn detect_global_node_path() -> Option<String> {
+    log::info!("Attempting to detect global node_modules path...");
+    match std::process::Command::new("npm")
+        .args(&["root", "-g"])
+        .output()
+    {
+        Ok(output) => {
+            if output.status.success() {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path.is_empty() {
+                    log::info!("Found global node_modules at: {}", path);
+                    return Some(path);
+                }
+            }
+        }
+        Err(e) => {
+            log::warn!("Failed to execute npm root -g: {}", e);
+        }
+    }
+    None
+}
+
 #[tauri::command]
 async fn open_inspector_browser(
     app: AppHandle,
@@ -479,15 +501,20 @@ async fn open_inspector_browser(
         .map_err(|e| e.to_string())?;
 
     // Use the CLI to open inspector with WebDriver
-    let _output = Command::new("node")
-        .arg(&inspector_js_path)
+    let mut cmd = Command::new("node");
+    cmd.arg(&inspector_js_path)
         .arg("open")
-        .arg("http://127.0.0.1:8888/__/inspector")
-        .spawn()
-        .map_err(|e| {
-            log::error!("Failed to open inspector browser: {}", e);
-            e.to_string()
-        })?;
+        .arg("http://127.0.0.1:8888/__/inspector");
+
+    // Add NODE_PATH if we can find it to support global installations (e.g. nvm)
+    if let Some(node_path) = detect_global_node_path() {
+        cmd.env("NODE_PATH", node_path);
+    }
+
+    let _output = cmd.spawn().map_err(|e| {
+        log::error!("Failed to open inspector browser: {}", e);
+        e.to_string()
+    })?;
 
     log::info!("Inspector browser opened via CLI");
     Ok(())

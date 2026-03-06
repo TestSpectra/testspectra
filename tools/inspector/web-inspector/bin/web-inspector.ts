@@ -90,10 +90,18 @@ if (process.argv[2] === "__internal-server") {
         const wdio = await import("webdriverio");
         remote = wdio.remote;
       } catch (e) {
-        console.error(
-          "❌ webdriverio is not installed. Please install it using 'npm install webdriverio' to use the 'open' command.",
-        );
-        process.exit(1);
+        // Fallback to require for global modules via NODE_PATH (e.g. when spawned by Tauri with NODE_PATH set)
+        try {
+          const { createRequire } = await import("module");
+          const require = createRequire(import.meta.url);
+          const wdio = require("webdriverio");
+          remote = wdio.remote;
+        } catch (e2) {
+          console.error(
+            "❌ webdriverio is not installed. Please install it using 'npm install webdriverio' to use the 'open' command.",
+          );
+          process.exit(1);
+        }
       }
 
       if (!(await isPortInUse(PROXY_PORT))) {

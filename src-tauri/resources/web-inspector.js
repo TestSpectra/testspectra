@@ -911,10 +911,17 @@ if (process.argv[2] === "__internal-server") {
       const wdio = await import("webdriverio");
       remote = wdio.remote;
     } catch (e) {
-      console.error(
-        "\u274C webdriverio is not installed. Please install it using 'npm install webdriverio' to use the 'open' command."
-      );
-      process.exit(1);
+      try {
+        const { createRequire } = await import("module");
+        const require2 = createRequire(import.meta.url);
+        const wdio = require2("webdriverio");
+        remote = wdio.remote;
+      } catch (e2) {
+        console.error(
+          "\u274C webdriverio is not installed. Please install it using 'npm install webdriverio' to use the 'open' command."
+        );
+        process.exit(1);
+      }
     }
     if (!await isPortInUse(PROXY_PORT)) {
       console.warn(
