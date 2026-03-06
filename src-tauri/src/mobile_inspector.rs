@@ -29,6 +29,16 @@ pub struct AppiumCapabilities {
     #[serde(rename = "noReset")]
     pub no_reset: bool,
 }
+#[derive(Debug, serde::Serialize, Clone)]
+#[serde(tag = "status", content = "payload")]
+pub enum MobileInspectorEvent {
+    #[serde(rename = "creating-session")]
+    CreatingSession,
+    #[serde(rename = "session-ready")]
+    SessionReady { session_id: String },
+    #[serde(rename = "error")]
+    Error(String),
+}
 
 #[tauri::command]
 pub async fn start_appium_server(
@@ -229,79 +239,8 @@ pub async fn open_mobile_inspector_window(
     // Ensure server is running
     let _ = start_appium_server(app.clone(), state).await?;
 
-    let mut session_id = None;
-
-    // Automatically start session if capabilities are provided
-    if let Some(caps) = capabilities {
-        log::info!("Starting Appium session automatically for inspector...");
-
-        let client = reqwest::Client::new();
-        let body = serde_json::json!({
-            "capabilities": {
-                "alwaysMatch": {
-                    "platformName": caps.platform_name,
-                    "appium:options": {
-                        "platformVersion": caps.platform_version,
-                        "deviceName": caps.device_name,
-                        "automationName": caps.automation_name,
-                        "appPackage": caps.app_package,
-                        "autoGrantPermissions": caps.auto_grant_permissions,
-                        "noReset": caps.no_reset,
-                        "newCommandTimeout": 3600,
-                        "connectHardwareKeyboard": true
-                    }
-                }
-            }
-        });
-
-        // Try to start session with retries as server might still be booting
-        let mut retry_count = 0;
-        while retry_count < 5 {
-            match client
-                .post("http://127.0.0.1:4723/session")
-                .json(&body)
-                .send()
-                .await
-            {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        let json: serde_json::Value =
-                            resp.json().await.map_err(|e| e.to_string())?;
-                        if let Some(sid) = json["value"]["sessionId"].as_str() {
-                            session_id = Some(sid.to_string());
-                            log::info!("Appium session started: {}", sid);
-                            break;
-                        }
-                    } else {
-                        let err_text = resp
-                            .text()
-                            .await
-                            .unwrap_or_else(|_| "Unknown error".to_string());
-                        log::error!("Appium session start failed: {}", err_text);
-                    }
-                }
-                Err(e) => {
-                    log::warn!(
-                        "Waiting for Appium server to accept session ({}): {}",
-                        retry_count,
-                        e
-                    );
-                }
-            }
-            retry_count += 1;
-            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-        }
-    }
-
-    let url = if let Some(sid) = session_id {
-        format!("/mobile-inspector?sessionId={}", sid)
-    } else {
-        "/mobile-inspector".to_string()
-    };
-
-    log::info!("Opening mobile inspector window: {}", url);
-
-    // Create/Show the window
+    // Open window immediately
+    let url = "/mobile-inspector";
     if let Some(window) = app.get_webview_window("mobile_inspector") {
         let _ = window.navigate(url.parse().unwrap());
         let _ = window.show();
@@ -325,6 +264,93 @@ pub async fn open_mobile_inspector_window(
         } else {
             return Err("Mobile Inspector window configuration not found".to_string());
         }
+    }
+
+    // Spawn background task for session creation if capabilities are provided
+    if let Some(caps) = capabilities {
+        let app_clone = app.clone();
+        tokio::spawn(async move {
+            let _ = app_clone.emit(
+                "mobile-inspector-status",
+                MobileInspectorEvent::CreatingSession, // This event is not actually used, because window not opened when this event is fired
+            );
+            log::info!("Starting Appium session automatically for inspector...");
+
+            let client = reqwest::Client::new();
+            let body = serde_json::json!({
+                "capabilities": {
+                    "alwaysMatch": {
+                        "platformName": caps.platform_name,
+                        "appium:options": {
+                            "platformVersion": caps.platform_version,
+                            "deviceName": caps.device_name,
+                            "automationName": caps.automation_name,
+                            "appPackage": caps.app_package,
+                            "autoGrantPermissions": caps.auto_grant_permissions,
+                            "noReset": caps.no_reset,
+                            "newCommandTimeout": 3600,
+                            "connectHardwareKeyboard": true
+                        }
+                    }
+                }
+            });
+
+            // Try to start session with retries as server might still be booting
+            let mut retry_count = 0;
+            let mut session_id = None;
+            while retry_count < 5 {
+                match client
+                    .post("http://127.0.0.1:4723/session")
+                    .json(&body)
+                    .send()
+                    .await
+                {
+                    Ok(resp) => {
+                        if resp.status().is_success() {
+                            match resp.json::<serde_json::Value>().await {
+                                Ok(json) => {
+                                    if let Some(sid) = json["value"]["sessionId"].as_str() {
+                                        session_id = Some(sid.to_string());
+                                        log::info!("Appium session started: {}", sid);
+                                        break;
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to parse session response: {}", e);
+                                }
+                            }
+                        } else {
+                            let err_text = resp
+                                .text()
+                                .await
+                                .unwrap_or_else(|_| "Unknown error".to_string());
+                            log::error!("Appium session start failed: {}", err_text);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "Waiting for Appium server to accept session ({}): {}",
+                            retry_count,
+                            e
+                        );
+                    }
+                }
+                retry_count += 1;
+                tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+            }
+
+            if let Some(sid) = session_id {
+                let _ = app_clone.emit(
+                    "mobile-inspector-status",
+                    MobileInspectorEvent::SessionReady { session_id: sid },
+                );
+            } else {
+                let _ = app_clone.emit(
+                    "mobile-inspector-status",
+                    MobileInspectorEvent::Error("Failed to start Appium session".to_string()),
+                );
+            }
+        });
     }
 
     Ok(())

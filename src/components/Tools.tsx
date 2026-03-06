@@ -47,6 +47,7 @@ export function Tools() {
   const [appiumInspector, setAppiumInspector] = useState<ToolStatus>({
     running: false,
     loading: false,
+    opening: false,
   });
   const [mobileInstallProgress, setMobileInstallProgress] =
     useState<InstallProgress | null>(null);
@@ -180,6 +181,7 @@ export function Tools() {
   };
 
   const handleOpenAppiumInspectorWindow = async () => {
+    setAppiumInspector((prev) => ({ ...prev, opening: true }));
     try {
       // Fetch default config
       const config = await projectConfigService.getConfig("default");
@@ -199,6 +201,8 @@ export function Tools() {
       });
     } catch (error) {
       console.error("Failed to open mobile inspector window:", error);
+    } finally {
+      setAppiumInspector((prev) => ({ ...prev, opening: false }));
     }
   };
 
@@ -473,10 +477,17 @@ export function Tools() {
               <>
                 <Button
                   onClick={handleOpenAppiumInspectorWindow}
+                  disabled={appiumInspector.opening}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Open Inspector
+                  {appiumInspector.opening ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                  )}
+                  {appiumInspector.opening
+                    ? "Creating session..."
+                    : "Open Inspector"}
                 </Button>
                 <Button
                   onClick={handleStopAppiumInspector}
