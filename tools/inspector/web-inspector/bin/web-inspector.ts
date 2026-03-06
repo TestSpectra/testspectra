@@ -125,7 +125,7 @@ if (process.argv[2] === "__internal-server") {
             "--disable-features=IsolateOrigins,site-per-process",
             "--disable-site-isolation-trials",
             "--test-type",
-            "--window-size=1200,800",
+            "--window-size=1600,900",
           ],
         },
       };
