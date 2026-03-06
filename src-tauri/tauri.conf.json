@@ -59,7 +59,7 @@
     ],
     "resources": [
       "resources/default-config.env",
-      "resources/web-inspector.js"
+      "resources/web-inspector/**/*"
     ],
     "createUpdaterArtifacts": true
   },

@@ -394,7 +394,7 @@ async fn start_web_inspector(
     // Get the web-inspector JS file path from resources
     let inspector_js_path = app
         .path()
-        .resolve("resources/web-inspector.js", BaseDirectory::Resource)
+        .resolve("resources/web-inspector/bin/web-inspector.js", BaseDirectory::Resource)
         .map_err(|e| e.to_string())?;
 
     log::info!("Inspector JS path: {:?}", inspector_js_path);
@@ -439,7 +439,7 @@ async fn stop_web_inspector(
         // Try to stop gracefully first
         let inspector_js_path = app
             .path()
-            .resolve("resources/web-inspector.js", BaseDirectory::Resource)
+            .resolve("resources/web-inspector/bin/web-inspector.js", BaseDirectory::Resource)
             .map_err(|e| e.to_string())?;
 
         let _ = Command::new("node")
@@ -521,7 +521,7 @@ async fn open_inspector_browser(
     // Get the web-inspector JS file path from resources
     let inspector_js_path = app
         .path()
-        .resolve("resources/web-inspector.js", BaseDirectory::Resource)
+        .resolve("resources/web-inspector/bin/web-inspector.js", BaseDirectory::Resource)
         .map_err(|e| e.to_string())?;
 
     // Use the CLI to open inspector with WebDriver
