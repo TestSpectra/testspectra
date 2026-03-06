@@ -113,6 +113,9 @@ if (process.argv[2] === "__internal-server") {
         );
       }
 
+      const WINDOW_WIDTH = 1200;
+      const WINDOW_HEIGHT = 800;
+
       const capabilities: WebdriverIO.Capabilities = {
         browserName: "chrome",
         "goog:chromeOptions": {
@@ -125,7 +128,9 @@ if (process.argv[2] === "__internal-server") {
             "--disable-features=IsolateOrigins,site-per-process",
             "--disable-site-isolation-trials",
             "--test-type",
-            "--window-size=1600,900",
+            `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
+            "--no-first-run",
+            "--no-default-browser-check",
           ],
         },
       };
@@ -144,11 +149,12 @@ if (process.argv[2] === "__internal-server") {
             height: window.screen.availHeight,
           };
         });
-        const x = Math.max(0, Math.floor((screen.width - 1200) / 2));
-        const y = Math.max(0, Math.floor((screen.height - 800) / 2));
-        await browser.setWindowRect(x, y, 1200, 800);
+        const x = Math.max(0, Math.floor((screen.width - WINDOW_WIDTH) / 2));
+        const y = Math.max(0, Math.floor((screen.height - WINDOW_HEIGHT) / 2));
+        console.log(`📏 Resizing window to ${WINDOW_WIDTH}x${WINDOW_HEIGHT} at ${x},${y}`);
+        await browser.setWindowRect(x, y, WINDOW_WIDTH, WINDOW_HEIGHT);
       } catch (err) {
-        // ignore if fails to center
+        console.warn("⚠️ Failed to resize/center window:", err);
       }
 
       let targetOrigin;
