@@ -1,3 +1,4 @@
+import { useUser } from "@/contexts/UserContext";
 import {
   ChevronDown,
   FileCheck,
@@ -12,10 +13,11 @@ import {
   Settings,
   UserCircle,
   Users,
-  Wrench
+  Wrench,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWebSocket } from "../contexts/WebSocketContext";
+import { usePermissions } from "../hooks/usePermissions";
 import { TestSpectraLogo } from "./TestSpectraLogo";
 
 type View =
@@ -34,7 +36,7 @@ interface SidebarProps {
   currentView: string;
   onViewChange: (view: View) => void;
   onLogout?: () => void;
-  currentUser?: any;
+
   onCheckForUpdates?: () => void;
 }
 
@@ -44,7 +46,7 @@ export function Sidebar({
   currentView,
   onViewChange,
   onLogout,
-  currentUser,
+
   onCheckForUpdates,
 }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -52,6 +54,8 @@ export function Sidebar({
   const [isAccountMenuOpen, setAccountMenuOpen] = useState(false);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
   const { onMessage } = useWebSocket();
+  const { currentUser } = useUser();
+  const { hasPermission } = usePermissions(currentUser);
 
   // Check screen width and auto-collapse
   useEffect(() => {
@@ -68,33 +72,27 @@ export function Sidebar({
   useEffect(() => {
     const fetchPendingCount = async () => {
       // Only fetch if user has review permission
-      if (!currentUser) return;
-      const hasPermission = currentUser.basePermissions?.includes('review_approve_test_cases') ||
-        currentUser.specialPermissions?.includes('review_approve_test_cases');
-      if (!hasPermission) return;
+      if (!currentUser || !hasPermission("review_approve_test_cases")) return;
 
       try {
-        const { reviewService } = await import('../services/review-service');
+        const { reviewService } = await import("../services/review-service");
         const stats = await reviewService.getReviewStats();
         setPendingReviewCount(stats.pending);
       } catch (err) {
-        console.error('Failed to fetch pending review count:', err);
+        console.error("Failed to fetch pending review count:", err);
       }
     };
 
     fetchPendingCount();
-  }, [currentUser]);
+  }, [currentUser, hasPermission]);
 
   // Subscribe to realtime review stats updates via WebSocket
   useEffect(() => {
     // Only subscribe if user has review permission
-    if (!currentUser) return;
-    const hasPermission = currentUser.basePermissions?.includes('review_approve_test_cases') ||
-      currentUser.specialPermissions?.includes('review_approve_test_cases');
-    if (!hasPermission) return;
+    if (!currentUser || !hasPermission("review_approve_test_cases")) return;
 
     const unsubscribe = onMessage((message) => {
-      if (message.type === 'review_stats_update') {
+      if (message.type === "review_stats_update") {
         // Backend WsManager transforms 'data' field to 'payload'
         const stats = message.payload || message.data;
         if (stats) {
@@ -104,29 +102,41 @@ export function Sidebar({
     });
 
     return unsubscribe;
-  }, [currentUser, onMessage]);
+  }, [currentUser, hasPermission, onMessage]);
 
   const allMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "test-cases", label: "Test Cases", icon: FileCheck },
     { id: "test-suites", label: "Test Suites", icon: FolderTree },
     { id: "shared-steps", label: "Shared Steps", icon: Package },
-    { id: "review-queue", label: "Review Queue", icon: MessageSquare, requiresPermission: "review_approve_test_cases", badge: pendingReviewCount },
+    {
+      id: "review-queue",
+      label: "Review Queue",
+      icon: MessageSquare,
+      requiresPermission: "review_approve_test_cases",
+      badge: pendingReviewCount,
+    },
     { id: "runs-history", label: "Runs History", icon: History },
-    { id: "configuration", label: "Configuration", icon: Settings },
+    {
+      id: "configuration",
+      label: "Configuration",
+      icon: Settings,
+      requiresPermission: "manage_configurations",
+    },
     { id: "tools", label: "Tools", icon: Wrench },
-    { id: "user-management", label: "User Management", icon: Users },
+    {
+      id: "user-management",
+      label: "User Management",
+      icon: Users,
+      requiresPermission: "manage_users",
+    },
   ];
 
   // Filter menu items based on user permissions
-  const menuItems = allMenuItems.filter(item => {
+  const menuItems = allMenuItems.filter((item) => {
     if (!item.requiresPermission) return true;
     if (!currentUser) return false;
-    // Check both base and special permissions
-    return (
-      currentUser.basePermissions?.includes(item.requiresPermission) ||
-      currentUser.specialPermissions?.includes(item.requiresPermission)
-    );
+    return hasPermission(item.requiresPermission);
   });
 
   const getInitials = (name: string) => {
@@ -140,15 +150,15 @@ export function Sidebar({
 
   const displayUser = currentUser
     ? {
-      name: currentUser.name || "User",
-      email: currentUser.email || "user@example.com",
-      avatar: getInitials(currentUser.name || "User"),
-    }
+        name: currentUser.name || "User",
+        email: currentUser.email || "user@example.com",
+        avatar: getInitials(currentUser.name || "User"),
+      }
     : {
-      name: "Guest",
-      email: "guest@testspectra.com",
-      avatar: "G",
-    };
+        name: "Guest",
+        email: "guest@testspectra.com",
+        avatar: "G",
+      };
 
   // Determine if sidebar should show expanded
   const isExpanded = !isCollapsed || isHovered;
@@ -175,13 +185,17 @@ export function Sidebar({
       >
         {/* Logo & Header - Sticky */}
         <div className="bg-slate-900 shrink-0">
-          <div className={`border-b border-slate-800 h-[88px] flex items-center transition-all duration-300 ${isExpanded ? 'px-4 justify-start' : 'px-0 justify-center'}`}>
+          <div
+            className={`border-b border-slate-800 h-[88px] flex items-center transition-all duration-300 ${isExpanded ? "px-4 justify-start" : "px-0 justify-center"}`}
+          >
             <div className="flex items-center relative">
               <TestSpectraLogo
                 size={isExpanded ? 40 : 32}
                 className="shrink-0 transition-all duration-300"
               />
-              <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 ml-3 w-auto' : 'opacity-0 ml-0 w-0'}`}>
+              <div
+                className={`overflow-hidden transition-all duration-300 ${isExpanded ? "opacity-100 ml-3 w-auto" : "opacity-0 ml-0 w-0"}`}
+              >
                 <h1 className="text-white whitespace-nowrap">TestSpectra</h1>
                 <p className="text-xs text-slate-400 whitespace-nowrap">
                   Automation Lifecycle
@@ -191,14 +205,22 @@ export function Sidebar({
           </div>
 
           {/* Sync Status Indicator */}
-          <div className={`border-b border-slate-800 h-[68px] flex flex-col justify-center transition-[padding] duration-300 ${isExpanded ? 'px-4' : 'items-center px-0'}`}>
-            <div className={`flex items-center text-sm ${isExpanded ? 'gap-2' : 'justify-center'}`}>
+          <div
+            className={`border-b border-slate-800 h-[68px] flex flex-col justify-center transition-[padding] duration-300 ${isExpanded ? "px-4" : "items-center px-0"}`}
+          >
+            <div
+              className={`flex items-center text-sm ${isExpanded ? "gap-2" : "justify-center"}`}
+            >
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shrink-0"></div>
-              <span className={`text-slate-300 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0 w-0'}`}>
+              <span
+                className={`text-slate-300 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? "opacity-100" : "opacity-0 w-0"}`}
+              >
                 Synced
               </span>
             </div>
-            <p className={`text-xs text-slate-500 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100 mt-1' : 'opacity-0 h-0 mt-0'}`}>
+            <p
+              className={`text-xs text-slate-500 whitespace-nowrap transition-opacity duration-200 ${isExpanded ? "opacity-100 mt-1" : "opacity-0 h-0 mt-0"}`}
+            >
               Last sync: 2 minutes ago
             </p>
           </div>
@@ -220,23 +242,30 @@ export function Sidebar({
                   <button
                     onClick={() => onViewChange(item.id as View)}
                     title={!isExpanded ? item.label : undefined}
-                    className={`w-full flex items-center py-3 rounded-lg transition-colors ${isExpanded ? 'gap-3 px-4' : 'justify-center'
-                      } ${isActive
+                    className={`w-full flex items-center py-3 rounded-lg transition-colors ${
+                      isExpanded ? "gap-3 px-4" : "justify-center"
+                    } ${
+                      isActive
                         ? "bg-blue-600 text-white"
                         : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                      }`}
+                    }`}
                   >
                     <Icon className="w-5 h-5 shrink-0" />
-                    <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100 flex-1 text-left' : 'opacity-0 w-0'}`}>
+                    <span
+                      className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? "opacity-100 flex-1 text-left" : "opacity-0 w-0"}`}
+                    >
                       {item.label}
                     </span>
 
                     {/* Badge when expanded - inline */}
                     {isExpanded && item.badge && item.badge > 0 && (
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${isActive
-                          ? 'bg-white/20 text-white'
-                          : 'bg-yellow-500/20 text-yellow-400'
-                        }`}>
+                      <span
+                        className={`px-2 py-0.5 text-xs rounded-full ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-yellow-500/20 text-yellow-400"
+                        }`}
+                      >
                         {item.badge}
                       </span>
                     )}
@@ -244,11 +273,14 @@ export function Sidebar({
 
                   {/* Badge when collapsed - absolute positioned */}
                   {!isExpanded && item.badge && item.badge > 0 && (
-                    <span className={`absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-semibold rounded-full ${isActive
-                        ? 'bg-white/20 text-white'
-                        : 'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                      {item.badge > 99 ? '99+' : item.badge}
+                    <span
+                      className={`absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-semibold rounded-full ${
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : "bg-yellow-500/20 text-yellow-400"
+                      }`}
+                    >
+                      {item.badge > 99 ? "99+" : item.badge}
                     </span>
                   )}
                 </li>
@@ -297,22 +329,26 @@ export function Sidebar({
           </div> */}
 
           {/* User Profile */}
-          <div className={`border-t border-slate-800 bg-slate-800/30 transition-all duration-300 ${isExpanded ? 'p-4' : 'py-4 px-0'}`}>
-            <div className={`flex items-center transition-all duration-300 ${isExpanded ? 'justify-start' : 'justify-center'}`}>
+          <div
+            className={`border-t border-slate-800 bg-slate-800/30 transition-all duration-300 ${isExpanded ? "p-4" : "py-4 px-0"}`}
+          >
+            <div
+              className={`flex items-center transition-all duration-300 ${isExpanded ? "justify-start" : "justify-center"}`}
+            >
               <div
                 onClick={() =>
                   isExpanded && setAccountMenuOpen(!isAccountMenuOpen)
                 }
-                className={`flex items-center cursor-pointer hover:bg-slate-800 rounded-lg p-2 transition-all duration-300 ${isExpanded ? 'w-full' : ''}`}
+                className={`flex items-center cursor-pointer hover:bg-slate-800 rounded-lg p-2 transition-all duration-300 ${isExpanded ? "w-full" : ""}`}
               >
-                <div
-                  className="w-10 h-10 bg-linear-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center shrink-0"
-                >
+                <div className="w-10 h-10 bg-linear-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center shrink-0">
                   <span className="text-white text-sm font-semibold">
                     {displayUser.avatar}
                   </span>
                 </div>
-                <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 ml-3 w-auto' : 'opacity-0 ml-0 w-0'}`}>
+                <div
+                  className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${isExpanded ? "opacity-100 ml-3 w-auto" : "opacity-0 ml-0 w-0"}`}
+                >
                   <div className="flex items-center gap-2 mb-1">
                     <GitBranch className="w-3 h-3 text-slate-400 shrink-0" />
                     <p className="text-sm text-slate-200 truncate">
@@ -324,13 +360,16 @@ export function Sidebar({
                   </p>
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 text-slate-400 transition-all duration-300 shrink-0 ${isAccountMenuOpen ? "rotate-180" : ""
-                    } ${isExpanded ? 'ml-1.5' : 'opacity-0 hidden'}`}
+                  className={`w-4 h-4 text-slate-400 transition-all duration-300 shrink-0 ${
+                    isAccountMenuOpen ? "rotate-180" : ""
+                  } ${isExpanded ? "ml-1.5" : "opacity-0 hidden"}`}
                 />
               </div>
             </div>
 
-            <div className={`overflow-hidden transition-all duration-300 ${isExpanded && isAccountMenuOpen ? 'max-h-48 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+            <div
+              className={`overflow-hidden transition-all duration-300 ${isExpanded && isAccountMenuOpen ? "max-h-48 opacity-100 mt-2" : "max-h-0 opacity-0"}`}
+            >
               <div className="pt-2 border-t border-slate-700 space-y-1">
                 <button
                   onClick={(e) => {

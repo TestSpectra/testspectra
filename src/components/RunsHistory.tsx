@@ -1,7 +1,6 @@
+import { Calendar, CheckCircle2, Clock, Eye, Monitor, Search, User, X, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import { Search, Eye, CheckCircle2, XCircle, Clock, Monitor, User, Calendar, X } from 'lucide-react';
 import { Badge } from './ui/badge';
-import { Button } from './ui/button';
 
 interface RunsHistoryProps {
   onViewReport: (report: any) => void;
@@ -349,7 +348,7 @@ export function RunsHistory({ onViewReport, filterTestCaseId }: RunsHistoryProps
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center shrink-0">
                         <User className="w-4 h-4 text-blue-400" />
                       </div>
                       <span className="text-sm text-slate-300">{run.executor}</span>
@@ -357,7 +356,7 @@ export function RunsHistory({ onViewReport, filterTestCaseId }: RunsHistoryProps
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <Monitor className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <Monitor className="w-4 h-4 text-slate-400 shrink-0" />
                       <span className="text-sm text-slate-300">{run.device}</span>
                     </div>
                   </td>

@@ -1,26 +1,41 @@
-import { useState, useEffect } from 'react';
-import { User, Mail, Shield, Calendar, Clock, Key, Save, Edit2, CheckCircle2, GitBranch, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { formatPermissionsDisplay, ROLE_CONFIG } from '../utils/permissions';
+import { useState, useEffect } from "react";
+import {
+  Mail,
+  Shield,
+  Calendar,
+  Clock,
+  Key,
+  Save,
+  Edit2,
+  CheckCircle2,
+  GitBranch,
+  Loader2,
+  User,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { formatPermissionsDisplay, ROLE_CONFIG } from "../utils/permissions";
+import { formatDate, formatRelativeTime } from "../utils/date";
+import { User as UserData } from "../services/auth-service";
+import { useUser } from "@/contexts/UserContext";
 
 interface AccountPageProps {
-  currentUser: any;
   onUpdateProfile: (data: any) => Promise<any>;
 }
 
-export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) {
+export function AccountPage({ onUpdateProfile }: AccountPageProps) {
+  const { currentUser } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
-  const [formData, setFormData] = useState({
-    name: currentUser.name,
+  const [formData, setFormData] = useState<Partial<UserData>>({
+    name: currentUser?.name,
   });
-  
+
   // Reset form data when currentUser changes (e.g. after reload)
   useEffect(() => {
     setFormData({
-      name: currentUser.name,
+      name: currentUser?.name,
     });
   }, [currentUser]);
 
@@ -32,24 +47,21 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
       setUpdateSuccess(true);
       setTimeout(() => setUpdateSuccess(false), 3000); // Hide success message after 3 seconds
     } catch (error) {
-      console.error('Failed to update profile:', error);
+      console.error("Failed to update profile:", error);
       // Could add error state and display here
     } finally {
       setIsLoading(false);
     }
   };
 
-  const roleInfo = ROLE_CONFIG[currentUser.role as keyof typeof ROLE_CONFIG];
-  const displayBasePermissions = formatPermissionsDisplay(currentUser.basePermissions || []);
-  const displaySpecialPermissions = formatPermissionsDisplay(currentUser.specialPermissions || []);
-  
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  const roleInfo =
+    ROLE_CONFIG[currentUser?.role as keyof typeof ROLE_CONFIG] || {};
+  const displayBasePermissions = formatPermissionsDisplay(
+    currentUser?.basePermissions || [],
+  );
+  const displaySpecialPermissions = formatPermissionsDisplay(
+    currentUser?.specialPermissions || [],
+  );
 
   return (
     <div className="p-8 bg-slate-950 min-h-screen">
@@ -59,7 +71,9 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
           <User className="w-8 h-8 text-blue-400" />
           My Account
         </h1>
-        <p className="text-slate-400">Manage your account settings and preferences</p>
+        <p className="text-slate-400">
+          Manage your account settings and preferences
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
@@ -76,7 +90,7 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
                 <Button
                   onClick={() => setIsEditing(true)}
                   variant="outline"
-                  className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
+                  className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
                   Edit Profile
@@ -86,28 +100,35 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Full Name</label>
+                <label className="block text-sm text-slate-400 mb-2">
+                  Full Name
+                </label>
                 {isEditing ? (
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 ) : (
-                  <p className="text-slate-200">{currentUser.name}</p>
+                  <p className="text-slate-200">{currentUser?.name}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Email Address</label>
+                <label className="block text-sm text-slate-400 mb-2">
+                  Email Address
+                </label>
                 <p className="text-slate-200 flex items-center gap-2">
                   <Mail className="w-4 h-4 text-slate-500" />
-                  {currentUser.email}
+                  {currentUser?.email}
                 </p>
                 {isEditing && (
                   <p className="text-xs text-slate-500 mt-1 italic">
-                    Email cannot be changed. Please contact administrator for email changes.
+                    Email cannot be changed. Please contact administrator for
+                    email changes.
                   </p>
                 )}
               </div>
@@ -118,7 +139,7 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
                   <span>Profile updated successfully!</span>
                 </div>
               )}
-              
+
               {isEditing && (
                 <div className="flex items-center gap-3 pt-4">
                   <Button
@@ -141,10 +162,13 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
                   <Button
                     onClick={() => {
                       setIsEditing(false);
-                      setFormData({ name: currentUser.name, email: currentUser.email });
+                      setFormData({
+                        name: currentUser?.name,
+                        email: currentUser?.email,
+                      });
                     }}
                     variant="outline"
-                    className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
+                    className="bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white"
                     disabled={isLoading}
                   >
                     Cancel
@@ -163,38 +187,58 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Your Role</label>
-                <Badge className={`${roleInfo.color} border text-base px-4 py-2`}>
+                <label className="block text-sm text-slate-400 mb-2">
+                  Your Role
+                </label>
+                <Badge
+                  className={`${roleInfo.color} border text-base px-4 py-2`}
+                >
                   <Shield className="w-4 h-4 mr-2" />
                   {roleInfo.label}
                 </Badge>
-                <p className="text-sm text-slate-500 mt-2">{roleInfo.description}</p>
+                <p className="text-sm text-slate-500 mt-2">
+                  {roleInfo.description}
+                </p>
               </div>
 
               {/* Base Permissions */}
               <div>
-                <label className="block text-sm text-slate-400 mb-3">Base Permissions</label>
+                <label className="block text-sm text-slate-400 mb-3">
+                  Base Permissions
+                </label>
                 <div className="bg-slate-800/50 rounded-lg p-4 space-y-2">
-                  {displayBasePermissions.map((permission: string, index: number) => (
-                    <div key={index} className="flex items-start gap-2 text-sm text-slate-300">
-                      <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                      {permission}
-                    </div>
-                  ))}
+                  {displayBasePermissions.map(
+                    (permission: string, index: number) => (
+                      <div
+                        key={index}
+                        className="flex items-start gap-2 text-sm text-slate-300"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                        {permission}
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
 
               {/* Special Permissions */}
               {displaySpecialPermissions.length > 0 && (
                 <div>
-                  <label className="block text-sm text-slate-400 mb-3">Special Permissions (Extended)</label>
-                  <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-4 space-y-2">
-                    {displaySpecialPermissions.map((permission: string, index: number) => (
-                      <div key={index} className="flex items-start gap-2 text-sm text-purple-300">
-                        <CheckCircle2 className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-                        {permission}
-                      </div>
-                    ))}
+                  <label className="block text-sm text-slate-400 mb-3">
+                    Special Permissions (Extended)
+                  </label>
+                  <div className="bg-linear-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-4 space-y-2">
+                    {displaySpecialPermissions.map(
+                      (permission: string, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-2 text-sm text-purple-300"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                          {permission}
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
               )}
@@ -210,15 +254,24 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Git Username</label>
-                <p className="text-slate-200">{currentUser.gitUsername || currentUser.name}</p>
+                <label className="block text-sm text-slate-400 mb-2">
+                  Git Username
+                </label>
+                <p className="text-slate-200">
+                  {currentUser?.gitUsername || currentUser?.name}
+                </p>
               </div>
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Git Email</label>
-                <p className="text-slate-200">{currentUser.gitEmail || currentUser.email}</p>
+                <label className="block text-sm text-slate-400 mb-2">
+                  Git Email
+                </label>
+                <p className="text-slate-200">
+                  {currentUser?.gitEmail || currentUser?.email}
+                </p>
               </div>
               <p className="text-xs text-slate-500">
-                Git profile is automatically synced from your local Git configuration
+                Git profile is automatically synced from your local Git
+                configuration
               </p>
             </div>
           </div>
@@ -236,18 +289,16 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
               <div>
                 <p className="text-xs text-slate-500 mb-1">Member Since</p>
                 <p className="text-sm text-slate-300">
-                  {new Date(currentUser.joinedDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
+                  {currentUser?.joinedDate
+                    ? formatDate(currentUser.joinedDate)
+                    : "N/A"}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 mb-1">Last Active</p>
                 <p className="text-sm text-slate-300 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {currentUser.lastActive}
+                  {formatRelativeTime(currentUser?.lastActive || "")}
                 </p>
               </div>
               <div>
@@ -269,14 +320,14 @@ export function AccountPage({ currentUser, onUpdateProfile }: AccountPageProps) 
             <div className="space-y-3">
               <Button
                 variant="outline"
-                className="w-full bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white justify-start"
+                className="w-full bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white justify-start"
               >
                 <Key className="w-4 h-4 mr-2" />
                 Change Password
               </Button>
               <Button
                 variant="outline"
-                className="w-full bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white justify-start"
+                className="w-full bg-transparent border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white justify-start"
               >
                 <Shield className="w-4 h-4 mr-2" />
                 Two-Factor Auth

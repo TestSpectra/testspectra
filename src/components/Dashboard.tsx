@@ -20,7 +20,7 @@ import {
   YAxis
 } from "recharts";
 import { testCaseService } from "../services/test-case-service";
-import { getTimeAgo } from "../lib/utils";
+import { formatRelativeTime } from "../utils/date";
 import { StatCard } from "./StatCard";
 
 interface DashboardProps {
@@ -376,7 +376,7 @@ export function Dashboard({
                       <span>•</span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {getTimeAgo(tc.updatedAt)}
+                        {formatRelativeTime(tc.updatedAt)}
                       </span>
                     </div>
                   </div>

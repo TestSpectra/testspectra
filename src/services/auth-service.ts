@@ -22,7 +22,7 @@ export interface User {
 
 export interface LoginResponse {
   accessToken: string;
-  user: User;
+  userId: string;
 }
 
 const TOKEN_KEY = 'testspectra_access_token';
@@ -63,7 +63,7 @@ export class AuthService {
       logDebug('AUTH login success');
 
       this.setToken(data.accessToken);
-      this.setUser(data.user);
+      // Note: User data will be loaded separately via getCurrentUser
 
       return data;
     } catch (error) {

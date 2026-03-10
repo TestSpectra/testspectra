@@ -23,20 +23,22 @@ import {
   User,
   X,
   XCircle,
-  Zap
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getApiUrl } from "../lib/config";
-import { getTimeAgo } from "../lib/utils";
-import { authService } from "../services/auth-service";
+import { formatRelativeTime } from "../utils/date";
+import { authService, User as UserData } from "../services/auth-service";
 import {
   testCaseService,
-  TestCaseSummary
+  TestCaseSummary,
 } from "../services/test-case-service";
+import { ProtectedElement } from "./ProtectedElement";
 import { ConfirmDialog } from "./SimpleDialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { useUser } from "@/contexts/UserContext";
 
 interface TestCasesListProps {
   onCreateTestCase: () => void;
@@ -56,6 +58,7 @@ export function TestCasesList({
   onRecordManualResult,
 }: TestCasesListProps) {
   const [searchParams] = useSearchParams();
+  const { currentUser } = useUser();
 
   // State for test cases data
   const [testCasesList, setTestCasesList] = useState<TestCaseSummary[]>([]);
@@ -79,11 +82,21 @@ export function TestCasesList({
 
   const persistedState = loadPersistedState();
 
-  const [searchQuery, setSearchQuery] = useState(persistedState?.searchQuery || "");
-  const [filterAutomation, setFilterAutomation] = useState(persistedState?.filterAutomation || "all");
-  const [filterPriority, setFilterPriority] = useState(persistedState?.filterPriority || "all");
-  const [filterSuite, setFilterSuite] = useState(searchParams.get("suite") || persistedState?.filterSuite || "all");
-  const [filterReviewStatus, setFilterReviewStatus] = useState(persistedState?.filterReviewStatus || "all");
+  const [searchQuery, setSearchQuery] = useState(
+    persistedState?.searchQuery || "",
+  );
+  const [filterAutomation, setFilterAutomation] = useState(
+    persistedState?.filterAutomation || "all",
+  );
+  const [filterPriority, setFilterPriority] = useState(
+    persistedState?.filterPriority || "all",
+  );
+  const [filterSuite, setFilterSuite] = useState(
+    searchParams.get("suite") || persistedState?.filterSuite || "all",
+  );
+  const [filterReviewStatus, setFilterReviewStatus] = useState(
+    persistedState?.filterReviewStatus || "all",
+  );
 
   // Sync URL params with state
   useEffect(() => {
@@ -93,8 +106,12 @@ export function TestCasesList({
     }
   }, [searchParams]);
 
-  const [currentPage, setCurrentPage] = useState(persistedState?.currentPage || 1);
-  const [itemsPerPage, setItemsPerPage] = useState(persistedState?.itemsPerPage || 10);
+  const [currentPage, setCurrentPage] = useState(
+    persistedState?.currentPage || 1,
+  );
+  const [itemsPerPage, setItemsPerPage] = useState(
+    persistedState?.itemsPerPage || 10,
+  );
 
   // Persist state to localStorage whenever filters or pagination change
   useEffect(() => {
@@ -108,11 +125,22 @@ export function TestCasesList({
       itemsPerPage,
     };
     try {
-      localStorage.setItem("testCasesList_filters", JSON.stringify(stateToSave));
+      localStorage.setItem(
+        "testCasesList_filters",
+        JSON.stringify(stateToSave),
+      );
     } catch (err) {
       console.error("Failed to persist state:", err);
     }
-  }, [searchQuery, filterAutomation, filterPriority, filterSuite, filterReviewStatus, currentPage, itemsPerPage]);
+  }, [
+    searchQuery,
+    filterAutomation,
+    filterPriority,
+    filterSuite,
+    filterReviewStatus,
+    currentPage,
+    itemsPerPage,
+  ]);
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [quickCreateData, setQuickCreateData] = useState({
     title: "",
@@ -138,7 +166,7 @@ export function TestCasesList({
 
   // Suite Management State
   const [allSuites, setAllSuites] = useState<{ id: string; name: string }[]>(
-    []
+    [],
   );
   const [isLoadingSuites, setIsLoadingSuites] = useState(false);
   const [isCreatingNewSuite, setIsCreatingNewSuite] = useState(false);
@@ -152,7 +180,7 @@ export function TestCasesList({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<"above" | "below" | null>(
-    null
+    null,
   );
   // State to track which row has text being hovered (disabling drag)
   const [textHoverRowId, setTextHoverRowId] = useState<string | null>(null);
@@ -179,7 +207,7 @@ export function TestCasesList({
       setAvailableSuites(response.availableSuites);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch test cases"
+        err instanceof Error ? err.message : "Failed to fetch test cases",
       );
       console.error("Failed to fetch test cases:", err);
     } finally {
@@ -246,7 +274,7 @@ export function TestCasesList({
       if (response.ok) {
         const newSuite = await response.json();
         setAllSuites((prev) =>
-          [...prev, newSuite].sort((a, b) => a.name.localeCompare(b.name))
+          [...prev, newSuite].sort((a, b) => a.name.localeCompare(b.name)),
         );
 
         if (forEdit) {
@@ -271,7 +299,7 @@ export function TestCasesList({
 
   const handleRowClick = (
     e: React.MouseEvent<HTMLTableRowElement>,
-    id: string
+    id: string,
   ) => {
     if (bulkMode) {
       // Bulk delete selection is handled via checkboxes
@@ -331,7 +359,13 @@ export function TestCasesList({
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterSuite, filterPriority, filterAutomation, filterReviewStatus]);
+  }, [
+    searchQuery,
+    filterSuite,
+    filterPriority,
+    filterAutomation,
+    filterReviewStatus,
+  ]);
 
   // Use API response directly - no client-side filtering needed for data
   const currentItems = testCasesList;
@@ -408,7 +442,7 @@ export function TestCasesList({
     } catch (err) {
       console.error("Failed to create test case:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to create test case"
+        err instanceof Error ? err.message : "Failed to create test case",
       );
     }
   };
@@ -449,7 +483,7 @@ export function TestCasesList({
     } catch (err) {
       console.error("Failed to update test case:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to update test case"
+        err instanceof Error ? err.message : "Failed to update test case",
       );
     }
   };
@@ -464,7 +498,7 @@ export function TestCasesList({
     setSelectedIds((prev) =>
       prev.includes(id)
         ? prev.filter((selectedId) => selectedId !== id)
-        : [...prev, id]
+        : [...prev, id],
     );
   };
 
@@ -501,7 +535,7 @@ export function TestCasesList({
     } catch (err) {
       console.error("Failed to delete test case(s):", err);
       setError(
-        err instanceof Error ? err.message : "Failed to delete test case(s)"
+        err instanceof Error ? err.message : "Failed to delete test case(s)",
       );
     }
     setShowDeleteConfirm(false);
@@ -520,7 +554,7 @@ export function TestCasesList({
     } catch (err) {
       console.error("Failed to duplicate test case:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to duplicate test case"
+        err instanceof Error ? err.message : "Failed to duplicate test case",
       );
     }
   };
@@ -528,7 +562,7 @@ export function TestCasesList({
   // Drag and Drop Handlers
   const handleDragStart = (
     e: React.DragEvent<HTMLTableRowElement>,
-    id: string
+    id: string,
   ) => {
     setDraggedId(id);
     e.dataTransfer.effectAllowed = "move";
@@ -551,7 +585,7 @@ export function TestCasesList({
 
       movedIds.forEach((movedId) => {
         const sourceRow = document.querySelector<HTMLTableRowElement>(
-          `tr[data-case-id="${movedId}"]`
+          `tr[data-case-id="${movedId}"]`,
         );
         if (!sourceRow) return;
         const clone = sourceRow.cloneNode(true) as HTMLTableRowElement;
@@ -586,7 +620,7 @@ export function TestCasesList({
 
   const handleDragOver = (
     e: React.DragEvent<HTMLTableRowElement>,
-    id: string
+    id: string,
   ) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -605,7 +639,7 @@ export function TestCasesList({
 
   const handleDrop = async (
     e: React.DragEvent<HTMLTableRowElement>,
-    targetId: string
+    targetId: string,
   ) => {
     e.preventDefault();
     setDragOverId(null);
@@ -670,7 +704,7 @@ export function TestCasesList({
     } catch (err) {
       console.error("Failed to reorder test case:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to reorder test case"
+        err instanceof Error ? err.message : "Failed to reorder test case",
       );
     }
 
@@ -731,13 +765,15 @@ export function TestCasesList({
             <Sparkles className="w-4 h-4 mr-2" />
             Quick Create
           </Button>
-          <Button
-            onClick={onCreateTestCase}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Test Case
-          </Button>
+          <ProtectedElement requiredPermissions={["create_edit_test_cases"]}>
+            <Button
+              onClick={onCreateTestCase}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Test Case
+            </Button>
+          </ProtectedElement>
         </div>
       </div>
 
@@ -1125,7 +1161,7 @@ export function TestCasesList({
                   {currentItems.map((tc, index) => {
                     const isMoved = dragMovedSet.has(tc.id);
                     const isSelectedForReorder = reorderSelectedIds.includes(
-                      tc.id
+                      tc.id,
                     );
 
                     const baseCursorClass =
@@ -1150,7 +1186,9 @@ export function TestCasesList({
                       <tr
                         key={tc.id}
                         data-case-id={tc.id}
-                        draggable={editingId !== tc.id && textHoverRowId !== tc.id}
+                        draggable={
+                          editingId !== tc.id && textHoverRowId !== tc.id
+                        }
                         onClick={(e) => handleRowClick(e, tc.id)}
                         onDragStart={(e) => handleDragStart(e, tc.id)}
                         onDragEnd={handleDragEnd}
@@ -1183,10 +1221,11 @@ export function TestCasesList({
                         <td className="relative px-6 py-4">
                           {dragOverId === tc.id && dropPosition && (
                             <div
-                              className={`drop-indicator ${dropPosition === "above"
-                                ? "drop-indicator--top"
-                                : "drop-indicator--bottom"
-                                }`}
+                              className={`drop-indicator ${
+                                dropPosition === "above"
+                                  ? "drop-indicator--top"
+                                  : "drop-indicator--bottom"
+                              }`}
                             />
                           )}
                           <span
@@ -1216,13 +1255,13 @@ export function TestCasesList({
                                 className="text-sm text-slate-200 cursor-text"
                                 onMouseEnter={() => setTextHoverRowId(tc.id)}
                                 onMouseLeave={() => setTextHoverRowId(null)}
-                                onDoubleClick={e => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
                               >
                                 {tc.title}
                               </span>
                               <br />
                               <span className="text-xs text-slate-500 mt-1">
-                                {getTimeAgo(tc.lastRun, "Belum dijalankan")}
+                                {tc.lastRun ? formatRelativeTime(tc.lastRun) : "Belum dijalankan"}
                               </span>
                             </>
                           )}
@@ -1322,7 +1361,7 @@ export function TestCasesList({
                             <Badge
                               variant="outline"
                               className={`${getPriorityColor(
-                                tc.priority
+                                tc.priority,
                               )} border`}
                             >
                               {tc.priority}
@@ -1349,7 +1388,7 @@ export function TestCasesList({
                             <Badge
                               variant="outline"
                               className={`${getCaseTypeColor(
-                                tc.caseType
+                                tc.caseType,
                               )} border`}
                             >
                               {tc.caseType}
@@ -1429,10 +1468,11 @@ export function TestCasesList({
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span
-                            className={`text-sm ${!tc.pageLoadAvg
-                              ? "text-slate-500"
-                              : "text-slate-300"
-                              }`}
+                            className={`text-sm ${
+                              !tc.pageLoadAvg
+                                ? "text-slate-500"
+                                : "text-slate-300"
+                            }`}
                           >
                             {tc.pageLoadAvg || "-"}
                           </span>
@@ -1461,27 +1501,39 @@ export function TestCasesList({
                             </div>
                           ) : (
                             <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleStartEdit(tc)}
-                                className="p-2 text-slate-400 hover:text-orange-400 hover:bg-slate-800 rounded-lg transition-colors"
-                                title="Quick Edit"
+                              <ProtectedElement
+                                requiredPermissions={["create_edit_test_cases"]}
                               >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => onEditTestCase(tc.id)}
-                                className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
-                                title="Full Edit"
+                                <button
+                                  onClick={() => handleStartEdit(tc)}
+                                  className="p-2 text-slate-400 hover:text-orange-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                  title="Quick Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                              </ProtectedElement>
+                              <ProtectedElement
+                                requiredPermissions={["create_edit_test_cases"]}
                               >
-                                <FileEdit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDuplicate(tc.id)}
-                                className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-lg transition-colors"
-                                title="Duplicate"
+                                <button
+                                  onClick={() => onEditTestCase(tc.id)}
+                                  className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                  title="Full Edit"
+                                >
+                                  <FileEdit className="w-4 h-4" />
+                                </button>
+                              </ProtectedElement>
+                              <ProtectedElement
+                                requiredPermissions={["create_edit_test_cases"]}
                               >
-                                <Copy className="w-4 h-4" />
-                              </button>
+                                <button
+                                  onClick={() => handleDuplicate(tc.id)}
+                                  className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                  title="Duplicate"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </ProtectedElement>
                               <button
                                 onClick={() => handleDeleteSingle(tc.id)}
                                 className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
@@ -1497,30 +1549,41 @@ export function TestCasesList({
                                 <History className="w-4 h-4" />
                               </button>
                               {tc.automation === "Automated" ? (
-                                <button
-                                  onClick={() =>
-                                    onViewReport({
-                                      id: "RUN-" + tc.id.split("-")[1],
-                                      suite: tc.suite,
-                                      testCase: tc.title,
-                                      status: tc.lastStatus,
-                                      duration: "45s",
-                                      timestamp: tc.lastRun,
-                                    })
-                                  }
-                                  className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-800 rounded-lg transition-colors"
-                                  title="Run Test"
+                                <ProtectedElement
+                                  requiredPermissions={[
+                                    "execute_automated_tests",
+                                    "execute_all_tests",
+                                  ]}
                                 >
-                                  <Play className="w-4 h-4" />
-                                </button>
+                                  <button
+                                    onClick={() =>
+                                      onViewReport({
+                                        id: "RUN-" + tc.id.split("-")[1],
+                                        suite: tc.suite,
+                                        testCase: tc.title,
+                                        status: tc.lastStatus,
+                                        duration: "45s",
+                                        timestamp: tc.lastRun,
+                                      })
+                                    }
+                                    className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                    title="Run Test"
+                                  >
+                                    <Play className="w-4 h-4" />
+                                  </button>
+                                </ProtectedElement>
                               ) : (
-                                <button
-                                  onClick={() => onRecordManualResult(tc.id)}
-                                  className="p-2 text-slate-400 hover:text-teal-400 hover:bg-slate-800 rounded-lg transition-colors"
-                                  title="Record Manual Result"
+                                <ProtectedElement
+                                  requiredPermissions={["record_test_results"]}
                                 >
-                                  <ClipboardCheck className="w-4 h-4" />
-                                </button>
+                                  <button
+                                    onClick={() => onRecordManualResult(tc.id)}
+                                    className="p-2 text-slate-400 hover:text-teal-400 hover:bg-slate-800 rounded-lg transition-colors"
+                                    title="Record Manual Result"
+                                  >
+                                    <ClipboardCheck className="w-4 h-4" />
+                                  </button>
+                                </ProtectedElement>
                               )}
                               <button
                                 onClick={() => onViewDetail(tc.id)}
@@ -1609,10 +1672,11 @@ export function TestCasesList({
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`min-w-9 px-3 py-1.5 rounded-lg text-sm transition-colors ${currentPage === pageNum
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-400 hover:text-blue-400 hover:bg-slate-800"
-                      }`}
+                    className={`min-w-9 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                      currentPage === pageNum
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-400 hover:text-blue-400 hover:bg-slate-800"
+                    }`}
                   >
                     {pageNum}
                   </button>

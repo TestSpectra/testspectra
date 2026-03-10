@@ -8,6 +8,7 @@ import {
   type SharedStepDetail,
 } from "../services/shared-step-service";
 import { BackButton } from "./BackButton";
+import { ProtectedElement } from "./ProtectedElement";
 import { ConfirmDialog } from "./SimpleDialog";
 import { TestCaseDisplay } from "./TestCaseDisplay";
 import { Button } from "./ui/button";
@@ -24,9 +25,7 @@ export function SharedStepTitle({ name, description }: Partial<SharedStep>) {
     <div className="flex flex-col gap-3 grow">
       <div className="flex items-center gap-2 pt-1.5">
         <Package className="w-4 h-4 text-purple-400" />
-        <span className="text-sm font-medium text-purple-400">
-          {name}
-        </span>
+        <span className="text-sm font-medium text-purple-400">{name}</span>
       </div>
 
       {description && (
@@ -132,24 +131,32 @@ export function SharedStepDetail({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onEdit(sharedStep.id)}
-            className="text-slate-400 hover:text-white hover:bg-slate-800"
+          <ProtectedElement
+            requiredPermissions={["create_edit_test_cases"]}
           >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onEdit(sharedStep.id)}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+          </ProtectedElement>
+          <ProtectedElement
+            requiredPermissions={["create_edit_test_cases"]}
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          </ProtectedElement>
         </div>
       </div>
 

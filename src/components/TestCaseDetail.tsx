@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { reviewService } from '../services/review-service';
 import { TestCase, testCaseService } from '../services/test-case-service';
 import { BackButton } from './BackButton';
+import { ProtectedElement } from './ProtectedElement';
 import { ReviewHistory } from './ReviewHistory';
 import { ConfirmDialog } from './SimpleDialog';
 import { TestCaseDisplay } from './TestCaseDisplay';
@@ -194,45 +195,61 @@ export function TestCaseDetail({ testCaseId, onBack, onEdit, onDelete, onRunTest
           )}
 
           {testCase.automation === 'Automated' ? (
-            <Button
-              onClick={() => onRunTest({
-                id: 'RUN-' + testCase.id.split('-')[1],
-                suite: testCase.suite,
-                testCase: testCase.title,
-                status: testCase.lastStatus,
-                duration: '45s',
-                timestamp: testCase.lastRun
-              })}
-              className="bg-green-600 hover:bg-green-700 text-white"
+            <ProtectedElement 
+              requiredPermissions={['execute_automated_tests', 'execute_all_tests']}
             >
-              <Play className="w-4 h-4 mr-2" />
-              Run Test
-            </Button>
+              <Button
+                onClick={() => onRunTest({
+                  id: 'RUN-' + testCase.id.split('-')[1],
+                  suite: testCase.suite,
+                  testCase: testCase.title,
+                  status: testCase.lastStatus,
+                  duration: '45s',
+                  timestamp: testCase.lastRun
+                })}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Run Test
+              </Button>
+            </ProtectedElement>
           ) : (
-            <Button
-              onClick={() => onRecordManualResult?.(testCase.id)}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
+            <ProtectedElement 
+              requiredPermissions={['record_test_results']}
             >
-              <ClipboardCheck className="w-4 h-4 mr-2" />
-              Record Test Result
-            </Button>
+              <Button
+                onClick={() => onRecordManualResult?.(testCase.id)}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Record Test Result
+              </Button>
+            </ProtectedElement>
           )}
-          <Button
-            onClick={() => onEdit(testCase.id)}
-            variant="outline"
-            className="bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/30 hover:border-blue-500/50 hover:text-blue-300 transition-all"
+          <ProtectedElement 
+            requiredPermissions={['create_edit_test_cases']}
           >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
-          <Button
-            onClick={handleDeleteClick}
-            variant="outline"
-            className="bg-red-600/10 border-red-500/30 text-red-400 hover:bg-red-600/30 hover:border-red-500/50 hover:text-red-300 transition-all"
+            <Button
+              onClick={() => onEdit(testCase.id)}
+              variant="outline"
+              className="bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/30 hover:border-blue-500/50 hover:text-blue-300 transition-all"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+          </ProtectedElement>
+          <ProtectedElement 
+            requiredPermissions={['create_edit_test_cases']}
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete
-          </Button>
+            <Button
+              onClick={handleDeleteClick}
+              variant="outline"
+              className="bg-red-600/10 border-red-500/30 text-red-400 hover:bg-red-600/30 hover:border-red-500/50 hover:text-red-300 transition-all"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          </ProtectedElement>
         </div>
       </div>
 

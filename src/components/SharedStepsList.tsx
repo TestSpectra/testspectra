@@ -12,15 +12,18 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getTimeAgo } from "../lib/utils";
+import { formatRelativeTime } from "../utils/date";
 import { SharedStep, sharedStepService } from "../services/shared-step-service";
+import { ProtectedElement } from "./ProtectedElement";
 import { ConfirmDialog } from "./SimpleDialog";
 import { Button } from "./ui/button";
+import { User as UserData } from "@/services/auth-service";
 
 interface SharedStepsListProps {
   onCreateSharedStep: () => void;
   onEditSharedStep: (sharedStepId: string) => void;
   onViewDetail: (sharedStepId: string) => void;
+
 }
 
 export function SharedStepsList({
@@ -131,13 +134,17 @@ export function SharedStepsList({
             Create and manage reusable test step sequences
           </p>
         </div>
-        <Button
-          onClick={onCreateSharedStep}
-          className="bg-green-600 hover:bg-green-700 text-white"
+        <ProtectedElement 
+          requiredPermissions={['create_edit_test_cases']}
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Shared Step
-        </Button>
+          <Button
+            onClick={onCreateSharedStep}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Shared Step
+          </Button>
+        </ProtectedElement>
       </div>
 
       {/* Search and Filters */}
@@ -188,13 +195,17 @@ export function SharedStepsList({
               : "Get started by creating your first shared step"}
           </p>
           {!debouncedSearch && (
-            <Button
-              onClick={onCreateSharedStep}
-              className="bg-green-600 hover:bg-green-700 text-white"
+            <ProtectedElement 
+              requiredPermissions={['create_edit_test_cases']}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Shared Step
-            </Button>
+              <Button
+                onClick={onCreateSharedStep}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Shared Step
+              </Button>
+            </ProtectedElement>
           )}
         </div>
       ) : (
@@ -221,17 +232,21 @@ export function SharedStepsList({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      onEditSharedStep(sharedStep.id);
-                    }}
-                    className="text-slate-400 hover:text-white hover:bg-slate-700"
+                  <ProtectedElement 
+                    requiredPermissions={['create_edit_test_cases']}
                   >
-                    <Edit className="w-4 h-4" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e: MouseEvent) => {
+                        e.stopPropagation();
+                        onEditSharedStep(sharedStep.id);
+                      }}
+                      className="text-slate-400 hover:text-white hover:bg-slate-700"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </ProtectedElement>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -256,7 +271,7 @@ export function SharedStepsList({
                   <span>{sharedStep.createdBy}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span>{getTimeAgo(sharedStep.createdAt)}</span>
+                  <span>{formatRelativeTime(sharedStep.createdAt)}</span>
                 </div>
               </div>
             </div>

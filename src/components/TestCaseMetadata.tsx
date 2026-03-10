@@ -1,5 +1,6 @@
 import { Calendar } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { formatDateTime } from '../utils/date';
 
 interface TestCaseMetadataProps {
   testCase: {
@@ -26,11 +27,11 @@ export function TestCaseMetadata({ testCase }: TestCaseMetadataProps) {
           </div>
           <div>
             <p className="text-xs text-slate-500 mb-1">Created At</p>
-            <p className="text-slate-300">{testCase.createdAt ? new Date(testCase.createdAt).toLocaleString() : '-'}</p>
+            <p className="text-slate-300">{testCase.createdAt ? formatDateTime(testCase.createdAt) : '-'}</p>
           </div>
           <div>
             <p className="text-xs text-slate-500 mb-1">Last Modified</p>
-            <p className="text-slate-300">{testCase.updatedAt ? new Date(testCase.updatedAt).toLocaleString() : '-'}</p>
+            <p className="text-slate-300">{testCase.updatedAt ? formatDateTime(testCase.updatedAt) : '-'}</p>
           </div>
         </div>
       </div>

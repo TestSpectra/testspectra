@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { ReviewStatus } from '../services/test-case-service';
 import { reviewService, Review, ReviewStats, ReviewQueueItem } from '../services/review-service';
 import { authService } from '../services/auth-service';
-import { getTimeAgo } from '../lib/utils';
+import { formatRelativeTime } from '../utils/date';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
 interface TestCaseReviewQueueProps {
@@ -421,7 +421,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5" />
-                              {getTimeAgo(item.submittedForReviewAt)}
+                              {formatRelativeTime(item.submittedForReviewAt)}
                             </span>
                           </div>
 
@@ -461,7 +461,7 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
                                       }`}
                                     />
                                     <span className="text-xs text-slate-400">
-                                      Review by {lastReviews[item.caseId]?.reviewerName} • {getTimeAgo(lastReviews[item.caseId]?.createdAt || '')}
+                                      Review by {lastReviews[item.caseId]?.reviewerName} • {formatRelativeTime(lastReviews[item.caseId]?.createdAt || '')}
                                     </span>
                                   </div>
                                   {lastReviews[item.caseId]?.comment && (

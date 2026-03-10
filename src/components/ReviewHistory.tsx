@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
 import { reviewService, type Review } from '../services/review-service';
+import { formatDateTime } from '../utils/date';
 
 interface ReviewHistoryProps {
   testCaseId: string;
@@ -38,17 +39,6 @@ export function ReviewHistory({ testCaseId, refreshTrigger, reviewStatus }: Revi
       return 'bg-green-950/30 border-green-800/30';
     }
     return 'bg-red-950/30 border-red-800/30';
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   if (isLoading) {
@@ -136,7 +126,7 @@ export function ReviewHistory({ testCaseId, refreshTrigger, reviewStatus }: Revi
                   }`}
                 />
                 <span className="text-xs text-slate-400">
-                  Review by {review.reviewerName} • {formatTimestamp(review.createdAt)}
+                  Review by {review.reviewerName} • {formatDateTime(review.createdAt)}
                 </span>
               </div>
               {review.comment && (

@@ -30,20 +30,23 @@ import { Tools } from "./components/Tools";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { UserManagement } from "./components/UserManagement";
 import { VersionGuard } from "./components/VersionGuard";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "./components/ui/sonner";
 import { WebSocketProvider } from "./contexts/WebSocketContext";
+import { UserProvider, useUser } from "./contexts/UserContext";
 import { useUpdateManager } from "./hooks/useUpdateManager";
-import { getUserServiceClient } from "./services/api-client";
-import { authService } from "./services/auth-service";
 import { MobileInspectorApp } from "./MobileInspectorApp";
+import { authService } from "./services/auth-service";
+import { getUserServiceClient } from "./services/api-client";
+import { Loader2 } from "lucide-react";
 
 function AppContent() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { currentUser, setCurrentUser, isLoading, refreshUser } = useUser();
+  const isAuthenticated = !!currentUser;
   const [selectedTestCaseId, setSelectedTestCaseId] = useState<string | null>(
     null,
   );
-  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const [historyFilter, setHistoryFilter] = useState<string | null>(null);
   const [selectedSharedStepId, setSelectedSharedStepId] = useState<
     string | null
@@ -51,10 +54,15 @@ function AppContent() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
 
   // Update manager for patch updates
   const { updateInfo, isChecking, checkForUpdates } = useUpdateManager();
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+ 
+  useEffect(() => {
+    refreshUser();
+  }, []);
 
   // Trigger notification check from menu
   const handleCheckForUpdates = async () => {
@@ -80,95 +88,47 @@ function AppContent() {
 
   const currentView = getCurrentView();
 
-  // Function to load current user data from API
-  const loadCurrentUser = async () => {
-    try {
-      const token = authService.getAccessToken();
-      if (!token) return false;
-
-      const client = await getUserServiceClient();
-      const user = await client.getCurrentUser(token);
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-      return true;
-    } catch (error) {
-      console.error("Failed to load current user:", error);
-      return false;
-    }
-  };
-
-  // Check auth on load
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (authService.isAuthenticated()) {
-        // Try to load fresh data from API first
-        const success = await loadCurrentUser();
-
-        // If API call fails, use cached data
-        if (!success) {
-          const user = authService.getCurrentUser();
-          if (user) {
-            setCurrentUser(user);
-            setIsAuthenticated(true);
-          }
-        }
-
-        // If we're at login page but authenticated, go to dashboard
-        if (location.pathname === "/login") {
-          navigate("/");
-        }
-      } else if (location.pathname !== "/login") {
-        // Redirect to login if not authenticated
-        navigate("/login");
-      }
-    };
-
-    checkAuth();
-  }, []);
-
   const handleLogin = async (email: string, password: string) => {
     try {
-      const response = await authService.login(email, password);
-      setCurrentUser(response.user);
-      setIsAuthenticated(true);
+      await authService.login(email, password);
+      // After login, refresh user data to update authentication state
+      await refreshUser();
       navigate("/");
       return true;
     } catch (error) {
       console.error("Login failed:", error);
-      throw error;
+      return false;
     }
   };
 
   const handleLogout = () => {
     authService.logout();
-    setIsAuthenticated(false);
-    setCurrentUser(null);
+    setCurrentUser(undefined);
     navigate("/login");
   };
 
-  const handleUpdateProfile = async (data: any) => {
+  const handleUpdateProfile = async (data: { name: string }) => {
     try {
       const token = authService.getAccessToken();
       if (!token || !currentUser) {
         throw new Error("Not authenticated");
       }
 
-      // Call API to update profile (only name, email cannot be changed)
       const client = await getUserServiceClient();
-      const updatedUser = await client.updateMyProfile({
+      const updatedUser = await client.updateUser({
         token,
+        userId: currentUser.id,
         name: data.name,
       });
 
-      // Update local storage
       authService.updateUserData({ name: data.name });
 
       // Reload user data from API to ensure we have the latest
-      await loadCurrentUser();
+      await refreshUser();
 
       return updatedUser;
     } catch (error) {
-      console.error("Failed to update profile:", error);
+      console.error("Update profile failed:", error);
       throw error;
     }
   };
@@ -293,7 +253,13 @@ function AppContent() {
       return <Navigate to="/test-cases" />;
     }
 
-    return <TestCaseDetail testCaseId={testCaseId} {...props} />;
+    return (
+      <TestCaseDetail
+        testCaseId={testCaseId}
+        currentUser={currentUser || undefined}
+        {...props}
+      />
+    );
   };
 
   // Wrapper component to extract sharedStepId from URL params
@@ -304,13 +270,27 @@ function AppContent() {
       return <Navigate to="/shared-steps" />;
     }
 
-    return <SharedStepDetail sharedStepId={sharedStepId} {...props} />;
+    return (
+      <SharedStepDetail
+        sharedStepId={sharedStepId}
+        currentUser={currentUser || undefined}
+        {...props}
+      />
+    );
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
       <>
-        <TitleBar currentUser={null} />
+        <TitleBar />
         <Routes>
           <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
@@ -322,7 +302,6 @@ function AppContent() {
   return (
     <>
       <TitleBar
-        currentUser={currentUser}
         subtitle="QA Automation Platform"
         showNotificationBadge={true}
       />
@@ -334,7 +313,6 @@ function AppContent() {
               currentView={currentView}
               onViewChange={handleViewChange}
               onLogout={handleLogout}
-              currentUser={currentUser}
               onCheckForUpdates={handleCheckForUpdates}
             />
           }
@@ -371,32 +349,44 @@ function AppContent() {
           <Route
             path="/review-queue"
             element={
-              <TestCaseReviewQueue
-                onViewDetail={handleViewDetail}
-                onReviewTestCase={handleReviewTestCase}
-                onReReviewTestCase={handleReReviewTestCase}
-              />
+              <ProtectedRoute
+                requiredPermissions={["review_approve_test_cases"]}
+              >
+                <TestCaseReviewQueue
+                  onViewDetail={handleViewDetail}
+                  onReviewTestCase={handleReviewTestCase}
+                  onReReviewTestCase={handleReReviewTestCase}
+                />
+              </ProtectedRoute>
             }
           />
 
           <Route
             path="/review-queue/review/:testCaseId"
             element={
-              <TestCaseReview onBack={() => navigate("/review-queue")} />
+              <ProtectedRoute
+                requiredPermissions={["review_approve_test_cases"]}
+              >
+                <TestCaseReview onBack={() => navigate("/review-queue")} />
+              </ProtectedRoute>
             }
           />
 
           <Route
             path="/review-queue/review"
             element={
-              selectedTestCaseId ? (
-                <TestCaseReview
-                  testCaseId={selectedTestCaseId}
-                  onBack={() => navigate("/review-queue")}
-                />
-              ) : (
-                <Navigate to="/review-queue" />
-              )
+              <ProtectedRoute
+                requiredPermissions={["review_approve_test_cases"]}
+              >
+                {selectedTestCaseId ? (
+                  <TestCaseReview
+                    testCaseId={selectedTestCaseId}
+                    onBack={() => navigate("/review-queue")}
+                  />
+                ) : (
+                  <Navigate to="/review-queue" />
+                )}
+              </ProtectedRoute>
             }
           />
 
@@ -404,31 +394,43 @@ function AppContent() {
           <Route
             path="/review-queue/re-review/:testCaseId"
             element={
-              <TestCaseReview
-                onBack={() => navigate("/review-queue")}
-                isReReview={true}
-              />
+              <ProtectedRoute
+                requiredPermissions={["review_approve_test_cases"]}
+              >
+                <TestCaseReview
+                  onBack={() => navigate("/review-queue")}
+                  isReReview={true}
+                />
+              </ProtectedRoute>
             }
           />
 
           <Route
             path="/test-cases/new"
             element={
-              <TestCaseForm
-                onSave={handleSaveTestCase}
-                onCancel={() => navigate(-1)}
-              />
+              <ProtectedRoute
+                requiredPermissions={["create_edit_test_cases"]}
+              >
+                <TestCaseForm
+                  onSave={handleSaveTestCase}
+                  onCancel={() => navigate(-1)}
+                />
+              </ProtectedRoute>
             }
           />
 
           <Route
             path="/test-cases/edit"
             element={
-              <TestCaseForm
-                testCaseId={selectedTestCaseId}
-                onSave={handleSaveTestCase}
-                onCancel={() => navigate(-1)}
-              />
+              <ProtectedRoute
+                requiredPermissions={["create_edit_test_cases"]}
+              >
+                <TestCaseForm
+                  testCaseId={selectedTestCaseId}
+                  onSave={handleSaveTestCase}
+                  onCancel={() => navigate(-1)}
+                />
+              </ProtectedRoute>
             }
           />
 
@@ -467,15 +469,19 @@ function AppContent() {
           <Route
             path="/test-cases/manual-result"
             element={
-              selectedTestCaseId ? (
-                <ManualTestResultForm
-                  testCaseId={selectedTestCaseId}
-                  onSave={handleSaveManualResult}
-                  onCancel={() => navigate(-1)}
-                />
-              ) : (
-                <Navigate to="/test-cases" />
-              )
+              <ProtectedRoute
+                requiredPermissions={["record_test_results"]}
+              >
+                {selectedTestCaseId ? (
+                  <ManualTestResultForm
+                    testCaseId={selectedTestCaseId}
+                    onSave={handleSaveManualResult}
+                    onCancel={() => navigate(-1)}
+                  />
+                ) : (
+                  <Navigate to="/test-cases" />
+                )}
+              </ProtectedRoute>
             }
           />
 
@@ -494,21 +500,29 @@ function AppContent() {
           <Route
             path="/shared-steps/new"
             element={
-              <SharedStepForm
-                onSave={handleSaveSharedStep}
-                onCancel={() => navigate(-1)}
-              />
+              <ProtectedRoute
+                requiredPermissions={["create_edit_test_cases"]}
+              >
+                <SharedStepForm
+                  onSave={handleSaveSharedStep}
+                  onCancel={() => navigate(-1)}
+                />
+              </ProtectedRoute>
             }
           />
 
           <Route
             path="/shared-steps/edit"
             element={
-              <SharedStepForm
-                sharedStepId={selectedSharedStepId}
-                onSave={handleSaveSharedStep}
-                onCancel={() => navigate(-1)}
-              />
+              <ProtectedRoute
+                requiredPermissions={["create_edit_test_cases"]}
+              >
+                <SharedStepForm
+                  sharedStepId={selectedSharedStepId}
+                  onSave={handleSaveSharedStep}
+                  onCancel={() => navigate(-1)}
+                />
+              </ProtectedRoute>
             }
           />
 
@@ -564,14 +578,33 @@ function AppContent() {
             }
           />
 
-          <Route path="/configuration" element={<Configuration />} />
+          <Route
+            path="/configuration"
+            element={
+              <ProtectedRoute
+                requiredPermissions={["manage_configurations"]}
+              >
+                <Configuration />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/tools" element={<Tools />} />
-          <Route path="/users" element={<UserManagement />} />
+
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute
+                requiredPermissions={["manage_users"]}
+              >
+                <UserManagement />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/account"
             element={
               <AccountPage
-                currentUser={currentUser}
                 onUpdateProfile={handleUpdateProfile}
               />
             }
@@ -603,14 +636,16 @@ export default function App() {
 
   return (
     <VersionGuard>
-      <Router>
-        <WebSocketProvider>
-          <div className="h-screen flex flex-col overflow-hidden">
-            <AppContent />
-          </div>
-          <Toaster />
-        </WebSocketProvider>
-      </Router>
+      <UserProvider>
+        <Router>
+          <WebSocketProvider>
+            <div className="h-screen flex flex-col overflow-hidden">
+              <AppContent />
+            </div>
+            <Toaster />
+          </WebSocketProvider>
+        </Router>
+      </UserProvider>
     </VersionGuard>
   );
 }

@@ -1,45 +1,47 @@
-import { useState, useEffect } from 'react';
 import {
-  Users,
-  Search,
-  Edit2,
-  Trash2,
-  Shield,
-  Mail,
-  Calendar,
-  CheckCircle2,
-  XCircle,
-  UserPlus,
-  Sparkles,
-  Loader2,
-  Copy,
-  Check,
   AlertCircle,
+  Calendar,
+  Check,
+  CheckCircle2,
+  Copy,
+  Edit2,
+  Loader2,
+  Mail,
+  Search,
+  Shield,
+  Sparkles,
+  Trash2,
+  UserPlus,
+  Users,
+  XCircle,
 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+import { useEffect, useState } from 'react';
+import type { User as BackendUser } from '../services/api-client';
 import { getUserServiceClient } from '../services/api-client';
 import { authService } from '../services/auth-service';
 import {
-  formatPermissionsDisplay,
   formatPermissionsApi,
+  formatPermissionsDisplay,
+  PERMISSION_DISPLAY_MAP,
   ROLE_CONFIG as ROLE_DISPLAY_CONFIG,
 } from '../utils/permissions';
-import type { User as BackendUser } from '../services/api-client';
-import { SimpleDialog, ConfirmDialog } from './SimpleDialog';
+import { formatDate, formatRelativeTime } from '../utils/date';
+import { ConfirmDialog, SimpleDialog } from './SimpleDialog';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 
 interface User {
   id: string;
   name: string;
   email: string;
   role:
-    | 'admin'
-    | 'qa_lead'
-    | 'qa_engineer'
-    | 'developer'
-    | 'product_manager'
-    | 'ui_ux_designer'
-    | 'viewer';
+  | 'admin'
+  | 'qa_lead'
+  | 'qa_engineer'
+  | 'developer'
+  | 'product_manager'
+  | 'ui_ux_designer'
+  | 'viewer';
   status: 'active' | 'inactive';
   joinedDate: string;
   lastActive: string;
@@ -90,6 +92,7 @@ export function UserManagement() {
   useEffect(() => {
     loadUsers();
     // Check if current user has manage_users permission
+    debugger;
     setCanManageUsers(authService.hasPermission('manage_users'));
   }, []);
 
@@ -127,20 +130,6 @@ export function UserManagement() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatRelativeTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   };
 
   const handleAddUser = () => {
@@ -298,20 +287,7 @@ export function UserManagement() {
   const roleStats = getRoleStats();
 
   const getAllAvailablePermissions = (): string[] => {
-    return [
-      'Manage users and roles',
-      'Manage QA team members',
-      'Full access to all test cases',
-      'Create and edit test cases',
-      'Execute manual and automated tests',
-      'Execute automated tests',
-      'Record test results',
-      'Manage configurations',
-      'Manage test configurations',
-      'Review and approve test cases',
-      'Export reports',
-      'Manage integrations (Git, Jira, etc)',
-    ];
+    return Object.values(PERMISSION_DISPLAY_MAP);
   };
 
   // Loading state
@@ -366,11 +342,10 @@ export function UserManagement() {
       {/* Role Stats */}
       <div className="grid grid-cols-7 gap-4 mb-6">
         <div
-          className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${
-            selectedRole === 'all'
+          className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${selectedRole === 'all'
               ? 'border-blue-500 ring-2 ring-blue-500/20'
               : 'border-slate-800 hover:border-slate-700'
-          }`}
+            }`}
           onClick={() => setSelectedRole('all')}
         >
           <div className="flex items-center justify-between mb-2">
@@ -383,11 +358,10 @@ export function UserManagement() {
         {Object.entries(ROLE_CONFIG).map(([roleKey, roleInfo]) => (
           <div
             key={roleKey}
-            className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${
-              selectedRole === roleKey
+            className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${selectedRole === roleKey
                 ? 'border-blue-500 ring-2 ring-blue-500/20'
                 : 'border-slate-800 hover:border-slate-700'
-            }`}
+              }`}
             onClick={() => setSelectedRole(roleKey)}
           >
             <div className="flex items-center justify-between mb-2">
@@ -495,7 +469,7 @@ export function UserManagement() {
                   key={index}
                   className="flex items-start gap-2 text-sm text-slate-400"
                 >
-                  <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
                   {permission}
                 </li>
               ))}
@@ -545,7 +519,7 @@ export function UserManagement() {
               variant="outline"
               onClick={() => setShowAddForm(false)}
               disabled={isActionLoading}
-              className="bg-transparent border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white hover:text-white"
+              className="border-slate-600 bg-transparent text-slate-100 hover:bg-slate-800 hover:text-white"
             >
               Cancel
             </Button>
@@ -606,7 +580,7 @@ export function UserManagement() {
                       </Badge>
                       {user.specialPermissions &&
                         user.specialPermissions.length > 0 && (
-                          <Badge className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border-purple-500/30 border">
+                          <Badge className="bg-linear-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border-purple-500/30 border">
                             <Sparkles className="w-3 h-3 mr-1" />
                             +{user.specialPermissions.length} Special
                           </Badge>
@@ -637,7 +611,7 @@ export function UserManagement() {
                                   key={index}
                                   className="flex items-start gap-2 text-xs text-slate-500"
                                 >
-                                  <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0 mt-0.5" />
+                                  <CheckCircle2 className="w-3 h-3 text-green-400 shrink-0 mt-0.5" />
                                   {permission}
                                 </li>
                               ),
@@ -646,7 +620,7 @@ export function UserManagement() {
                         </div>
                         {user.specialPermissions &&
                           user.specialPermissions.length > 0 && (
-                            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg p-3 border border-purple-500/30">
+                            <div className="bg-linear-to-br from-purple-500/10 to-pink-500/10 rounded-lg p-3 border border-purple-500/30">
                               <p className="text-xs text-purple-400 mb-2 flex items-center gap-1">
                                 <Sparkles className="w-3 h-3" />
                                 Special Permissions:
@@ -658,7 +632,7 @@ export function UserManagement() {
                                       key={index}
                                       className="flex items-start gap-2 text-xs text-purple-300"
                                     >
-                                      <CheckCircle2 className="w-3 h-3 text-purple-400 flex-shrink-0 mt-0.5" />
+                                      <CheckCircle2 className="w-3 h-3 text-purple-400 shrink-0 mt-0.5" />
                                       {permission}
                                     </li>
                                   ),
@@ -672,11 +646,10 @@ export function UserManagement() {
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleToggleStatus(user.id)}
-                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs border transition-colors ${
-                        user.status === 'active'
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs border transition-colors ${user.status === 'active'
                           ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30'
                           : 'bg-slate-500/20 text-slate-400 border-slate-500/30 hover:bg-slate-500/30'
-                      }`}
+                        }`}
                     >
                       {user.status === 'active' ? (
                         <CheckCircle2 className="w-3 h-3" />
@@ -689,7 +662,7 @@ export function UserManagement() {
                   <td className="px-6 py-4">
                     <p className="text-sm text-slate-400 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {new Date(user.joinedDate).toLocaleDateString('en-US', {
+                      {formatDate(user.joinedDate, {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
@@ -697,7 +670,7 @@ export function UserManagement() {
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm text-slate-400">{user.lastActive}</p>
+                    <p className="text-sm text-slate-400">{formatRelativeTime(user.lastActive)}</p>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -779,7 +752,7 @@ export function UserManagement() {
           <p className="text-slate-400 mb-4">
             The user has been created. Please share these credentials securely.
           </p>
-          
+
           {successData && (
             <div className="space-y-4 my-2">
               <div className="bg-slate-950 border border-slate-800 rounded-lg p-4">
@@ -806,7 +779,7 @@ export function UserManagement() {
                 </div>
               </div>
               <div className="flex items-start gap-3 text-xs text-amber-400 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
-                <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <Shield className="w-4 h-4 shrink-0 mt-0.5" />
                 <p>
                   This password will only be shown once. Make sure to copy it now or save it in
                   a password manager.

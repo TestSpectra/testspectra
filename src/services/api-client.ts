@@ -13,6 +13,7 @@ export interface User {
   email: string;
   role: string;
   status: string;
+  basePermissions: string[];
   specialPermissions: string[];
   createdAt: string;
   updatedAt: string;
@@ -27,8 +28,7 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
-  user: User;
+  userId: string;
 }
 
 export interface CreateUserRequest {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, FileCheck, Folder } from 'lucide-react';
 import { Button } from './ui/button';
 import { testSuiteService, TestSuite } from '../services/test-suite-service';
-import { getTimeAgo } from '../lib/utils';
+import { formatRelativeTime } from '../utils/date';
 import { ConfirmDialog } from './SimpleDialog';
 
 interface TestSuitesProps {
@@ -241,7 +241,7 @@ export function TestSuites({ onCreateSuite }: TestSuitesProps) {
                         {/* Footer */}
                         <div className="flex items-center justify-between pt-4 border-t border-slate-800">
                             <div>
-                                <p className="text-xs text-slate-500">Last run: {getTimeAgo(suite.lastRun === 'Belum dijalankan' ? undefined : suite.lastRun, 'Belum dijalankan')}</p>
+                                <p className="text-xs text-slate-500">Last run: {suite.lastRun === 'Belum dijalankan' ? 'Belum dijalankan' : formatRelativeTime(suite.lastRun)}</p>
                                 <p className="text-xs text-slate-500">by {suite.createdBy}</p>
                             </div>
                             <div className="flex items-center gap-2">

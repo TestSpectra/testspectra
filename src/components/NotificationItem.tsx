@@ -6,6 +6,7 @@
 
 import { Clock, CheckCircle, XCircle, Bell, RefreshCw } from 'lucide-react';
 import { Notification } from '../services/notification-service';
+import { formatRelativeTime } from '../utils/date';
 
 interface NotificationItemProps {
   notification: Notification;
@@ -36,22 +37,6 @@ export function NotificationItem({
       default:
         return <Bell className="w-4 h-4 text-blue-500" />;
     }
-  };
-
-  const formatTimestamp = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return date.toLocaleDateString();
   };
 
   return (
@@ -86,7 +71,7 @@ export function NotificationItem({
           {showTimestamp && (
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Clock className="w-3 h-3" />
-              {formatTimestamp(notification.createdAt)}
+              {formatRelativeTime(notification.createdAt)}
             </div>
           )}
         </div>

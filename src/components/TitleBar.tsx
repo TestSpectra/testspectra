@@ -1,3 +1,4 @@
+import { useUser } from "@/contexts/UserContext";
 import { Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NotificationBadge } from "./NotificationBadge";
@@ -5,16 +6,15 @@ import { NotificationBadge } from "./NotificationBadge";
 type Platform = "macos" | "windows" | "linux" | "unknown";
 
 interface TitleBarProps {
-  currentUser?: any;
   subtitle?: string;
   showNotificationBadge?: boolean;
 }
 
 export function TitleBar({
-  currentUser,
   subtitle,
   showNotificationBadge = true,
 }: TitleBarProps = {}) {
+  const { currentUser } = useUser();
   const [platform, setPlatform] = useState<Platform>("unknown");
   const [isMaximized, setIsMaximized] = useState(false);
 
