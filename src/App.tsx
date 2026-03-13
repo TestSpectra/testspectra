@@ -59,7 +59,7 @@ function AppContent() {
   // Update manager for patch updates
   const { updateInfo, isChecking, checkForUpdates } = useUpdateManager();
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
- 
+
   useEffect(() => {
     refreshUser();
   }, []);
@@ -87,19 +87,6 @@ function AppContent() {
   };
 
   const currentView = getCurrentView();
-
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      await authService.login(email, password);
-      // After login, refresh user data to update authentication state
-      await refreshUser();
-      navigate("/");
-      return true;
-    } catch (error) {
-      console.error("Login failed:", error);
-      return false;
-    }
-  };
 
   const handleLogout = () => {
     authService.logout();
@@ -292,7 +279,7 @@ function AppContent() {
       <>
         <TitleBar />
         <Routes>
-          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </>

@@ -2,17 +2,19 @@ import { useState } from "react";
 import { Lock, Mail, Eye, EyeOff, LogIn } from "lucide-react";
 import { Button } from "./ui/button";
 import { TestSpectraLogo } from "./TestSpectraLogo";
+import { authService } from "@/services/auth-service";
+import { useUser } from "@/contexts/UserContext";
+import { useNavigate } from "react-router-dom";
 
-interface LoginPageProps {
-  onLogin: (email: string, password: string) => Promise<boolean>;
-}
+export function LoginPage() {
+  const { refreshUser } = useUser();
 
-export function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +28,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     setIsLoading(true);
 
     try {
-      await onLogin(email, password);
+      await authService.login(email, password);
+      // After login, refresh user data to update authentication state
+      await refreshUser();
+      navigate("/");
     } catch (err) {
       setError("Invalid email or password. Please try again.");
     } finally {
@@ -70,6 +75,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 <input
                   type="email"
                   value={email}
+                  autoComplete="email"
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-11 pr-4 py-3 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
