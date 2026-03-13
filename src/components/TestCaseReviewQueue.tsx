@@ -4,9 +4,10 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { ReviewStatus } from '../services/test-case-service';
 import { reviewService, Review, ReviewStats, ReviewQueueItem } from '../services/review-service';
-import { authService } from '../services/auth-service';
 import { formatRelativeTime } from '../utils/date';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { useUser } from '../contexts/UserContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface TestCaseReviewQueueProps {
   onViewDetail: (testCaseId: string) => void;
@@ -50,7 +51,9 @@ export function TestCaseReviewQueue({ onViewDetail, onReviewTestCase, onReReview
   const { onMessage } = useWebSocket();
 
   // Current user
-  const canReview = authService.hasPermission('review_approve_test_cases');
+  const { currentUser } = useUser();
+  const { hasPermission } = usePermissions(currentUser);
+  const canReview = hasPermission('review_approve_test_cases');
 
   // Handle stats card click
   const handleStatsCardClick = (status: string) => {

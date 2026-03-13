@@ -14,35 +14,37 @@ import {
   UserPlus,
   Users,
   XCircle,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
-import type { User as BackendUser } from '../services/api-client';
-import { getUserServiceClient } from '../services/api-client';
-import { authService } from '../services/auth-service';
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import type { User as BackendUser } from "../services/api-client";
+import { getUserServiceClient } from "../services/api-client";
+import { authService } from "../services/auth-service";
 import {
   formatPermissionsApi,
   formatPermissionsDisplay,
   PERMISSION_DISPLAY_MAP,
   ROLE_CONFIG as ROLE_DISPLAY_CONFIG,
-} from '../utils/permissions';
-import { formatDate, formatRelativeTime } from '../utils/date';
-import { ConfirmDialog, SimpleDialog } from './SimpleDialog';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
+} from "../utils/permissions";
+import { formatDate, formatRelativeTime } from "../utils/date";
+import { ConfirmDialog, SimpleDialog } from "./SimpleDialog";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useUser } from "@/contexts/UserContext";
 
 interface User {
   id: string;
   name: string;
   email: string;
   role:
-  | 'admin'
-  | 'qa_lead'
-  | 'qa_engineer'
-  | 'developer'
-  | 'product_manager'
-  | 'ui_ux_designer'
-  | 'viewer';
-  status: 'active' | 'inactive';
+    | "admin"
+    | "qa_lead"
+    | "qa_engineer"
+    | "developer"
+    | "product_manager"
+    | "ui_ux_designer"
+    | "viewer";
+  status: "active" | "inactive";
   joinedDate: string;
   lastActive: string;
   specialPermissions?: string[];
@@ -51,8 +53,8 @@ interface User {
 interface UserFormData {
   name: string;
   email: string;
-  role: User['role'];
-  status: User['status'];
+  role: User["role"];
+  status: User["status"];
   specialPermissions: string[];
 }
 
@@ -62,10 +64,12 @@ export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [canManageUsers, setCanManageUsers] = useState(false);
+  const { currentUser } = useUser();
+  const { hasPermission } = usePermissions(currentUser);
+  const canManageUsers = hasPermission("manage_users");
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>("all");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPermissions, setShowPermissions] = useState<string | null>(null);
@@ -75,16 +79,18 @@ export function UserManagement() {
     id: string;
     name: string;
   } | null>(null);
-  const [successData, setSuccessData] = useState<{ password: string } | null>(null);
+  const [successData, setSuccessData] = useState<{ password: string } | null>(
+    null,
+  );
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const [formData, setFormData] = useState<UserFormData>({
-    name: '',
-    email: '',
-    role: 'qa_engineer',
-    status: 'active',
+    name: "",
+    email: "",
+    role: "qa_engineer",
+    status: "active",
     specialPermissions: [],
   });
 
@@ -92,8 +98,6 @@ export function UserManagement() {
   useEffect(() => {
     loadUsers();
     // Check if current user has manage_users permission
-    debugger;
-    setCanManageUsers(authService.hasPermission('manage_users'));
   }, []);
 
   const loadUsers = async () => {
@@ -102,7 +106,7 @@ export function UserManagement() {
       setError(null);
       const token = authService.getAccessToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
       const client = await getUserServiceClient();
@@ -116,17 +120,19 @@ export function UserManagement() {
         id: u.id,
         name: u.name,
         email: u.email,
-        role: u.role as User['role'],
-        status: u.status as User['status'],
-        joinedDate: new Date(u.joinedDate).toISOString().split('T')[0],
+        role: u.role as User["role"],
+        status: u.status as User["status"],
+        joinedDate: new Date(u.joinedDate).toISOString().split("T")[0],
         lastActive: formatRelativeTime(u.lastActive),
-        specialPermissions: formatPermissionsDisplay(u.specialPermissions || []),
+        specialPermissions: formatPermissionsDisplay(
+          u.specialPermissions || [],
+        ),
       }));
 
       setUsers(formattedUsers);
     } catch (err: any) {
-      console.error('Failed to load users:', err);
-      setError(err.message || 'Failed to load users');
+      console.error("Failed to load users:", err);
+      setError(err.message || "Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -136,10 +142,10 @@ export function UserManagement() {
     setShowAddForm(true);
     setEditingUser(null);
     setFormData({
-      name: '',
-      email: '',
-      role: 'qa_engineer',
-      status: 'active',
+      name: "",
+      email: "",
+      role: "qa_engineer",
+      status: "active",
       specialPermissions: [],
     });
   };
@@ -157,12 +163,13 @@ export function UserManagement() {
   };
 
   const generatePassword = () => {
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    const charset =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
     const length = 12;
-    let retVal = '';
+    let retVal = "";
 
     const randomValues = new Uint32Array(length);
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
       crypto.getRandomValues(randomValues);
       for (let i = 0; i < length; i++) {
         retVal += charset[randomValues[i] % charset.length];
@@ -181,7 +188,7 @@ export function UserManagement() {
     try {
       setIsActionLoading(true);
       const token = authService.getAccessToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error("Not authenticated");
 
       // Convert display permissions back to API format
       const apiPermissions = formatPermissionsApi(formData.specialPermissions);
@@ -218,8 +225,8 @@ export function UserManagement() {
       setEditingUser(null);
       await loadUsers();
     } catch (err: any) {
-      console.error('Save user failed:', err);
-      setErrorModal(err.message || 'Failed to save user');
+      console.error("Save user failed:", err);
+      setErrorModal(err.message || "Failed to save user");
     } finally {
       setIsActionLoading(false);
     }
@@ -235,15 +242,15 @@ export function UserManagement() {
     try {
       setIsActionLoading(true);
       const token = authService.getAccessToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error("Not authenticated");
 
       const client = await getUserServiceClient();
       await client.deleteUser(token, deleteConfirmation.id);
       setDeleteConfirmation(null); // Clear dialog first
       await loadUsers(); // Then reload users
     } catch (err: any) {
-      console.error('Delete user failed:', err);
-      setErrorModal(err.message || 'Failed to delete user');
+      console.error("Delete user failed:", err);
+      setErrorModal(err.message || "Failed to delete user");
       setDeleteConfirmation(null); // Close dialog on error too
     } finally {
       setIsActionLoading(false);
@@ -253,18 +260,18 @@ export function UserManagement() {
   const handleToggleStatus = async (id: string) => {
     try {
       const token = authService.getAccessToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error("Not authenticated");
 
       const user = users.find((u) => u.id === id);
       if (!user) return;
 
-      const newStatus = user.status === 'active' ? 'inactive' : 'active';
+      const newStatus = user.status === "active" ? "inactive" : "active";
       const client = await getUserServiceClient();
       await client.updateUserStatus(token, id, newStatus);
       await loadUsers();
     } catch (err: any) {
-      console.error('Toggle status failed:', err);
-      setErrorModal(err.message || 'Failed to update user status');
+      console.error("Toggle status failed:", err);
+      setErrorModal(err.message || "Failed to update user status");
     }
   };
 
@@ -272,7 +279,7 @@ export function UserManagement() {
     const matchesSearch =
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+    const matchesRole = selectedRole === "all" || user.role === selectedRole;
     return matchesSearch && matchesRole;
   });
 
@@ -326,7 +333,9 @@ export function UserManagement() {
             <Users className="w-8 h-8 text-purple-400" />
             User Management
           </h1>
-          <p className="text-slate-400">Manage users and role-based access control</p>
+          <p className="text-slate-400">
+            Manage users and role-based access control
+          </p>
         </div>
         {canManageUsers && (
           <Button
@@ -342,15 +351,18 @@ export function UserManagement() {
       {/* Role Stats */}
       <div className="grid grid-cols-7 gap-4 mb-6">
         <div
-          className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${selectedRole === 'all'
-              ? 'border-blue-500 ring-2 ring-blue-500/20'
-              : 'border-slate-800 hover:border-slate-700'
-            }`}
-          onClick={() => setSelectedRole('all')}
+          className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${
+            selectedRole === "all"
+              ? "border-blue-500 ring-2 ring-blue-500/20"
+              : "border-slate-800 hover:border-slate-700"
+          }`}
+          onClick={() => setSelectedRole("all")}
         >
           <div className="flex items-center justify-between mb-2">
             <Users className="w-5 h-5 text-slate-400" />
-            <span className="text-2xl text-slate-200">{roleStats.all || 0}</span>
+            <span className="text-2xl text-slate-200">
+              {roleStats.all || 0}
+            </span>
           </div>
           <p className="text-sm text-slate-400">All Users</p>
         </div>
@@ -358,15 +370,18 @@ export function UserManagement() {
         {Object.entries(ROLE_CONFIG).map(([roleKey, roleInfo]) => (
           <div
             key={roleKey}
-            className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${selectedRole === roleKey
-                ? 'border-blue-500 ring-2 ring-blue-500/20'
-                : 'border-slate-800 hover:border-slate-700'
-              }`}
+            className={`bg-slate-900 border rounded-xl p-4 cursor-pointer transition-all ${
+              selectedRole === roleKey
+                ? "border-blue-500 ring-2 ring-blue-500/20"
+                : "border-slate-800 hover:border-slate-700"
+            }`}
             onClick={() => setSelectedRole(roleKey)}
           >
             <div className="flex items-center justify-between mb-2">
-              <Shield className={`w-5 h-5 ${roleInfo.color.split(' ')[1]}`} />
-              <span className="text-2xl text-slate-200">{roleStats[roleKey] || 0}</span>
+              <Shield className={`w-5 h-5 ${roleInfo.color.split(" ")[1]}`} />
+              <span className="text-2xl text-slate-200">
+                {roleStats[roleKey] || 0}
+              </span>
             </div>
             <p className="text-sm text-slate-400">{roleInfo.label}</p>
           </div>
@@ -392,12 +407,14 @@ export function UserManagement() {
         <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
           <h2 className="mb-6 flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-blue-400" />
-            {editingUser ? 'Edit User' : 'Add New User'}
+            {editingUser ? "Edit User" : "Add New User"}
           </h2>
 
           <div className="grid grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm text-slate-400 mb-2">Full Name *</label>
+              <label className="block text-sm text-slate-400 mb-2">
+                Full Name *
+              </label>
               <input
                 type="text"
                 value={formData.name}
@@ -410,7 +427,9 @@ export function UserManagement() {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-400 mb-2">Email Address *</label>
+              <label className="block text-sm text-slate-400 mb-2">
+                Email Address *
+              </label>
               <input
                 type="email"
                 value={formData.email}
@@ -423,11 +442,16 @@ export function UserManagement() {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-400 mb-2">Role *</label>
+              <label className="block text-sm text-slate-400 mb-2">
+                Role *
+              </label>
               <select
                 value={formData.role}
                 onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value as User['role'] })
+                  setFormData({
+                    ...formData,
+                    role: e.target.value as User["role"],
+                  })
                 }
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -443,11 +467,16 @@ export function UserManagement() {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-400 mb-2">Status *</label>
+              <label className="block text-sm text-slate-400 mb-2">
+                Status *
+              </label>
               <select
                 value={formData.status}
                 onChange={(e) =>
-                  setFormData({ ...formData, status: e.target.value as User['status'] })
+                  setFormData({
+                    ...formData,
+                    status: e.target.value as User["status"],
+                  })
                 }
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -464,15 +493,17 @@ export function UserManagement() {
               Permissions for {ROLE_CONFIG[formData.role].label}
             </h3>
             <ul className="space-y-2">
-              {ROLE_CONFIG[formData.role].permissions.map((permission, index) => (
-                <li
-                  key={index}
-                  className="flex items-start gap-2 text-sm text-slate-400"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
-                  {permission}
-                </li>
-              ))}
+              {ROLE_CONFIG[formData.role].permissions.map(
+                (permission, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start gap-2 text-sm text-slate-400"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                    {permission}
+                  </li>
+                ),
+              )}
             </ul>
           </div>
 
@@ -500,9 +531,10 @@ export function UserManagement() {
                       } else {
                         setFormData({
                           ...formData,
-                          specialPermissions: formData.specialPermissions.filter(
-                            (p) => p !== permission,
-                          ),
+                          specialPermissions:
+                            formData.specialPermissions.filter(
+                              (p) => p !== permission,
+                            ),
                         });
                       }
                     }}
@@ -534,9 +566,9 @@ export function UserManagement() {
                   Saving...
                 </>
               ) : editingUser ? (
-                'Update User'
+                "Update User"
               ) : (
-                'Add User'
+                "Add User"
               )}
             </Button>
           </div>
@@ -549,12 +581,24 @@ export function UserManagement() {
           <table className="w-full">
             <thead className="bg-slate-800/50">
               <tr>
-                <th className="px-6 py-4 text-left text-sm text-slate-400">User</th>
-                <th className="px-6 py-4 text-left text-sm text-slate-400">Role</th>
-                <th className="px-6 py-4 text-left text-sm text-slate-400">Status</th>
-                <th className="px-6 py-4 text-left text-sm text-slate-400">Joined</th>
-                <th className="px-6 py-4 text-left text-sm text-slate-400">Last Active</th>
-                <th className="px-6 py-4 text-left text-sm text-slate-400">Actions</th>
+                <th className="px-6 py-4 text-left text-sm text-slate-400">
+                  User
+                </th>
+                <th className="px-6 py-4 text-left text-sm text-slate-400">
+                  Role
+                </th>
+                <th className="px-6 py-4 text-left text-sm text-slate-400">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-sm text-slate-400">
+                  Joined
+                </th>
+                <th className="px-6 py-4 text-left text-sm text-slate-400">
+                  Last Active
+                </th>
+                <th className="px-6 py-4 text-left text-sm text-slate-400">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -574,15 +618,17 @@ export function UserManagement() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <Badge className={`${ROLE_CONFIG[user.role].color} border`}>
+                      <Badge
+                        className={`${ROLE_CONFIG[user.role].color} border`}
+                      >
                         <Shield className="w-3 h-3 mr-1" />
                         {ROLE_CONFIG[user.role].label}
                       </Badge>
                       {user.specialPermissions &&
                         user.specialPermissions.length > 0 && (
                           <Badge className="bg-linear-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border-purple-500/30 border">
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            +{user.specialPermissions.length} Special
+                            <Sparkles className="w-3 h-3 mr-1" />+
+                            {user.specialPermissions.length} Special
                           </Badge>
                         )}
                       <button
@@ -594,8 +640,8 @@ export function UserManagement() {
                         className="text-xs text-blue-400 hover:text-blue-300 underline"
                       >
                         {showPermissions === user.id
-                          ? 'Hide Permissions'
-                          : 'View Permissions'}
+                          ? "Hide Permissions"
+                          : "View Permissions"}
                       </button>
                     </div>
                     {showPermissions === user.id && (
@@ -646,31 +692,34 @@ export function UserManagement() {
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleToggleStatus(user.id)}
-                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs border transition-colors ${user.status === 'active'
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30'
-                          : 'bg-slate-500/20 text-slate-400 border-slate-500/30 hover:bg-slate-500/30'
-                        }`}
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs border transition-colors ${
+                        user.status === "active"
+                          ? "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30"
+                          : "bg-slate-500/20 text-slate-400 border-slate-500/30 hover:bg-slate-500/30"
+                      }`}
                     >
-                      {user.status === 'active' ? (
+                      {user.status === "active" ? (
                         <CheckCircle2 className="w-3 h-3" />
                       ) : (
                         <XCircle className="w-3 h-3" />
                       )}
-                      {user.status === 'active' ? 'Active' : 'Inactive'}
+                      {user.status === "active" ? "Active" : "Inactive"}
                     </button>
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-sm text-slate-400 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {formatDate(user.joinedDate, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
                       })}
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm text-slate-400">{formatRelativeTime(user.lastActive)}</p>
+                    <p className="text-sm text-slate-400">
+                      {formatRelativeTime(user.lastActive)}
+                    </p>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -683,7 +732,7 @@ export function UserManagement() {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           {/* HIDE DELETE FOR ADMIN USERS */}
-                          {user.role !== 'admin' && (
+                          {user.role !== "admin" && (
                             <button
                               onClick={() => handleDeleteClick(user)}
                               className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
@@ -715,14 +764,14 @@ export function UserManagement() {
         title="Delete User"
         message={
           <>
-            Are you sure you want to delete{' '}
+            Are you sure you want to delete{" "}
             <span className="text-white font-semibold">
               {deleteConfirmation?.name}
             </span>
             ? This action cannot be undone.
           </>
         }
-        confirmLabel={isActionLoading ? 'Deleting...' : 'Delete User'}
+        confirmLabel={isActionLoading ? "Deleting..." : "Delete User"}
         cancelLabel="Cancel"
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         isLoading={isActionLoading}
@@ -756,7 +805,9 @@ export function UserManagement() {
           {successData && (
             <div className="space-y-4 my-2">
               <div className="bg-slate-950 border border-slate-800 rounded-lg p-4">
-                <p className="text-sm text-slate-500 mb-2">Generated Password:</p>
+                <p className="text-sm text-slate-500 mb-2">
+                  Generated Password:
+                </p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-slate-900 p-3 rounded border border-slate-800 text-blue-400 font-mono text-lg text-center tracking-wider">
                     {successData.password}
@@ -781,8 +832,8 @@ export function UserManagement() {
               <div className="flex items-start gap-3 text-xs text-amber-400 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
                 <Shield className="w-4 h-4 shrink-0 mt-0.5" />
                 <p>
-                  This password will only be shown once. Make sure to copy it now or save it in
-                  a password manager.
+                  This password will only be shown once. Make sure to copy it
+                  now or save it in a password manager.
                 </p>
               </div>
             </div>
