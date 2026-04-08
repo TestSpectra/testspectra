@@ -2,9 +2,9 @@
 
 ![Release](https://img.shields.io/github/v/release/TestSpectra/testspectra?style=for-the-badge&color=8A2BE2)
 ![Downloads](https://img.shields.io/github/downloads/TestSpectra/testspectra/total?style=for-the-badge&color=2196F3)
-![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
+![License](https://img.shields.io/badge/license-Proprietary-red?style=for-the-badge)
 
-TestSpectra is a powerful, modern, and open-source automated testing platform designed for developers and QA engineers who demand precision and efficiency.
+TestSpectra is a powerful, modern, all in one automated testing platform designed for developers and QA engineers who demand precision and efficiency.
 
 ---
 
@@ -22,11 +22,11 @@ TestSpectra is a powerful, modern, and open-source automated testing platform de
 
 The latest stable releases of TestSpectra are available for download on our [GitHub Releases](https://github.com/TestSpectra/testspectra/releases) page.
 
-| Platform | Format | Architecture | Link |
-|----------|--------|--------------|------|
-| **Windows** | `.msi` / `.exe` | x86_64 | [Download](https://github.com/TestSpectra/testspectra/releases/latest) |
-| **macOS** | `.dmg` / `.app` | Apple Silicon / Intel | [Download](https://github.com/TestSpectra/testspectra/releases/latest) |
-| **Linux** | `.deb` / `.AppImage` | x86_64 | [Download](https://github.com/TestSpectra/testspectra/releases/latest) |
+| Platform    | Format               | Architecture          | Link                                                                   |
+| ----------- | -------------------- | --------------------- | ---------------------------------------------------------------------- |
+| **Windows** | `.msi` / `.exe`      | x86_64                | [Download](https://github.com/TestSpectra/testspectra/releases/latest) |
+| **macOS**   | `.dmg` / `.app`      | Apple Silicon / Intel | [Download](https://github.com/TestSpectra/testspectra/releases/latest) |
+| **Linux**   | `.deb` / `.AppImage` | x86_64                | [Download](https://github.com/TestSpectra/testspectra/releases/latest) |
 
 ---
 
@@ -35,27 +35,16 @@ The latest stable releases of TestSpectra are available for download on our [Git
 Detailed documentation is available in the [`docs/`](./docs) folder of this repository.
 
 ### Quick Links:
+
 - [📖 Deployment Guide](./docs/DEPLOYMENT.md)
 - [📝 Release Checklist](./docs/RELEASE_CHECKLIST.md)
 - [🛠 Backend Release Setup](./docs/BACKEND_RELEASE.md)
 - [🔄 Version Management](./docs/VERSION_MANAGEMENT.md)
 - [🚀 Prerelease Guide](./docs/PRERELEASE_GUIDE.md)
 
----
-
-## 🏗 Source Code
-
-The actual logic and source code of TestSpectra reside in our primary development repository:
-
-👉 **[TestSpectra/testspectra-source](https://github.com/TestSpectra/testspectra-source)**
-
-*(Note: This current repository is dedicated to releases, public builds, and official documentation.)*
-
----
-
 ## 🛡 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is proprietary. All rights reserved. See the [LICENSE](LICENSE) file for the full terms.
 
 ---
 
