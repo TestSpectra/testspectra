@@ -1,0 +1,41 @@
+# TestSpectra
+
+> Write one test and run it on Web, Android, and iOS — fast, stable, and easy to maintain.
+
+## Getting Started
+
+- [Framework Overview](llms/overview.md): Write one test and run it on Web, Android, and iOS — fast, stable, and easy to maintain.
+- [Quick Start Guide](llms/quick-start.md): Install TestSpectra, verify system dependencies, and execute your first cross-platform test in under 3 minutes.
+- [Workspace & Spec-as-Code Layout](llms/workspace-structure.md): Understand the Spec-as-Code directory organization, platform file names, and zero-import TypeScript setup.
+
+## Core Automation & APIs
+
+- [Commands & Receiver Matchers](llms/custom-commands-and-matchers.md): Receiver-oriented element interactions, fluent actions, and auto-waiting semantic assertions.
+- [Selectors & Locators](llms/selectors-and-locators.md): Comprehensive guide to CSS, accessibility ID, native ID, XPath, and Android Resource ID locators.
+- [Shared Steps Architecture](llms/shared-steps-architecture.md): Encapsulate reusable, multi-statement business workflows under Step.* with YAML metadata.
+- [Fixtures & Test Data](llms/fixtures-and-data.md): Auto-typed JSON and YAML data fixtures accessible via global Fixture.* namespace.
+- [Multi-Host & Dev Servers](llms/environment-and-multi-host.md): Typed environment variables (Spectra.env), microfrontend host routing, and dev server orchestration.
+- [Fast Session & Auth Seeding](llms/session-and-auth-seeding.md): Skip repetitive UI logins with an explicit Spectra.seedSession() support action (host-side API login, no login form touched).
+
+## Execution & Performance
+
+- [Parallel Batch Execution](llms/parallel-test-execution.md): Suites run in parallel automatically with safe worker sizing — control it with --concurrency or maxConcurrentSessions.
+- [Network Interception & Mocking](llms/network-interception.md): Mock APIs and simulate failures or slow networks on Web and Mobile — no backend changes needed.
+- [React Component Testing](llms/react-component-testing.md): Mount React components with Spectra.mount() and assert with the full Spectra DSL, running on the same Spectra runner engine as E2E.
+
+## Mobile & Devices
+
+- [Zero-APK Android Automation](llms/zero-apk-android.md): Drive Android apps with nothing installed on the device — only Bun and ADB needed on your machine.
+
+## CLI & Tooling
+
+- [CLI Commands Reference](llms/cli-commands.md): Complete reference for spectra run, lint, test, doctor, refactor, upgrade, devices, and sync-types.
+- [Configuration (`spectra.config.ts`)](llms/configuration-reference.md): Full configuration schema reference for webConfig, androidConfig, iosConfig, and executionConfig.
+
+## VS Code Extension
+
+- [VS Code Extension & Inspector](llms/vscode-extension.md): Integrated Test Controller, inline CodeLens, Preflight Doctor panel, and live Mobile Inspector.
+
+## Cloud TestOps
+
+- [Cloud TestOps & Dashboard](llms/cloud-testops.md): Collect CI runs in one dashboard — failure video replays, quality tracking, and Gitea/GitHub sign-in.
